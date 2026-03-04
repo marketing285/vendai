@@ -142,7 +142,7 @@ export default function VoiceController() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { setStatusText("Use o Google Chrome"); return; }
 
-    const r: SpeechRecognition = new SR();
+    const r: any = new SR();
     r.lang = "pt-BR";
     r.continuous = true;
     r.interimResults = true;
