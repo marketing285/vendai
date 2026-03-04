@@ -2,6 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Build frontend (Next.js → static export)
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm ci
+
+COPY frontend ./frontend
+RUN cd frontend && npm run build
+
+# Build backend (Express/TypeScript)
 COPY package*.json ./
 RUN npm ci
 

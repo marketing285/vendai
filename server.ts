@@ -11,7 +11,7 @@ const ROOT = path.join(__dirname, "..");
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
-app.use(express.static(path.join(ROOT, "src/web")));
+app.use(express.static(path.join(ROOT, "frontend/out")));
 
 // Rotas dos agentes
 app.use("/api/controller", controllerRouter);
@@ -19,7 +19,7 @@ app.use("/webhook", csRouter);
 
 // Interface web
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(ROOT, "src/web/index.html"));
+  res.sendFile(path.join(ROOT, "frontend/out/index.html"));
 });
 
 app.listen(PORT, () => {

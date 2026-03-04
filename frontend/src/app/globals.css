@@ -1,0 +1,111 @@
+*  { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #080810;
+  --accent:  #6c63ff;
+  --accent2: #a78bfa;
+  --text:    #e8e8f0;
+  --muted:   #4a4a6a;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(108,99,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.logo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+
+.orb-wrap {
+  width: 260px;
+  height: 260px;
+}
+
+.status {
+  margin-top: 40px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: color 0.3s;
+  min-height: 18px;
+}
+.status--listening { color: var(--accent2); }
+.status--thinking  { color: var(--accent);  }
+.status--speaking  { color: var(--accent2); }
+
+.transcript {
+  margin-top: 14px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.3);
+  max-width: 400px;
+  text-align: center;
+  font-style: italic;
+  min-height: 20px;
+  padding: 0 24px;
+}
+
+.fallback {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 540px;
+  width: 90%;
+  background: rgba(18,18,30,0.95);
+  border: 1px solid rgba(108,99,255,0.25);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
+}
+
+.hint {
+  position: fixed;
+  bottom: 20px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  opacity: 0.4;
+}
+
+.mute-btn {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 6px 12px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.2s;
+}
+.mute-btn:hover { border-color: var(--accent); color: var(--accent2); }
+.mute-btn.muted  { border-color: #ef4444; color: #f87171; }
