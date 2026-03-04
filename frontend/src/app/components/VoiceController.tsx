@@ -23,7 +23,7 @@ export default function VoiceController() {
   const [fallback,    setFallback]    = useState("");
   const [muted,       setMuted]       = useState(false);
 
-  const recogRef        = useRef<SpeechRecognition | null>(null);
+  const recogRef        = useRef<any>(null);
   const wakeRef         = useRef(false);
   const bufferRef       = useRef("");
   const silenceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
