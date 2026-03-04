@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { OrbState } from "./Orb";
+import Eyes from "./Eyes";
 
 const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
@@ -31,15 +32,17 @@ export default function VoiceController() {
   const [fallback,    setFallback]    = useState("");
   const [muted,       setMuted]       = useState(false);
 
+  const orbWrapRef      = useRef<HTMLDivElement>(null);
   const recogRef        = useRef<any>(null);
   const wakeRef         = useRef(false);
   const bufferRef       = useRef("");
   const silenceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
-  const audioSrcRef     = useRef<AudioBufferSourceNode | null>(null);
-  const mutedRef        = useRef(false);
-  const orbStateRef     = useRef<OrbState>("idle");
+  const audioSrcRef        = useRef<AudioBufferSourceNode | null>(null);
+  const speakingStartedRef = useRef<number>(0);
+  const mutedRef           = useRef(false);
+  const orbStateRef        = useRef<OrbState>("idle");
 
   mutedRef.current = muted;
 
@@ -85,6 +88,7 @@ export default function VoiceController() {
           src.buffer     = buf;
           src.connect(audioCtx.destination);
           audioSrcRef.current = src;
+          speakingStartedRef.current = Date.now();
           src.start(0);
           src.onended = () => {
             audioSrcRef.current = null;
@@ -166,8 +170,11 @@ export default function VoiceController() {
       if (mutedRef.current) return;
       if (orbStateRef.current === "thinking") return;
 
-      // Barge-in: se o usuário falar enquanto MAX está falando, interrompe o áudio
+      // Barge-in: se o usuário falar enquanto MAX está falando, interrompe o áudio.
+      // Aguarda 1200ms antes de aceitar barge-in para não capturar a própria voz do MAX.
       if (orbStateRef.current === "speaking") {
+        const speakingAge = Date.now() - speakingStartedRef.current;
+        if (speakingAge < 1200) return;
         const all = (
           Array.from({ length: event.results.length - event.resultIndex }, (_, i) =>
             event.results[event.resultIndex + i][0].transcript
@@ -175,7 +182,6 @@ export default function VoiceController() {
         ).toLowerCase().trim();
         if (all.length > 2 && audioSrcRef.current) {
           try { audioSrcRef.current.stop(); } catch (_) {}
-          // onended dispara automaticamente → muda para "listening"
         }
         return;
       }
@@ -249,6 +255,7 @@ export default function VoiceController() {
       <div className="logo">Monitor Ativo de Operações</div>
 
       <div
+        ref={orbWrapRef}
         className="orb-wrap"
         onClick={manualActivate}
         style={{ cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -260,6 +267,7 @@ export default function VoiceController() {
           rotateOnHover={true}
           backgroundColor="#080810"
         />
+        <Eyes state={orbState} orbRef={orbWrapRef} />
       </div>
 
       <div className={`status status--${orbState}`}>{statusText}</div>
