@@ -1,10 +1,13 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
-const client = new ElevenLabsClient({
-  apiKey: process.env.ELEVENLABS_API_KEY,
-});
+let _client: ElevenLabsClient | null = null;
 
-const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
+function getClient(): ElevenLabsClient | null {
+  if (!process.env.ELEVENLABS_API_KEY) return null;
+  if (!_client) _client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+  return _client;
+}
+
 const MODEL_ID = "eleven_turbo_v2_5";
 
 // Limpa o texto antes de enviar ao ElevenLabs:
@@ -51,7 +54,10 @@ export function cleanTextForSpeech(text: string): string {
 }
 
 export async function textToSpeech(rawText: string): Promise<string | null> {
-  if (!process.env.ELEVENLABS_API_KEY) return null;
+  const client = getClient();
+  if (!client) return null;
+
+  const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
 
   try {
     const cleaned = cleanTextForSpeech(rawText);
