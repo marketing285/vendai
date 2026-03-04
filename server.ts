@@ -7,10 +7,11 @@ import { csRouter } from "./src/agents/cs/index";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ROOT = path.join(__dirname, "..");
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
-app.use(express.static(path.join(__dirname, "src/web")));
+app.use(express.static(path.join(ROOT, "src/web")));
 
 // Rotas dos agentes
 app.use("/api/controller", controllerRouter);
@@ -18,7 +19,7 @@ app.use("/webhook", csRouter);
 
 // Interface web
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "src/web/index.html"));
+  res.sendFile(path.join(ROOT, "src/web/index.html"));
 });
 
 app.listen(PORT, () => {
