@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Renderer, Program, Mesh, Sphere } from "ogl";
+import { Renderer, Camera, Program, Mesh, Sphere } from "ogl";
 
 export type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -120,9 +120,14 @@ export default function Orb({ state, size = 260 }: OrbProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const renderer = new Renderer({ canvas, width: size, height: size, alpha: true, antialias: true, dpr: Math.min(window.devicePixelRatio, 2) });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const renderer = new Renderer({ canvas, width: size, height: size, alpha: true, antialias: true, dpr });
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
+
+    const camera = new Camera(gl, { fov: 35, aspect: 1, near: 0.1, far: 100 });
+    camera.position.set(0, 0, 3);
+    camera.lookAt([0, 0, 0]);
 
     const geometry = new Sphere(gl, { radius: 1, widthSegments: 64, heightSegments: 64 });
     const program = new Program(gl, {
@@ -138,7 +143,6 @@ export default function Orb({ state, size = 260 }: OrbProps) {
     });
 
     const mesh = new Mesh(gl, { geometry, program });
-    mesh.scale.set(0.78, 0.78, 0.78);
 
     let curAmp = STATE_MAP.idle.amp;
     let curCS  = [...STATE_MAP.idle.cs];
@@ -167,7 +171,7 @@ export default function Orb({ state, size = 260 }: OrbProps) {
       mesh.rotation.y += dt * 0.12;
       mesh.rotation.x  = Math.sin(program.uniforms.uTime.value * 0.3) * 0.12;
 
-      renderer.render({ scene: mesh });
+      renderer.render({ scene: mesh, camera });
     }
 
     rafId = requestAnimationFrame(render);
@@ -177,8 +181,8 @@ export default function Orb({ state, size = 260 }: OrbProps) {
   return (
     <canvas
       ref={canvasRef}
-      width={size}
-      height={size}
+      width={size * (typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1)}
+      height={size * (typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1)}
       style={{ width: size, height: size }}
     />
   );
