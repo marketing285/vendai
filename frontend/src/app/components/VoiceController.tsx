@@ -38,7 +38,7 @@ export default function VoiceController() {
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
   const audioSrcRef        = useRef<AudioBufferSourceNode | null>(null);
-  const speakingStartedRef = useRef<number>(0);
+  const suppressRestartRef = useRef(false);
   const mutedRef           = useRef(false);
   const orbStateRef        = useRef<OrbState>("idle");
 
@@ -86,10 +86,15 @@ export default function VoiceController() {
           src.buffer     = buf;
           src.connect(audioCtx.destination);
           audioSrcRef.current = src;
-          speakingStartedRef.current = Date.now();
+          // Para o reconhecimento enquanto MAX fala para não capturar a própria voz
+          suppressRestartRef.current = true;
+          try { recogRef.current?.stop(); } catch (_) {}
           src.start(0);
           src.onended = () => {
             audioSrcRef.current = null;
+            // Reinicia o reconhecimento após o áudio terminar
+            suppressRestartRef.current = false;
+            try { recogRef.current?.start(); } catch (_) {}
             wakeRef.current   = true;
             bufferRef.current = "";
             applyState("listening");
@@ -168,21 +173,7 @@ export default function VoiceController() {
       if (mutedRef.current) return;
       if (orbStateRef.current === "thinking") return;
 
-      // Barge-in: se o usuário falar enquanto MAX está falando, interrompe o áudio.
-      // Aguarda 1200ms antes de aceitar barge-in para não capturar a própria voz do MAX.
-      if (orbStateRef.current === "speaking") {
-        const speakingAge = Date.now() - speakingStartedRef.current;
-        if (speakingAge < 1200) return;
-        const all = (
-          Array.from({ length: event.results.length - event.resultIndex }, (_, i) =>
-            event.results[event.resultIndex + i][0].transcript
-          ).join(" ")
-        ).toLowerCase().trim();
-        if (all.length > 2 && audioSrcRef.current) {
-          try { audioSrcRef.current.stop(); } catch (_) {}
-        }
-        return;
-      }
+      if (orbStateRef.current === "speaking") return;
 
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -214,7 +205,7 @@ export default function VoiceController() {
     };
 
     r.onerror = (e: any) => { if (e.error !== "no-speech" && e.error !== "aborted") console.warn("[recog]", e.error); };
-    r.onend   = () => { if (!mutedRef.current) try { r.start(); } catch (_) {} };
+    r.onend   = () => { if (!mutedRef.current && !suppressRestartRef.current) try { r.start(); } catch (_) {} };
     try { r.start(); } catch (_) {}
 
     return () => { try { r.stop(); } catch (_) {} };
