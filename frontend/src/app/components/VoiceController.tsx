@@ -148,7 +148,7 @@ export default function VoiceController() {
       if (wakeRef.current && bufferRef.current.trim().length > 2 && orbStateRef.current === "listening") {
         sendToMAX(bufferRef.current.trim());
       }
-    }, 1800);
+    }, 900);
   }, [sendToMAX]);
 
   useEffect(() => {

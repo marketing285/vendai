@@ -8,7 +8,7 @@ function getClient(): ElevenLabsClient | null {
   return _client;
 }
 
-const MODEL_ID = "eleven_turbo_v2_5";
+const MODEL_ID = "eleven_flash_v2_5";
 
 // Limpa o texto antes de enviar ao ElevenLabs:
 // remove markdown, pontuação excessiva e expande abreviações
