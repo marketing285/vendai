@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { OrbState } from "./Orb";
-import Eyes from "./Eyes";
 
 const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
@@ -32,7 +31,6 @@ export default function VoiceController() {
   const [fallback,    setFallback]    = useState("");
   const [muted,       setMuted]       = useState(false);
 
-  const orbWrapRef      = useRef<HTMLDivElement>(null);
   const recogRef        = useRef<any>(null);
   const wakeRef         = useRef(false);
   const bufferRef       = useRef("");
@@ -255,7 +253,6 @@ export default function VoiceController() {
       <div className="logo">Monitor Ativo de Operações</div>
 
       <div
-        ref={orbWrapRef}
         className="orb-wrap"
         onClick={manualActivate}
         style={{ cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -267,7 +264,6 @@ export default function VoiceController() {
           rotateOnHover={true}
           backgroundColor="#080810"
         />
-        <Eyes state={orbState} orbRef={orbWrapRef} />
       </div>
 
       <div className={`status status--${orbState}`}>{statusText}</div>
