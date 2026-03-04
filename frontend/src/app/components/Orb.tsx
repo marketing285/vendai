@@ -1,174 +1,374 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Mesh, Program, Renderer, Triangle, Vec3 } from 'ogl';
+import { useEffect, useRef } from 'react';
+import './Orb.css';
 
 export type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
-// ─── CSS fallback (quando WebGL não disponível) ───────────────────────────────
-function OrbFallback({ state, size }: { state: OrbState; size: number }) {
-  const colors: Record<OrbState, string> = {
-    idle:      "rgba(108,99,255,0.4)",
-    listening: "rgba(108,99,255,0.7)",
-    thinking:  "rgba(167,139,250,0.7)",
-    speaking:  "rgba(167,139,250,0.9)",
-  };
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: `radial-gradient(circle at 35% 35%, #8b85ff, #4a44cc 60%, #1a1840)`,
-      boxShadow: `0 0 60px ${colors[state]}, 0 0 120px ${colors[state]}`,
-      transition: "box-shadow 0.4s",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 42, fontWeight: 800, color: "rgba(255,255,255,0.9)",
-    }}>M</div>
-  );
+interface OrbProps {
+  hue?: number;
+  hoverIntensity?: number;
+  rotateOnHover?: boolean;
+  forceHoverState?: boolean;
+  backgroundColor?: string;
 }
 
-// ─── Shaders ──────────────────────────────────────────────────────────────────
-const vertex = /* glsl */ `
-precision highp float;
-attribute vec3 position;
-attribute vec3 normal;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform float uTime;
-uniform float uAmplitude;
-varying vec3 vNormal;
-varying vec3 vPos;
+export default function Orb({
+  hue = 0,
+  hoverIntensity = 0.2,
+  rotateOnHover = true,
+  forceHoverState = false,
+  backgroundColor = '#080810'
+}: OrbProps) {
+  const ctnDom = useRef<HTMLDivElement>(null);
+  const propsRef = useRef({ hue, hoverIntensity, forceHoverState, rotateOnHover, backgroundColor });
 
-vec3 mod289v3(vec3 x){return x-floor(x*(1./289.))*289.;}
-vec4 mod289v4(vec4 x){return x-floor(x*(1./289.))*289.;}
-vec4 permute(vec4 x){return mod289v4(((x*34.)+1.)*x);}
-vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
-float snoise(vec3 v){
-  const vec2 C=vec2(1./6.,1./3.);const vec4 D=vec4(0.,.5,1.,2.);
-  vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
-  vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.-g;
-  vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
-  vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
-  i=mod289v3(i);
-  vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
-  float n_=.142857142857;vec3 ns=n_*D.wyz-D.xzx;
-  vec4 j=p-49.*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.*x_);
-  vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.-abs(x)-abs(y);
-  vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
-  vec4 s0=floor(b0)*2.+1.;vec4 s1=floor(b1)*2.+1.;vec4 sh=-step(h,vec4(0.));
-  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-  vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
-  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-  p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
-  vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);
-  m=m*m;return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
-}
-void main(){
-  vNormal=normalize(normal);vPos=position;
-  float n=snoise(position*1.8+uTime*0.45);
-  vec3 d=position+normal*n*uAmplitude;
-  gl_Position=projectionMatrix*modelViewMatrix*vec4(d,1.0);
-}`;
-
-const fragment = /* glsl */ `
-precision highp float;
-uniform vec3 uColorStart;
-uniform vec3 uColorEnd;
-varying vec3 vNormal;
-varying vec3 vPos;
-void main(){
-  vec3 n=normalize(vNormal);
-  float fresnel=pow(1.0-abs(dot(n,vec3(0.,0.,1.))),2.2);
-  vec3 color=mix(uColorStart,uColorEnd,fresnel+vPos.y*0.35);
-  color+=uColorEnd*fresnel*0.4;
-  gl_FragColor=vec4(color,0.9+fresnel*0.1);
-}`;
-
-type StateConfig = { cs: [number,number,number]; ce: [number,number,number]; amp: number; speed: number };
-const STATE_MAP: Record<OrbState, StateConfig> = {
-  idle:      { cs:[0.08,0.07,0.35], ce:[0.42,0.39,1.00], amp:0.045, speed:0.45 },
-  listening: { cs:[0.18,0.15,0.80], ce:[0.67,0.55,1.00], amp:0.16,  speed:0.90 },
-  thinking:  { cs:[0.30,0.20,0.90], ce:[0.85,0.65,1.00], amp:0.10,  speed:1.40 },
-  speaking:  { cs:[0.45,0.20,1.00], ce:[0.90,0.50,1.00], amp:0.22,  speed:1.10 },
-};
-function lerp(a:number,b:number,t:number){return a+(b-a)*t;}
-function lerpArr(a:number[],b:number[],t:number){return a.map((v,i)=>lerp(v,b[i],t));}
-
-interface OrbProps { state: OrbState; size?: number; }
-
-export default function Orb({ state, size = 260 }: OrbProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef  = useRef<OrbState>(state);
-  const [webglOk, setWebglOk] = useState(true);
-
-  useEffect(() => { stateRef.current = state; }, [state]);
-
+  // Keep props ref in sync without recreating WebGL context
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    propsRef.current = { hue, hoverIntensity, forceHoverState, rotateOnHover, backgroundColor };
+  }, [hue, hoverIntensity, forceHoverState, rotateOnHover, backgroundColor]);
 
-    let rafId = 0;
+  const vert = /* glsl */ `
+    precision highp float;
+    attribute vec2 position;
+    attribute vec2 uv;
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position, 0.0, 1.0);
+    }
+  `;
 
-    async function init() {
-      try {
-        const { Renderer, Camera, Program, Mesh, Sphere } = await import("ogl");
+  const frag = /* glsl */ `
+    precision highp float;
 
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const renderer = new Renderer({ canvas: canvas!, width: size, height: size, alpha: true, antialias: true, dpr });
-        const gl = renderer.gl;
-        gl.clearColor(0, 0, 0, 0);
+    uniform float iTime;
+    uniform vec3 iResolution;
+    uniform float hue;
+    uniform float hover;
+    uniform float rot;
+    uniform float hoverIntensity;
+    uniform vec3 backgroundColor;
+    varying vec2 vUv;
 
-        const camera = new Camera(gl, { fov: 35, aspect: 1, near: 0.1, far: 100 });
-        camera.position.set(0, 0, 3);
-        camera.lookAt([0, 0, 0]);
-
-        const geometry = new Sphere(gl, { radius: 1, widthSegments: 64, heightSegments: 64 });
-        const program = new Program(gl, {
-          vertex, fragment,
-          uniforms: {
-            uTime:       { value: 0 },
-            uAmplitude:  { value: STATE_MAP.idle.amp },
-            uColorStart: { value: [...STATE_MAP.idle.cs] },
-            uColorEnd:   { value: [...STATE_MAP.idle.ce] },
-          },
-          transparent: true,
-        });
-
-        const mesh = new Mesh(gl, { geometry, program });
-
-        let curAmp = STATE_MAP.idle.amp;
-        let curCS  = [...STATE_MAP.idle.cs];
-        let curCE  = [...STATE_MAP.idle.ce];
-        let speed  = STATE_MAP.idle.speed;
-        let last   = 0;
-
-        function render(t: number) {
-          rafId = requestAnimationFrame(render);
-          const dt  = Math.min((t - last) / 1000, 0.05);
-          last = t;
-          const s    = STATE_MAP[stateRef.current];
-          const LERP = 1 - Math.pow(0.01, dt * 3);
-          speed  = lerp(speed,  s.speed, LERP);
-          curAmp = lerp(curAmp, s.amp,   LERP);
-          curCS  = lerpArr(curCS, s.cs,  LERP);
-          curCE  = lerpArr(curCE, s.ce,  LERP);
-          program.uniforms.uTime.value      += dt * speed;
-          program.uniforms.uAmplitude.value  = curAmp;
-          program.uniforms.uColorStart.value = curCS;
-          program.uniforms.uColorEnd.value   = curCE;
-          mesh.rotation.y += dt * 0.12;
-          mesh.rotation.x  = Math.sin(program.uniforms.uTime.value * 0.3) * 0.12;
-          renderer.render({ scene: mesh, camera });
-        }
-        rafId = requestAnimationFrame(render);
-      } catch (err) {
-        console.error("[Orb] WebGL init failed:", err);
-        setWebglOk(false);
-      }
+    vec3 rgb2yiq(vec3 c) {
+      float y = dot(c, vec3(0.299, 0.587, 0.114));
+      float i = dot(c, vec3(0.596, -0.274, -0.322));
+      float q = dot(c, vec3(0.211, -0.523, 0.312));
+      return vec3(y, i, q);
     }
 
-    init();
-    return () => cancelAnimationFrame(rafId);
-  }, [size]);
+    vec3 yiq2rgb(vec3 c) {
+      float r = c.x + 0.956 * c.y + 0.621 * c.z;
+      float g = c.x - 0.272 * c.y - 0.647 * c.z;
+      float b = c.x - 1.106 * c.y + 1.703 * c.z;
+      return vec3(r, g, b);
+    }
 
-  if (!webglOk) return <OrbFallback state={state} size={size} />;
+    vec3 adjustHue(vec3 color, float hueDeg) {
+      float hueRad = hueDeg * 3.14159265 / 180.0;
+      vec3 yiq = rgb2yiq(color);
+      float cosA = cos(hueRad);
+      float sinA = sin(hueRad);
+      float i = yiq.y * cosA - yiq.z * sinA;
+      float q = yiq.y * sinA + yiq.z * cosA;
+      yiq.y = i;
+      yiq.z = q;
+      return yiq2rgb(yiq);
+    }
 
-  return <canvas ref={canvasRef} width={size} height={size} style={{ width: size, height: size }} />;
+    vec3 hash33(vec3 p3) {
+      p3 = fract(p3 * vec3(0.1031, 0.11369, 0.13787));
+      p3 += dot(p3, p3.yxz + 19.19);
+      return -1.0 + 2.0 * fract(vec3(
+        p3.x + p3.y,
+        p3.x + p3.z,
+        p3.y + p3.z
+      ) * p3.zyx);
+    }
+
+    float snoise3(vec3 p) {
+      const float K1 = 0.333333333;
+      const float K2 = 0.166666667;
+      vec3 i = floor(p + (p.x + p.y + p.z) * K1);
+      vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
+      vec3 e = step(vec3(0.0), d0 - d0.yzx);
+      vec3 i1 = e * (1.0 - e.zxy);
+      vec3 i2 = 1.0 - e.zxy * (1.0 - e);
+      vec3 d1 = d0 - (i1 - K2);
+      vec3 d2 = d0 - (i2 - K1);
+      vec3 d3 = d0 - 0.5;
+      vec4 h = max(0.6 - vec4(
+        dot(d0, d0),
+        dot(d1, d1),
+        dot(d2, d2),
+        dot(d3, d3)
+      ), 0.0);
+      vec4 n = h * h * h * h * vec4(
+        dot(d0, hash33(i)),
+        dot(d1, hash33(i + i1)),
+        dot(d2, hash33(i + i2)),
+        dot(d3, hash33(i + 1.0))
+      );
+      return dot(vec4(31.316), n);
+    }
+
+    vec4 extractAlpha(vec3 colorIn) {
+      float a = max(max(colorIn.r, colorIn.g), colorIn.b);
+      return vec4(colorIn.rgb / (a + 1e-5), a);
+    }
+
+    const vec3 baseColor1 = vec3(0.611765, 0.262745, 0.996078);
+    const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
+    const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
+    const float innerRadius = 0.6;
+    const float noiseScale = 0.65;
+
+    float light1(float intensity, float attenuation, float dist) {
+      return intensity / (1.0 + dist * attenuation);
+    }
+    float light2(float intensity, float attenuation, float dist) {
+      return intensity / (1.0 + dist * dist * attenuation);
+    }
+
+    vec4 draw(vec2 uv) {
+      vec3 color1 = adjustHue(baseColor1, hue);
+      vec3 color2 = adjustHue(baseColor2, hue);
+      vec3 color3 = adjustHue(baseColor3, hue);
+
+      float ang = atan(uv.y, uv.x);
+      float len = length(uv);
+      float invLen = len > 0.0 ? 1.0 / len : 0.0;
+
+      float bgLuminance = dot(backgroundColor, vec3(0.299, 0.587, 0.114));
+
+      float n0 = snoise3(vec3(uv * noiseScale, iTime * 0.5)) * 0.5 + 0.5;
+      float r0 = mix(mix(innerRadius, 1.0, 0.4), mix(innerRadius, 1.0, 0.6), n0);
+      float d0 = distance(uv, (r0 * invLen) * uv);
+      float v0 = light1(1.0, 10.0, d0);
+
+      v0 *= smoothstep(r0 * 1.05, r0, len);
+      float innerFade = smoothstep(r0 * 0.8, r0 * 0.95, len);
+      v0 *= mix(innerFade, 1.0, bgLuminance * 0.7);
+      float cl = cos(ang + iTime * 2.0) * 0.5 + 0.5;
+
+      float a = iTime * -1.0;
+      vec2 pos = vec2(cos(a), sin(a)) * r0;
+      float d = distance(uv, pos);
+      float v1 = light2(1.5, 5.0, d);
+      v1 *= light1(1.0, 50.0, d0);
+
+      float v2 = smoothstep(1.0, mix(innerRadius, 1.0, n0 * 0.5), len);
+      float v3 = smoothstep(innerRadius, mix(innerRadius, 1.0, 0.5), len);
+
+      vec3 colBase = mix(color1, color2, cl);
+      float fadeAmount = mix(1.0, 0.1, bgLuminance);
+
+      vec3 darkCol = mix(color3, colBase, v0);
+      darkCol = (darkCol + v1) * v2 * v3;
+      darkCol = clamp(darkCol, 0.0, 1.0);
+
+      vec3 lightCol = (colBase + v1) * mix(1.0, v2 * v3, fadeAmount);
+      lightCol = mix(backgroundColor, lightCol, v0);
+      lightCol = clamp(lightCol, 0.0, 1.0);
+
+      vec3 finalCol = mix(darkCol, lightCol, bgLuminance);
+
+      return extractAlpha(finalCol);
+    }
+
+    vec4 mainImage(vec2 fragCoord) {
+      vec2 center = iResolution.xy * 0.5;
+      float size = min(iResolution.x, iResolution.y);
+      vec2 uv = (fragCoord - center) / size * 2.0;
+
+      float angle = rot;
+      float s = sin(angle);
+      float c = cos(angle);
+      uv = vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
+
+      uv.x += hover * hoverIntensity * 0.1 * sin(uv.y * 10.0 + iTime);
+      uv.y += hover * hoverIntensity * 0.1 * sin(uv.x * 10.0 + iTime);
+
+      return draw(uv);
+    }
+
+    void main() {
+      vec2 fragCoord = vUv * iResolution.xy;
+      vec4 col = mainImage(fragCoord);
+      gl_FragColor = vec4(col.rgb * col.a, col.a);
+    }
+  `;
+
+  useEffect(() => {
+    const container = ctnDom.current;
+    if (!container) return;
+
+    const dpr = 1;
+
+    const renderer = new Renderer({
+      alpha: true,
+      premultipliedAlpha: false,
+      dpr,
+    });
+    const gl = renderer.gl;
+    gl.clearColor(0, 0, 0, 0);
+    container.appendChild(gl.canvas);
+
+    const geometry = new Triangle(gl);
+    const program = new Program(gl, {
+      vertex: vert,
+      fragment: frag,
+      uniforms: {
+        iTime: { value: 0 },
+        iResolution: {
+          value: new Vec3(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height),
+        },
+        hue: { value: propsRef.current.hue },
+        hover: { value: 0 },
+        rot: { value: 0 },
+        hoverIntensity: { value: propsRef.current.hoverIntensity },
+        backgroundColor: { value: hexToVec3(propsRef.current.backgroundColor) },
+      },
+    });
+
+    const mesh = new Mesh(gl, { geometry, program });
+
+    function resize() {
+      if (!container) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      renderer.setSize(width * dpr, height * dpr);
+      (gl.canvas as HTMLCanvasElement).style.width = width + 'px';
+      (gl.canvas as HTMLCanvasElement).style.height = height + 'px';
+      (program.uniforms.iResolution.value as Vec3).set(
+        gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height
+      );
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let targetHover = 0;
+    let lastTime = 0;
+    let currentRot = 0;
+    const rotationSpeed = 0.3;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const width = rect.width;
+      const height = rect.height;
+      const size = Math.min(width, height);
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const uvX = ((x - centerX) / size) * 2.0;
+      const uvY = ((y - centerY) / size) * 2.0;
+      targetHover = Math.sqrt(uvX * uvX + uvY * uvY) < 0.8 ? 1 : 0;
+    };
+
+    const handleMouseLeave = () => { targetHover = 0; };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    let isVisible = !document.hidden;
+    const handleVisibilityChange = () => {
+      isVisible = !document.hidden;
+      if (isVisible) {
+        lastTime = performance.now();
+        rafId = requestAnimationFrame(update);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    let rafId: number;
+    const update = (t: number) => {
+      if (!isVisible) return;
+      rafId = requestAnimationFrame(update);
+      const dt = (t - lastTime) * 0.001;
+      lastTime = t;
+
+      const p = propsRef.current;
+      program.uniforms.iTime.value = t * 0.001;
+      program.uniforms.hue.value = p.hue;
+      program.uniforms.hoverIntensity.value = p.hoverIntensity;
+      program.uniforms.backgroundColor.value = hexToVec3(p.backgroundColor);
+
+      const effectiveHover = p.forceHoverState ? 1 : targetHover;
+      program.uniforms.hover.value += (effectiveHover - program.uniforms.hover.value) * 0.1;
+
+      if (p.rotateOnHover && effectiveHover > 0.5) {
+        currentRot += dt * rotationSpeed;
+      }
+      program.uniforms.rot.value = currentRot;
+
+      renderer.render({ scene: mesh });
+    };
+    rafId = requestAnimationFrame(update);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      if (container.contains(gl.canvas)) {
+        container.removeChild(gl.canvas);
+      }
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div ref={ctnDom} className="orb-container" />;
+}
+
+function hslToRgb(h: number, s: number, l: number): Vec3 {
+  let r: number, g: number, b: number;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return new Vec3(r, g, b);
+}
+
+function hexToVec3(color: string): Vec3 {
+  if (color.startsWith('#')) {
+    const r = parseInt(color.slice(1, 3), 16) / 255;
+    const g = parseInt(color.slice(3, 5), 16) / 255;
+    const b = parseInt(color.slice(5, 7), 16) / 255;
+    return new Vec3(r, g, b);
+  }
+  const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (rgbMatch) {
+    return new Vec3(
+      parseInt(rgbMatch[1]) / 255,
+      parseInt(rgbMatch[2]) / 255,
+      parseInt(rgbMatch[3]) / 255
+    );
+  }
+  const hslMatch = color.match(/hsla?\((\d+),\s*(\d+)%,\s*(\d+)%/);
+  if (hslMatch) {
+    return hslToRgb(
+      parseInt(hslMatch[1]) / 360,
+      parseInt(hslMatch[2]) / 100,
+      parseInt(hslMatch[3]) / 100
+    );
+  }
+  return new Vec3(0, 0, 0);
 }

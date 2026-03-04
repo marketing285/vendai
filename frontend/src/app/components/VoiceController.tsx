@@ -16,6 +16,14 @@ const STOP_PHRASES = [
 
 const SESSION_ID = "max_" + Math.random().toString(36).slice(2);
 
+// Map voice state → Orb props
+const ORB_PROPS: Record<OrbState, { hue: number; forceHoverState: boolean }> = {
+  idle:      { hue: 0,   forceHoverState: false },
+  listening: { hue: 0,   forceHoverState: true  },
+  thinking:  { hue: 120, forceHoverState: true  },
+  speaking:  { hue: 240, forceHoverState: true  },
+};
+
 export default function VoiceController() {
   const [orbState,    setOrbState]    = useState<OrbState>("idle");
   const [statusText,  setStatusText]  = useState("Aguardando...");
@@ -30,7 +38,7 @@ export default function VoiceController() {
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
   const mutedRef        = useRef(false);
-  const orbStateRef     = useRef<OrbState>("idle"); // sempre atualizado, evita closure stale
+  const orbStateRef     = useRef<OrbState>("idle");
 
   mutedRef.current = muted;
 
@@ -151,7 +159,7 @@ export default function VoiceController() {
     r.maxAlternatives = 1;
     recogRef.current = r;
 
-    r.onresult = (event) => {
+    r.onresult = (event: any) => {
       if (mutedRef.current) return;
       if (orbStateRef.current === "thinking" || orbStateRef.current === "speaking") return;
 
@@ -184,7 +192,7 @@ export default function VoiceController() {
       }
     };
 
-    r.onerror = (e) => { if (e.error !== "no-speech" && e.error !== "aborted") console.warn("[recog]", e.error); };
+    r.onerror = (e: any) => { if (e.error !== "no-speech" && e.error !== "aborted") console.warn("[recog]", e.error); };
     r.onend   = () => { if (!mutedRef.current) try { r.start(); } catch (_) {} };
     try { r.start(); } catch (_) {}
 
@@ -217,6 +225,8 @@ export default function VoiceController() {
     }
   }
 
+  const orbProps = ORB_PROPS[orbState];
+
   return (
     <>
       <div className="logo">Monitor Ativo de Operações</div>
@@ -226,7 +236,13 @@ export default function VoiceController() {
         onClick={manualActivate}
         style={{ cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
       >
-        <Orb state={orbState} size={260} />
+        <Orb
+          hue={orbProps.hue}
+          forceHoverState={orbProps.forceHoverState}
+          hoverIntensity={0.3}
+          rotateOnHover={true}
+          backgroundColor="#080810"
+        />
       </div>
 
       <div className={`status status--${orbState}`}>{statusText}</div>
