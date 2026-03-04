@@ -37,6 +37,7 @@ export default function VoiceController() {
   const silenceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
+  const audioSrcRef     = useRef<AudioBufferSourceNode | null>(null);
   const mutedRef        = useRef(false);
   const orbStateRef     = useRef<OrbState>("idle");
 
@@ -83,8 +84,10 @@ export default function VoiceController() {
           const src      = audioCtx.createBufferSource();
           src.buffer     = buf;
           src.connect(audioCtx.destination);
+          audioSrcRef.current = src;
           src.start(0);
           src.onended = () => {
+            audioSrcRef.current = null;
             wakeRef.current   = true;
             bufferRef.current = "";
             applyState("listening");
@@ -161,7 +164,21 @@ export default function VoiceController() {
 
     r.onresult = (event: any) => {
       if (mutedRef.current) return;
-      if (orbStateRef.current === "thinking" || orbStateRef.current === "speaking") return;
+      if (orbStateRef.current === "thinking") return;
+
+      // Barge-in: se o usuário falar enquanto MAX está falando, interrompe o áudio
+      if (orbStateRef.current === "speaking") {
+        const all = (
+          Array.from({ length: event.results.length - event.resultIndex }, (_, i) =>
+            event.results[event.resultIndex + i][0].transcript
+          ).join(" ")
+        ).toLowerCase().trim();
+        if (all.length > 2 && audioSrcRef.current) {
+          try { audioSrcRef.current.stop(); } catch (_) {}
+          // onended dispara automaticamente → muda para "listening"
+        }
+        return;
+      }
 
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
