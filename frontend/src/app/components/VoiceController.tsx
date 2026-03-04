@@ -30,6 +30,7 @@ export default function VoiceController() {
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
   const mutedRef        = useRef(false);
+  const orbStateRef     = useRef<OrbState>("idle"); // sempre atualizado, evita closure stale
 
   mutedRef.current = muted;
 
@@ -43,6 +44,7 @@ export default function VoiceController() {
   }
 
   const applyState = useCallback((s: OrbState) => {
+    orbStateRef.current = s;
     setOrbState(s);
     const labels: Record<OrbState, string> = {
       idle: "Aguardando...", listening: "Ouvindo...",
@@ -132,11 +134,11 @@ export default function VoiceController() {
     clearTimeout(silenceRef.current!);
     clearTimeout(stayActiveRef.current!);
     silenceRef.current = setTimeout(() => {
-      if (wakeRef.current && bufferRef.current.trim().length > 2 && orbState === "listening") {
+      if (wakeRef.current && bufferRef.current.trim().length > 2 && orbStateRef.current === "listening") {
         sendToMAX(bufferRef.current.trim());
       }
     }, 1800);
-  }, [orbState, sendToMAX]);
+  }, [sendToMAX]);
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -151,8 +153,7 @@ export default function VoiceController() {
 
     r.onresult = (event) => {
       if (mutedRef.current) return;
-      const state = orbState;
-      if (state === "thinking" || state === "speaking") return;
+      if (orbStateRef.current === "thinking" || orbStateRef.current === "speaking") return;
 
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
