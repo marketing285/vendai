@@ -14,27 +14,26 @@
   background: #fff;
   border-radius: 999px;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   transition:
     height 0.35s cubic-bezier(.22,1,.36,1),
     width  0.35s cubic-bezier(.22,1,.36,1);
 }
 
-/* pálpebra — sobrepõe o pill shape do olho */
+/* pálpebra — recortada pelo pill, desce de cima pra baixo */
 .eye::before {
   content: '';
   position: absolute;
-  top: -80px; left: -60px; right: -60px;
+  top: 0; left: 0; right: 0;
   height: 0;
   background: #0c0c0c;
-  border-radius: 999px 999px 0 0;
   z-index: 2;
 }
 
 @keyframes blink-lid {
   0%   { height: 0; }
-  30%  { height: calc(100% + 80px); }
-  60%  { height: calc(100% + 80px); }
+  30%  { height: 100%; }
+  60%  { height: 100%; }
   100% { height: 0; }
 }
 
