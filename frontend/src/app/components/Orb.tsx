@@ -51,6 +51,7 @@ export default function Orb({
     uniform float hover;
     uniform float rot;
     uniform float hoverIntensity;
+    uniform float audioAmp;
     uniform vec3 backgroundColor;
     varying vec2 vUv;
 
@@ -190,6 +191,9 @@ export default function Orb({
       float c = cos(angle);
       uv = vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
 
+      // Pulso de tamanho sincronizado com amplitude do audio
+      uv /= (1.0 + audioAmp * 0.22);
+
       uv.x += hover * hoverIntensity * 0.1 * sin(uv.y * 10.0 + iTime);
       uv.y += hover * hoverIntensity * 0.1 * sin(uv.x * 10.0 + iTime);
 
@@ -231,6 +235,7 @@ export default function Orb({
         hover: { value: 0 },
         rot: { value: 0 },
         hoverIntensity: { value: propsRef.current.hoverIntensity },
+        audioAmp: { value: 0 },
         backgroundColor: { value: hexToVec3(propsRef.current.backgroundColor) },
       },
     });
@@ -295,9 +300,10 @@ export default function Orb({
       const p = propsRef.current;
       program.uniforms.iTime.value = t * 0.001;
       program.uniforms.hue.value = p.hue;
-      // audioLevelRef é lido direto aqui — sem re-render React
-      const audioBoost = (audioLevelRef?.current ?? 0) * 0.7;
-      program.uniforms.hoverIntensity.value = p.hoverIntensity + audioBoost;
+      // audioLevelRef lido direto — sem re-render React
+      const amp = audioLevelRef?.current ?? 0;
+      program.uniforms.audioAmp.value = amp;
+      program.uniforms.hoverIntensity.value = p.hoverIntensity + amp * 0.4;
       program.uniforms.backgroundColor.value = hexToVec3(p.backgroundColor);
 
       const effectiveHover = p.forceHoverState ? 1 : targetHover;

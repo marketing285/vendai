@@ -88,10 +88,10 @@ export default function VoiceController() {
           const src = audioCtx.createBufferSource();
           src.buffer = buf;
 
-          // Analyser para medir amplitude em tempo real
+          // Analyser para medir amplitude real (domínio do tempo, RMS)
           if (!analyserRef.current) {
             analyserRef.current = audioCtx.createAnalyser();
-            analyserRef.current.fftSize = 256;
+            analyserRef.current.fftSize = 1024;
             analyserRef.current.connect(audioCtx.destination);
           }
           src.connect(analyserRef.current);
@@ -101,12 +101,13 @@ export default function VoiceController() {
           try { recogRef.current?.stop(); } catch (_) {}
           src.start(0);
 
-          // Loop de leitura da amplitude — atualiza audioLevelRef a cada frame
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          // RMS no domínio do tempo — amplitude real, sem viés de frequência
+          const dataArray = new Uint8Array(analyserRef.current.fftSize);
           const readLevel = () => {
-            analyserRef.current!.getByteFrequencyData(dataArray);
-            const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-            audioLevelRef.current = avg / 255;
+            analyserRef.current!.getByteTimeDomainData(dataArray);
+            let sum = 0;
+            for (const v of dataArray) { const n = (v - 128) / 128; sum += n * n; }
+            audioLevelRef.current = Math.min(1, Math.sqrt(sum / dataArray.length) * 6);
             audioRafRef.current = requestAnimationFrame(readLevel);
           };
           audioRafRef.current = requestAnimationFrame(readLevel);
