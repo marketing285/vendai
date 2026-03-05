@@ -21,14 +21,14 @@ export default function Eyes({ state }: EyesProps) {
         await delay(2800 + Math.random() * 4000);
         if (cancelled) break;
         setBlink(true);
-        await delay(120);
+        await delay(300);
         setBlink(false);
         // piscada dupla ocasional
-        if (Math.random() < 0.3) {
-          await delay(200);
+        if (Math.random() < 0.25) {
+          await delay(160);
           if (cancelled) break;
           setBlink(true);
-          await delay(120);
+          await delay(300);
           setBlink(false);
         }
       }

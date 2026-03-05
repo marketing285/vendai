@@ -28,11 +28,20 @@
   top: 0; left: 0; right: 0;
   height: 0;
   background: #0c0c0c;
-  border-radius: 0 0 999px 999px;
+  border-radius: 0 0 60% 60%;
   z-index: 2;
-  transition: height 0.1s ease;
 }
-.eye.blink::before { height: 50%; }
+
+@keyframes blink-lid {
+  0%   { height: 0; }
+  30%  { height: 100%; }
+  60%  { height: 100%; }
+  100% { height: 0; }
+}
+
+.eye.blink::before {
+  animation: blink-lid 0.28s cubic-bezier(.4,0,.2,1) forwards;
+}
 
 /* estados */
 .eye.listening { height: 65px; width: 50px; }
