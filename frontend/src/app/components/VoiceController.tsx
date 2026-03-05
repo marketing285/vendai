@@ -9,7 +9,7 @@ const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
 const WAKE_WORDS   = ["max", "mais", "maps", "mac", "mas", "mal", "mar", "mau", "mah", "maks"];
 const STOP_PHRASES = [
-  "para de ouvir","pode parar","para ouvir","encerrar","encerra",
+  "ok","okay","pode parar","para de ouvir","encerrar","encerra",
   "até logo","tchau","standby","pode descansar","pode dormir",
   "chega por hoje","obrigado max","valeu max","pode fechar",
   "encerrando","isso é tudo",
@@ -199,11 +199,11 @@ export default function VoiceController() {
       if (orbStateRef.current === "thinking") return;
 
       if (orbStateRef.current === "speaking") {
-        // Barge-in: qualquer fala detectada interrompe o MAX
+        // Barge-in: só interrompe se ouvir a wake word "MAX"
         const interim2 = Array.from({ length: event.results.length - event.resultIndex }, (_, k) =>
           event.results[event.resultIndex + k][0].transcript
-        ).join(" ").trim();
-        if (interim2.length > 1) {
+        ).join(" ").toLowerCase().trim();
+        if (WAKE_WORDS.some(w => interim2.includes(w))) {
           if (audioRafRef.current) { cancelAnimationFrame(audioRafRef.current); audioRafRef.current = null; }
           audioLevelRef.current = 0;
           const src = audioSrcRef.current;
