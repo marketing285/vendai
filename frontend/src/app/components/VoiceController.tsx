@@ -9,7 +9,7 @@ const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
 const WAKE_WORDS   = ["max", "mais", "maps", "mac", "mas", "mal", "mar", "mau", "mah", "maks"];
 const STOP_PHRASES = [
-  "ok","okay","pode parar","para de ouvir","encerrar","encerra",
+  "pode parar","para de ouvir","encerrar","encerra",
   "até logo","tchau","standby","pode descansar","pode dormir",
   "chega por hoje","obrigado max","valeu max","pode fechar",
   "encerrando","isso é tudo",
@@ -164,8 +164,11 @@ export default function VoiceController() {
         setTimeout(() => setFallback(""), 14000);
         applyState("idle");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[max]", err);
+      const msg = err?.name === "AbortError" ? "Timeout — sem resposta do servidor" : "Erro ao conectar com o MAX";
+      setFallback(msg);
+      setTimeout(() => setFallback(""), 8000);
       applyState("idle");
     } finally {
       setTranscript("");
