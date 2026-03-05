@@ -32,12 +32,18 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
   const webhookUrl = process.env.N8N_META_ADS_WEBHOOK;
 
   if (!webhookUrl) {
-    return JSON.stringify({ error: "Webhook do Meta Ads não configurado (N8N_META_ADS_WEBHOOK)." });
+    return "Webhook do Meta Ads não configurado.";
+  }
+
+  // Garante que só empresa e mensagem são enviados — nada mais
+  const mensagem = (input.mensagem ?? "").trim();
+  if (!mensagem) {
+    return "Não foi possível identificar a pergunta sobre as campanhas.";
   }
 
   const payload = {
-    empresa: input.empresa ?? "",
-    mensagem: input.mensagem,
+    empresa: (input.empresa ?? "").trim(),
+    mensagem,
   };
 
   try {
