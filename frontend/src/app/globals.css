@@ -34,8 +34,8 @@ body {
 }
 
 .orb-wrap {
-  width: 608px;
-  height: 608px;
+  width: clamp(280px, 65vmin, 548px);
+  height: clamp(280px, 65vmin, 548px);
 }
 
 .status {
