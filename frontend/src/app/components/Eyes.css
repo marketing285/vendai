@@ -6,6 +6,7 @@
   justify-content: center;
   pointer-events: none;
   z-index: 2;
+  scale: 1;
 }
 
 .eye {
@@ -87,3 +88,14 @@
   60%      { transform: scaleY(0.97); }
 }
 .eye.speaking { animation: bounce 0.5s ease-in-out infinite; }
+
+/* responsivo — escala os olhos junto com o orb */
+@media (max-width: 1022px) {
+  .eyes { scale: 0.75; }
+}
+@media (max-width: 600px) {
+  .eyes { scale: 0.55; }
+}
+@media (max-width: 400px) {
+  .eyes { scale: 0.45; }
+}
