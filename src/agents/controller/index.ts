@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { textToSpeech } from "./voice";
+import { metaAdsTool, callMetaAdsWebhook } from "./meta-ads-tool";
 
 export const controllerRouter = Router();
 
@@ -99,6 +100,29 @@ function tryAuthenticate(message: string, session: SessionState): boolean {
   return false;
 }
 
+// Ferramentas disponíveis — só inclui Meta Ads se webhook configurado
+function getTools(): Anthropic.Tool[] {
+  if (process.env.N8N_META_ADS_WEBHOOK) return [metaAdsTool];
+  return [];
+}
+
+// Chamada ao Claude com retry em overload
+async function callClaude(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await anthropic.messages.create(params);
+    } catch (e: any) {
+      const isOverload = e?.status === 529 || e?.message?.includes("overloaded");
+      if (isOverload && attempt < 3) {
+        console.warn(`[controller] API sobrecarregada, tentativa ${attempt}/3...`);
+        await new Promise(r => setTimeout(r, attempt * 1500));
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error("Sem resposta após retries");
+}
 
 controllerRouter.post("/ask", async (req, res) => {
   const { message, sessionId = "default" } = req.body as {
@@ -113,7 +137,6 @@ controllerRouter.post("/ask", async (req, res) => {
 
   const session = getSession(sessionId);
 
-  // Tenta autenticar se ainda não autenticado
   if (!session.ceoAuthenticated) {
     tryAuthenticate(message, session);
   }
@@ -121,36 +144,61 @@ controllerRouter.post("/ask", async (req, res) => {
   try {
     const context = await buildContext();
     const systemPrompt = buildSystemPrompt(context, session.ceoAuthenticated);
+    const tools = getTools();
 
     session.history.push({ role: "user", content: message });
 
-    // Retry até 3x em caso de overload (529)
-    let claudeResponse;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        claudeResponse = await anthropic.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 450,
-          system: systemPrompt,
-          messages: session.history,
-        });
-        break;
-      } catch (e: any) {
-        const isOverload = e?.status === 529 || e?.message?.includes("overloaded");
-        if (isOverload && attempt < 3) {
-          console.warn(`[controller] API sobrecarregada, tentativa ${attempt}/3...`);
-          await new Promise(r => setTimeout(r, attempt * 1500));
-        } else {
-          throw e;
-        }
+    // ── Primeira chamada ao Claude ──
+    let claudeResponse = await callClaude({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 500,
+      system: systemPrompt,
+      messages: session.history,
+      ...(tools.length > 0 && { tools }),
+    });
+
+    // ── Loop de tool_use: Claude pode chamar ferramentas ──
+    while (claudeResponse.stop_reason === "tool_use") {
+      const toolUseBlock = claudeResponse.content.find(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+      );
+      if (!toolUseBlock) break;
+
+      console.log(`[controller] tool_use: ${toolUseBlock.name}`, toolUseBlock.input);
+
+      // Executa a ferramenta
+      let toolResult = "";
+      if (toolUseBlock.name === "query_meta_ads") {
+        toolResult = await callMetaAdsWebhook(toolUseBlock.input as any);
       }
+
+      // Adiciona resposta do assistente + resultado da ferramenta ao histórico temporário
+      const messagesWithTool: Anthropic.MessageParam[] = [
+        ...session.history,
+        { role: "assistant", content: claudeResponse.content },
+        {
+          role: "user",
+          content: [{
+            type: "tool_result" as const,
+            tool_use_id: toolUseBlock.id,
+            content: toolResult,
+          }],
+        },
+      ];
+
+      // Segunda chamada — Claude formula a resposta final com os dados
+      claudeResponse = await callClaude({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 600,
+        system: systemPrompt,
+        messages: messagesWithTool,
+        ...(tools.length > 0 && { tools }),
+      });
     }
 
-    if (!claudeResponse) throw new Error("Sem resposta do Claude após retries");
-
     const text =
-      claudeResponse.content[0].type === "text"
-        ? claudeResponse.content[0].text
+      claudeResponse.content.find(b => b.type === "text")?.type === "text"
+        ? (claudeResponse.content.find(b => b.type === "text") as Anthropic.TextBlock).text
         : "";
 
     session.history.push({ role: "assistant", content: text });
