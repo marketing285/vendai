@@ -6,7 +6,7 @@
   justify-content: center;
   pointer-events: none;
   z-index: 2;
-  scale: 1;
+  scale: 0.75;
 }
 
 .eye {
@@ -91,11 +91,11 @@
 
 /* responsivo — escala os olhos junto com o orb */
 @media (max-width: 1022px) {
-  .eyes { scale: 0.75; }
+  .eyes { scale: 0.6; }
 }
 @media (max-width: 600px) {
-  .eyes { scale: 0.55; }
+  .eyes { scale: 0.45; }
 }
 @media (max-width: 400px) {
-  .eyes { scale: 0.45; }
+  .eyes { scale: 0.35; }
 }
