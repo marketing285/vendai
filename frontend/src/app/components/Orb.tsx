@@ -12,6 +12,7 @@ interface OrbProps {
   rotateOnHover?: boolean;
   forceHoverState?: boolean;
   backgroundColor?: string;
+  audioLevelRef?: React.RefObject<number>;
 }
 
 export default function Orb({
@@ -19,7 +20,8 @@ export default function Orb({
   hoverIntensity = 0.2,
   rotateOnHover = true,
   forceHoverState = false,
-  backgroundColor = '#080810'
+  backgroundColor = '#080810',
+  audioLevelRef,
 }: OrbProps) {
   const ctnDom = useRef<HTMLDivElement>(null);
   const propsRef = useRef({ hue, hoverIntensity, forceHoverState, rotateOnHover, backgroundColor });
@@ -293,7 +295,9 @@ export default function Orb({
       const p = propsRef.current;
       program.uniforms.iTime.value = t * 0.001;
       program.uniforms.hue.value = p.hue;
-      program.uniforms.hoverIntensity.value = p.hoverIntensity;
+      // audioLevelRef é lido direto aqui — sem re-render React
+      const audioBoost = (audioLevelRef?.current ?? 0) * 0.7;
+      program.uniforms.hoverIntensity.value = p.hoverIntensity + audioBoost;
       program.uniforms.backgroundColor.value = hexToVec3(p.backgroundColor);
 
       const effectiveHover = p.forceHoverState ? 1 : targetHover;

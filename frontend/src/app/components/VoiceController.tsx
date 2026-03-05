@@ -38,6 +38,9 @@ export default function VoiceController() {
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
   const audioSrcRef        = useRef<AudioBufferSourceNode | null>(null);
+  const analyserRef        = useRef<AnalyserNode | null>(null);
+  const audioLevelRef      = useRef(0);
+  const audioRafRef        = useRef<number | null>(null);
   const suppressRestartRef = useRef(false);
   const mutedRef           = useRef(false);
   const orbStateRef        = useRef<OrbState>("idle");
@@ -82,17 +85,37 @@ export default function VoiceController() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         const audioCtx = getAudioCtx();
         audioCtx.decodeAudioData(bytes.buffer.slice(0)).then((buf) => {
-          const src      = audioCtx.createBufferSource();
-          src.buffer     = buf;
-          src.connect(audioCtx.destination);
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf;
+
+          // Analyser para medir amplitude em tempo real
+          if (!analyserRef.current) {
+            analyserRef.current = audioCtx.createAnalyser();
+            analyserRef.current.fftSize = 256;
+            analyserRef.current.connect(audioCtx.destination);
+          }
+          src.connect(analyserRef.current);
+
           audioSrcRef.current = src;
-          // Para o reconhecimento enquanto MAX fala para não capturar a própria voz
           suppressRestartRef.current = true;
           try { recogRef.current?.stop(); } catch (_) {}
           src.start(0);
+
+          // Loop de leitura da amplitude — atualiza audioLevelRef a cada frame
+          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          const readLevel = () => {
+            analyserRef.current!.getByteFrequencyData(dataArray);
+            const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+            audioLevelRef.current = avg / 255;
+            audioRafRef.current = requestAnimationFrame(readLevel);
+          };
+          audioRafRef.current = requestAnimationFrame(readLevel);
+
           src.onended = () => {
+            // Para o loop de leitura e zera o nível
+            if (audioRafRef.current) { cancelAnimationFrame(audioRafRef.current); audioRafRef.current = null; }
+            audioLevelRef.current = 0;
             audioSrcRef.current = null;
-            // Reinicia o reconhecimento após o áudio terminar
             suppressRestartRef.current = false;
             try { recogRef.current?.start(); } catch (_) {}
             wakeRef.current   = true;
@@ -254,6 +277,7 @@ export default function VoiceController() {
           hoverIntensity={0.3}
           rotateOnHover={true}
           backgroundColor="#080810"
+          audioLevelRef={audioLevelRef}
         />
       </div>
 
