@@ -7,7 +7,7 @@ import Eyes from "./Eyes";
 
 const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
-const WAKE_WORDS   = ["max", "mais", "maps", "mac"];
+const WAKE_WORDS   = ["max", "mais", "maps", "mac", "mas", "mal", "mar", "mau", "mah", "maks"];
 const STOP_PHRASES = [
   "para de ouvir","pode parar","para ouvir","encerrar","encerra",
   "até logo","tchau","standby","pode descansar","pode dormir",

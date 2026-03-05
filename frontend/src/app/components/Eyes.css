@@ -49,6 +49,7 @@
 .eye.listening { height: 88px;  width: 68px; }
 .eye.thinking  { height: 30px;  width: 72px; }
 .eye.speaking  { height: 102px; width: 76px; }
+.eye.squint    { height: 38px; }
 
 /* reflexo */
 .shine {
