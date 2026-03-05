@@ -240,7 +240,9 @@ export default function VoiceController() {
         const interim2 = Array.from({ length: event.results.length - event.resultIndex }, (_, k) =>
           event.results[event.resultIndex + k][0].transcript
         ).join(" ").toLowerCase().trim();
-        if (WAKE_WORDS.some(w => interim2.includes(w))) {
+        const isBargeIn = WAKE_WORDS.some(w => interim2.includes(w)) ||
+          STOP_WORDS_EXACT.some(w => interim2 === w || interim2.startsWith(w + " ") || interim2.endsWith(" " + w));
+        if (isBargeIn) {
           if (audioRafRef.current) { cancelAnimationFrame(audioRafRef.current); audioRafRef.current = null; }
           audioLevelRef.current = 0;
           const src = audioSrcRef.current;
