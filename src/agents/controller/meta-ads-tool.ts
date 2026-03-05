@@ -14,34 +14,38 @@ Use esta ferramenta sempre que o usuário perguntar sobre:
   input_schema: {
     type: "object" as const,
     properties: {
-      period: {
+      empresa: {
         type: "string",
-        enum: ["today", "yesterday", "last_7d", "last_30d", "this_month", "last_month"],
-        description: "Período dos dados. Use last_7d por padrão se não especificado.",
+        description: "Nome da empresa/cliente mencionado. Deixe vazio para consultar todos.",
       },
-      client_name: {
+      mensagem: {
         type: "string",
-        description: "Nome do cliente específico mencionado, se houver. Deixe vazio para trazer todos.",
+        description: "A pergunta original do usuário sobre as campanhas, exatamente como foi feita.",
       },
     },
-    required: ["period"],
+    required: ["mensagem"],
   },
 };
 
-// Chama o webhook n8n e retorna os dados estruturados
-export async function callMetaAdsWebhook(input: { period: string; client_name?: string }): Promise<string> {
+// Chama o webhook n8n com o formato { empresa, mensagem }
+export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: string }): Promise<string> {
   const webhookUrl = process.env.N8N_META_ADS_WEBHOOK;
 
   if (!webhookUrl) {
     return JSON.stringify({ error: "Webhook do Meta Ads não configurado (N8N_META_ADS_WEBHOOK)." });
   }
 
+  const payload = {
+    empresa: input.empresa ?? "",
+    mensagem: input.mensagem,
+  };
+
   try {
     const res = await Promise.race([
       fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify(payload),
       }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("timeout")), 10000)
