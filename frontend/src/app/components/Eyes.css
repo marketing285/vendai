@@ -1,0 +1,75 @@
+.eyes {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.eye {
+  width: 110px;
+  height: 150px;
+  background: #fff;
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+  transition:
+    height 0.35s cubic-bezier(.22,1,.36,1),
+    width  0.35s cubic-bezier(.22,1,.36,1);
+}
+
+/* pálpebra superior */
+.eye::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 0;
+  background: #0c0c0c;
+  border-radius: 0 0 999px 999px;
+  z-index: 2;
+  transition: height 0.1s ease;
+}
+.eye.blink::before { height: 50%; }
+
+/* estados */
+.eye.listening { height: 140px; width: 105px; }
+.eye.thinking  { height: 48px;  width: 110px; }
+.eye.speaking  { height: 155px; width: 112px; }
+
+/* reflexo */
+.shine {
+  position: absolute;
+  top: 16px; left: 50%;
+  transform: translateX(-55%);
+  width: 32px; height: 16px;
+  background: rgba(255,255,255,0.45);
+  border-radius: 50%;
+  filter: blur(5px);
+  pointer-events: none;
+}
+
+@keyframes breathe {
+  0%,100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.95); }
+}
+.eye.idle { animation: breathe 3.5s ease-in-out infinite; }
+
+@keyframes wiggle {
+  0%,100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-1.2deg); }
+  75%      { transform: rotate(1.2deg); }
+}
+.eye.listening { animation: wiggle 1.8s ease-in-out infinite; }
+
+@keyframes sway {
+  0%,100% { transform: translateX(0); }
+  50%      { transform: translateX(5px); }
+}
+.eye.thinking { animation: sway 2.2s ease-in-out infinite; }
+
+@keyframes bounce {
+  0%,100% { transform: scaleY(1); }
+  40%      { transform: scaleY(1.05); }
+  60%      { transform: scaleY(0.97); }
+}
+.eye.speaking { animation: bounce 0.5s ease-in-out infinite; }

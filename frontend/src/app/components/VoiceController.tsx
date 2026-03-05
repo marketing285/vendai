@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { OrbState } from "./Orb";
+import Eyes from "./Eyes";
 
-const Orb = dynamic(() => import("./Orb"), { ssr: false });
+const Orb    = dynamic(() => import("./Orb"),    { ssr: false });
+const Galaxy = dynamic(() => import("./Galaxy"), { ssr: false });
 
 const WAKE_WORDS   = ["max", "mais", "maps", "mac"];
 const STOP_PHRASES = [
@@ -265,22 +267,26 @@ export default function VoiceController() {
 
   return (
     <>
+      <Galaxy />
+
       <div className="logo">Monitor Ativo de Operações</div>
 
       <div
         className="orb-wrap"
         onClick={manualActivate}
-        style={{ cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
+        style={{ cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}
       >
         <Orb
           hue={orbProps.hue}
           forceHoverState={orbProps.forceHoverState}
           hoverIntensity={0.3}
           rotateOnHover={true}
-          backgroundColor="#080810"
+          backgroundColor="#0c0c0c"
           audioLevelRef={audioLevelRef}
         />
       </div>
+
+      <Eyes state={orbState} />
 
       <div className={`status status--${orbState}`}>{statusText}</div>
       <div className="transcript">{transcript}</div>

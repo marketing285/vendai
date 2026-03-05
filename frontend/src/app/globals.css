@@ -1,7 +1,7 @@
 *  { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg:      #080810;
+  --bg:      #0c0c0c;
   --accent:  #6c63ff;
   --accent2: #a78bfa;
   --text:    #e8e8f0;
@@ -19,6 +19,8 @@ body {
   justify-content: center;
   overflow: hidden;
   user-select: none;
+  position: relative;
+  z-index: 1;
 }
 
 body::before {
