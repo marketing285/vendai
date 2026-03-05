@@ -32,3 +32,7 @@ export function getLogs(since?: number): LogEntry[] {
   if (since !== undefined) return logs.filter(l => l.id > since).slice(-100);
   return [...logs].slice(-100);
 }
+
+export function getLatest(): LogEntry | null {
+  return logs.length > 0 ? logs[logs.length - 1] : null;
+}

@@ -4,7 +4,7 @@ import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { textToSpeech } from "./voice";
 import { metaAdsTool, callMetaAdsWebhook } from "./meta-ads-tool";
-import { log, getLogs } from "./logger";
+import { log, getLogs, getLatest } from "./logger";
 
 export const controllerRouter = Router();
 
@@ -249,4 +249,9 @@ controllerRouter.delete("/session/:sessionId", (req, res) => {
 controllerRouter.get("/logs", (req, res) => {
   const since = req.query.since ? parseInt(req.query.since as string) : undefined;
   res.json(getLogs(since));
+});
+
+// Status atual (último log)
+controllerRouter.get("/status", (_req, res) => {
+  res.json(getLatest());
 });

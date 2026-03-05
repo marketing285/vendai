@@ -37,6 +37,7 @@ export default function VoiceController() {
   const bufferRef       = useRef("");
   const silenceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stayActiveRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusPollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtxRef     = useRef<AudioContext | null>(null);
   const audioSrcRef        = useRef<AudioBufferSourceNode | null>(null);
   const analyserRef        = useRef<AnalyserNode | null>(null);
@@ -57,6 +58,33 @@ export default function VoiceController() {
     return audioCtxRef.current;
   }
 
+  const STATUS_LABELS: Record<string, string> = {
+    "chamando Claude (1ª)...":          "Pensando...",
+    "chamando Claude (2ª, pós-tool)...":"Formulando resposta...",
+    "chamando webhook Meta Ads...":     "Consultando Meta Ads...",
+    "webhook respondeu":                "Analisando dados...",
+    "gerando áudio TTS...":             "Preparando voz...",
+    "contexto carregado":               "Carregando contexto...",
+  };
+
+  function startStatusPoll() {
+    if (statusPollRef.current) clearInterval(statusPollRef.current);
+    statusPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/api/controller/status");
+        if (!res.ok) return;
+        const entry = await res.json();
+        if (!entry) return;
+        const label = Object.entries(STATUS_LABELS).find(([k]) => entry.msg?.startsWith(k))?.[1];
+        if (label) setStatusText(label);
+      } catch (_) {}
+    }, 600);
+  }
+
+  function stopStatusPoll() {
+    if (statusPollRef.current) { clearInterval(statusPollRef.current); statusPollRef.current = null; }
+  }
+
   const applyState = useCallback((s: OrbState) => {
     orbStateRef.current = s;
     setOrbState(s);
@@ -65,6 +93,9 @@ export default function VoiceController() {
       thinking: "Pensando...", speaking: "Falando...",
     };
     setStatusText(labels[s]);
+    if (s === "thinking") startStatusPoll();
+    else stopStatusPoll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const goStandby = useCallback(() => {
