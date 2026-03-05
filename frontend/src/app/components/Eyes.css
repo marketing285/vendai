@@ -1,6 +1,5 @@
 .eyes {
   position: absolute;
-  inset: 0;
   display: flex;
   gap: 28px;
   align-items: center;
