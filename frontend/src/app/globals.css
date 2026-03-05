@@ -23,13 +23,6 @@ body {
   z-index: 1;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(108,99,255,0.08) 0%, transparent 70%);
-  pointer-events: none;
-}
 
 .logo {
   font-size: 11px;
@@ -41,8 +34,8 @@ body::before {
 }
 
 .orb-wrap {
-  width: 320px;
-  height: 320px;
+  width: 360px;
+  height: 360px;
 }
 
 .status {
