@@ -56,8 +56,23 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
       return JSON.stringify({ error: `n8n retornou ${res.status}` });
     }
 
-    const text = await res.text();
-    return text;
+    const raw = await res.text();
+
+    // Tenta extrair texto de wrappers JSON que o n8n pode devolver
+    try {
+      const parsed = JSON.parse(raw);
+      // Array: [{output: "..."}, ...]
+      const first = Array.isArray(parsed) ? parsed[0] : parsed;
+      const extracted =
+        first?.output ?? first?.resposta ?? first?.text ?? first?.message ??
+        first?.data ?? first?.result ?? first?.response ?? null;
+      if (extracted && typeof extracted === "string") return extracted;
+      // Se não achou campo texto, devolve JSON bonito pra Claude interpretar
+      return JSON.stringify(parsed);
+    } catch {
+      // Não é JSON — texto puro mesmo
+      return raw;
+    }
   } catch (err: any) {
     console.error("[meta-ads-tool] erro:", err?.message);
     return "Não foi possível buscar dados do Meta Ads agora.";
