@@ -66,7 +66,11 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
       const extracted =
         first?.output ?? first?.resposta ?? first?.text ?? first?.message ??
         first?.data ?? first?.result ?? first?.response ?? null;
-      if (extracted && typeof extracted === "string") return extracted;
+      if (extracted && typeof extracted === "string") {
+        // Remove o prefixo "[Used tools: ...]] " que o n8n AI Agent injeta
+        const cleaned = extracted.replace(/^\[Used tools:.*?\]\]\s*/s, "").trim();
+        return cleaned || extracted;
+      }
       // Se não achou campo texto, devolve JSON bonito pra Claude interpretar
       return JSON.stringify(parsed);
     } catch {
