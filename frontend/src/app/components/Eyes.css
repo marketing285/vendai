@@ -28,7 +28,7 @@
   top: 0; left: 0; right: 0;
   height: 0;
   background: #0c0c0c;
-  border-radius: 0 0 60% 60%;
+  border-radius: 0;
   z-index: 2;
 }
 
