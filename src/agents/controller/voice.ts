@@ -1,4 +1,4 @@
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { ElevenLabsClient } from "elevenlabs";
 
 let _client: ElevenLabsClient | null = null;
 
@@ -63,14 +63,15 @@ export async function textToSpeech(rawText: string): Promise<string | null> {
     const cleaned = cleanTextForSpeech(rawText);
     const truncated = cleaned.length > 2500 ? cleaned.slice(0, 2500) : cleaned;
 
-    const audioStream = await client.textToSpeech.convert(VOICE_ID, {
+    const audioStream = await client.generate({
+      voice: VOICE_ID,
       text: truncated,
-      modelId: MODEL_ID,
-      voiceSettings: {
+      model_id: MODEL_ID,
+      voice_settings: {
         stability: 0.5,
-        similarityBoost: 0.75,
+        similarity_boost: 0.75,
         style: 0.3,
-        useSpeakerBoost: true,
+        use_speaker_boost: true,
       },
     });
 
