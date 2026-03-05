@@ -1,14 +1,17 @@
 .eyes {
+  position: absolute;
+  inset: 0;
   display: flex;
   gap: 28px;
   align-items: center;
   justify-content: center;
-  margin-top: 32px;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .eye {
-  width: 110px;
-  height: 150px;
+  width: 52px;
+  height: 70px;
   background: #fff;
   border-radius: 999px;
   position: relative;
@@ -32,19 +35,19 @@
 .eye.blink::before { height: 50%; }
 
 /* estados */
-.eye.listening { height: 140px; width: 105px; }
-.eye.thinking  { height: 48px;  width: 110px; }
-.eye.speaking  { height: 155px; width: 112px; }
+.eye.listening { height: 65px; width: 50px; }
+.eye.thinking  { height: 22px; width: 52px; }
+.eye.speaking  { height: 74px; width: 54px; }
 
 /* reflexo */
 .shine {
   position: absolute;
-  top: 16px; left: 50%;
+  top: 8px; left: 50%;
   transform: translateX(-55%);
-  width: 32px; height: 16px;
+  width: 14px; height: 7px;
   background: rgba(255,255,255,0.45);
   border-radius: 50%;
-  filter: blur(5px);
+  filter: blur(3px);
   pointer-events: none;
 }
 

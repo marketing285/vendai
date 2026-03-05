@@ -5,8 +5,7 @@ import dynamic from "next/dynamic";
 import type { OrbState } from "./Orb";
 import Eyes from "./Eyes";
 
-const Orb    = dynamic(() => import("./Orb"),    { ssr: false });
-const Galaxy = dynamic(() => import("./Galaxy"), { ssr: false });
+const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
 const WAKE_WORDS   = ["max", "mais", "maps", "mac"];
 const STOP_PHRASES = [
@@ -267,8 +266,6 @@ export default function VoiceController() {
 
   return (
     <>
-      <Galaxy />
-
       <div className="logo">Monitor Ativo de Operações</div>
 
       <div
@@ -284,9 +281,8 @@ export default function VoiceController() {
           backgroundColor="#0c0c0c"
           audioLevelRef={audioLevelRef}
         />
+        <Eyes state={orbState} />
       </div>
-
-      <Eyes state={orbState} />
 
       <div className={`status status--${orbState}`}>{statusText}</div>
       <div className="transcript">{transcript}</div>
