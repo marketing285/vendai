@@ -14,6 +14,8 @@ const STOP_PHRASES = [
   "chega por hoje","obrigado max","valeu max","pode fechar",
   "encerrando","isso é tudo",
 ];
+// Palavras exatas que param o MAX (match de palavra inteira, não substring)
+const STOP_WORDS_EXACT = ["ok", "okay"];
 
 const SESSION_ID = "max_" + Math.random().toString(36).slice(2);
 
@@ -167,9 +169,10 @@ export default function VoiceController() {
   }, [applyState]);
 
   const sendToMAX = useCallback(async (message: string) => {
-    if (STOP_PHRASES.some(p => message.toLowerCase().includes(p))) {
-      goStandby(); return;
-    }
+    const lower = message.toLowerCase().trim();
+    const isStop = STOP_PHRASES.some(p => lower.includes(p)) ||
+      STOP_WORDS_EXACT.some(w => lower === w || lower.startsWith(w + " ") || lower.endsWith(" " + w));
+    if (isStop) { goStandby(); return; }
     applyState("thinking");
     setTranscript(message);
     wakeRef.current   = false;
