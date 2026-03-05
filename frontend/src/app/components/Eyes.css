@@ -17,6 +17,7 @@
   overflow: hidden;
   transform: translateZ(0);
   isolation: isolate;
+  box-shadow: 0 0 0 4px #0c0c0c;
   transition:
     height 0.35s cubic-bezier(.22,1,.36,1),
     width  0.35s cubic-bezier(.22,1,.36,1);
