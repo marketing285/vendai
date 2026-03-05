@@ -158,7 +158,10 @@ controllerRouter.post("/ask", async (req, res) => {
     // Limita histórico a 20 mensagens
     if (session.history.length > 20) session.history.splice(0, 2);
 
-    const audioBase64 = await textToSpeech(text);
+    const audioBase64 = await Promise.race([
+      textToSpeech(text),
+      new Promise<null>(r => setTimeout(() => r(null), 12000)),
+    ]);
 
     res.json({ text, audioBase64, ceoAuthenticated: session.ceoAuthenticated });
   } catch (err: any) {

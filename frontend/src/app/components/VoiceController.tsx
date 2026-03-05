@@ -146,11 +146,15 @@ export default function VoiceController() {
     try { recogRef.current?.stop(); } catch (_) {}
 
     try {
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 25000);
       const res = await fetch("/api/controller/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, sessionId: SESSION_ID }),
+        signal: abort.signal,
       });
+      clearTimeout(timer);
       if (!res.ok) throw new Error("API error");
       const { text, audioBase64 } = await res.json();
       if (audioBase64) {
