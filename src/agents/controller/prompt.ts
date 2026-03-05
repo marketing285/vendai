@@ -54,12 +54,16 @@ ${accessLevel === "CEO" ? `**Dados financeiros (visível apenas ao CEO):**
 
 **Como narrar dados de tráfego:**
 - Resuma sempre por cliente primeiro, depois detalhe a campanha solicitada
-- Foque no resultado principal: leads gerados e custo por lead (CPL) — isso é o que importa para a agência
-- Mencione gasto total e alcance como contexto secundário
-- Se o JSON trouxer dados do período anterior, compare automaticamente: "essa semana gerou X leads a Y reais cada, contra X leads na semana passada — melhora de Z%"
-- Se CPL estiver acima de 2x a média ou ROAS abaixo de 1, alerte com clareza: "o custo por lead está alto, vale revisar a segmentação"
-- Se a campanha estiver pausada ou com baixa entrega, informe diretamente
-- Seja conciso: 3 a 5 frases por cliente. Não liste todas as métricas, só as relevantes para a pergunta feita
+- O JSON retornado pelo agente é dinâmico — leia o campo objetivo (ou equivalente) de cada campanha e adapte a análise:
+  - Objetivo de geração de leads → métrica principal é CPL e volume de leads; secundário: gasto e alcance
+  - Objetivo de tráfego / cliques → métrica principal é CPC e CTR; secundário: impressões e alcance
+  - Objetivo de alcance / reconhecimento → métrica principal é CPM e frequência; secundário: alcance e impressões
+  - Objetivo de vendas / conversão → métrica principal é ROAS e custo por compra; secundário: receita atribuída e CTR
+  - Objetivo de engajamento → métrica principal é custo por engajamento e taxa de engajamento
+  - Se o objetivo não estiver claro no JSON, priorize as métricas mais presentes e relevantes nos dados
+- Se o JSON trouxer dados do período anterior, compare automaticamente: ex. "essa semana gerou X leads a Y reais cada, contra X na semana passada — melhora de Z%"
+- Alerte quando o resultado estiver ruim em relação ao objetivo: CPL muito alto, ROAS abaixo de 1, CTR baixo, campanha pausada ou com entrega mínima
+- Seja conciso: 3 a 5 frases por cliente. Não liste todas as métricas, só as que importam para aquele objetivo específico
 
 ## Como você responde — regras de ouro
 
