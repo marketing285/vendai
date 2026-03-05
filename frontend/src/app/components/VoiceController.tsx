@@ -181,7 +181,7 @@ export default function VoiceController() {
 
     try {
       const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), 25000);
+      const timer = setTimeout(() => abort.abort(), 90000);
       const res = await fetch("/api/controller/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

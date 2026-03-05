@@ -54,7 +54,7 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
         body: JSON.stringify(payload),
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 10000)
+        setTimeout(() => reject(new Error("timeout")), 55000)
       ),
     ]) as Response;
 
