@@ -4,6 +4,7 @@ import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { textToSpeech } from "./voice";
 import { metaAdsTool, callMetaAdsWebhook } from "./meta-ads-tool";
+import { log, getLogs } from "./logger";
 
 export const controllerRouter = Router();
 
@@ -114,7 +115,7 @@ async function callClaude(params: Anthropic.MessageCreateParamsNonStreaming): Pr
     } catch (e: any) {
       const isOverload = e?.status === 529 || e?.message?.includes("overloaded");
       if (isOverload && attempt < 3) {
-        console.warn(`[controller] API sobrecarregada, tentativa ${attempt}/3...`);
+        log("warn", `API sobrecarregada, tentativa ${attempt}/3...`);
         await new Promise(r => setTimeout(r, attempt * 1500));
       } else {
         throw e;
@@ -135,10 +136,13 @@ controllerRouter.post("/ask", async (req, res) => {
     return;
   }
 
+  log("info", `→ pergunta [${sessionId}]`, message);
+
   const session = getSession(sessionId);
 
   if (!session.ceoAuthenticated) {
-    tryAuthenticate(message, session);
+    const authed = tryAuthenticate(message, session);
+    if (authed) log("info", `✅ CEO autenticado [${sessionId}]`);
   }
 
   try {
@@ -146,9 +150,12 @@ controllerRouter.post("/ask", async (req, res) => {
     const systemPrompt = buildSystemPrompt(context, session.ceoAuthenticated);
     const tools = getTools();
 
+    log("info", `contexto carregado | tools: ${tools.map(t => t.name).join(", ") || "nenhuma"}`);
+
     session.history.push({ role: "user", content: message });
 
     // ── Primeira chamada ao Claude ──
+    log("info", "chamando Claude (1ª)...");
     let claudeResponse = await callClaude({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 500,
@@ -156,6 +163,7 @@ controllerRouter.post("/ask", async (req, res) => {
       messages: session.history,
       ...(tools.length > 0 && { tools }),
     });
+    log("info", `Claude respondeu | stop_reason: ${claudeResponse.stop_reason}`);
 
     // ── Loop de tool_use: Claude pode chamar ferramentas ──
     while (claudeResponse.stop_reason === "tool_use") {
@@ -164,12 +172,14 @@ controllerRouter.post("/ask", async (req, res) => {
       );
       if (!toolUseBlock) break;
 
-      console.log(`[controller] tool_use: ${toolUseBlock.name}`, toolUseBlock.input);
+      log("info", `tool_use: ${toolUseBlock.name}`, toolUseBlock.input);
 
       // Executa a ferramenta
       let toolResult = "";
       if (toolUseBlock.name === "query_meta_ads") {
+        log("info", "chamando webhook Meta Ads...");
         toolResult = await callMetaAdsWebhook(toolUseBlock.input as any);
+        log("info", "webhook respondeu", toolResult.slice(0, 300));
       }
 
       // Adiciona resposta do assistente + resultado da ferramenta ao histórico temporário
@@ -187,6 +197,7 @@ controllerRouter.post("/ask", async (req, res) => {
       ];
 
       // Segunda chamada — Claude formula a resposta final com os dados
+      log("info", "chamando Claude (2ª, pós-tool)...");
       claudeResponse = await callClaude({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 600,
@@ -194,6 +205,7 @@ controllerRouter.post("/ask", async (req, res) => {
         messages: messagesWithTool,
         ...(tools.length > 0 && { tools }),
       });
+      log("info", `Claude respondeu | stop_reason: ${claudeResponse.stop_reason}`);
     }
 
     const text =
@@ -201,19 +213,28 @@ controllerRouter.post("/ask", async (req, res) => {
         ? (claudeResponse.content.find(b => b.type === "text") as Anthropic.TextBlock).text
         : "";
 
+    log("info", `← resposta (${text.length} chars)`, text.slice(0, 200));
+
     session.history.push({ role: "assistant", content: text });
 
     // Limita histórico a 20 mensagens
     if (session.history.length > 20) session.history.splice(0, 2);
 
+    log("info", "gerando áudio TTS...");
     const audioBase64 = await Promise.race([
       textToSpeech(text),
       new Promise<null>(r => setTimeout(() => r(null), 12000)),
     ]);
 
+    if (audioBase64) {
+      log("info", `áudio gerado (${Math.round(audioBase64.length / 1024)}KB)`);
+    } else {
+      log("warn", "TTS falhou ou timeout — resposta sem áudio");
+    }
+
     res.json({ text, audioBase64, ceoAuthenticated: session.ceoAuthenticated });
   } catch (err: any) {
-    console.error("[controller] erro:", err?.message || err);
+    log("error", "erro no /ask", err?.message || String(err));
     res.status(500).json({ error: "Erro interno ao processar a pergunta." });
   }
 });
@@ -222,4 +243,10 @@ controllerRouter.post("/ask", async (req, res) => {
 controllerRouter.delete("/session/:sessionId", (req, res) => {
   sessions.delete(req.params.sessionId);
   res.json({ ok: true });
+});
+
+// Logs em tempo real
+controllerRouter.get("/logs", (req, res) => {
+  const since = req.query.since ? parseInt(req.query.since as string) : undefined;
+  res.json(getLogs(since));
 });
