@@ -98,8 +98,6 @@ export default function VoiceController() {
           src.connect(analyserRef.current);
 
           audioSrcRef.current = src;
-          suppressRestartRef.current = true;
-          try { recogRef.current?.stop(); } catch (_) {}
           src.start(0);
 
           // RMS no domínio do tempo — amplitude real, sem viés de frequência
@@ -118,8 +116,6 @@ export default function VoiceController() {
             if (audioRafRef.current) { cancelAnimationFrame(audioRafRef.current); audioRafRef.current = null; }
             audioLevelRef.current = 0;
             audioSrcRef.current = null;
-            suppressRestartRef.current = false;
-            try { recogRef.current?.start(); } catch (_) {}
             wakeRef.current   = true;
             bufferRef.current = "";
             applyState("listening");
@@ -198,7 +194,25 @@ export default function VoiceController() {
       if (mutedRef.current) return;
       if (orbStateRef.current === "thinking") return;
 
-      if (orbStateRef.current === "speaking") return;
+      if (orbStateRef.current === "speaking") {
+        // Barge-in: qualquer fala detectada interrompe o MAX
+        const interim2 = Array.from({ length: event.results.length - event.resultIndex }, (_, k) =>
+          event.results[event.resultIndex + k][0].transcript
+        ).join(" ").trim();
+        if (interim2.length > 1) {
+          if (audioRafRef.current) { cancelAnimationFrame(audioRafRef.current); audioRafRef.current = null; }
+          audioLevelRef.current = 0;
+          const src = audioSrcRef.current;
+          audioSrcRef.current = null;
+          if (src) { src.onended = null; try { src.stop(); } catch (_) {} }
+          wakeRef.current   = true;
+          bufferRef.current = "";
+          applyState("listening");
+          clearTimeout(stayActiveRef.current!);
+          stayActiveRef.current = setTimeout(() => { wakeRef.current = false; applyState("idle"); }, 12000);
+        }
+        return;
+      }
 
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
