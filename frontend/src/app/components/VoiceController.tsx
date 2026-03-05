@@ -247,7 +247,14 @@ export default function VoiceController() {
     r.onend   = () => { if (!mutedRef.current && !suppressRestartRef.current) try { r.start(); } catch (_) {} };
     try { r.start(); } catch (_) {}
 
-    return () => { try { r.stop(); } catch (_) {} };
+    // Watchdog: reinicia o reconhecimento se morrer silenciosamente
+    const watchdog = setInterval(() => {
+      if (!mutedRef.current && orbStateRef.current !== "thinking" && orbStateRef.current !== "speaking") {
+        try { r.start(); } catch (_) {}
+      }
+    }, 8000);
+
+    return () => { clearInterval(watchdog); try { r.stop(); } catch (_) {} };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
