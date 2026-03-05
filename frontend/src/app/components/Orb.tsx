@@ -191,6 +191,8 @@ export default function Orb({
       float c = cos(angle);
       uv = vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
 
+      // Escala base: orb ocupa ~67% do canvas, deixa margem pra expansão de audio
+      uv *= 1.48;
       // Pulso de tamanho sincronizado com amplitude do audio
       uv /= (1.0 + audioAmp * 0.22);
 
