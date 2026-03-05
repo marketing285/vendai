@@ -130,7 +130,7 @@ controllerRouter.post("/ask", async (req, res) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 280,
+          max_tokens: 450,
           system: systemPrompt,
           messages: session.history,
         });
