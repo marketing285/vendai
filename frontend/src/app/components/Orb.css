@@ -1,6 +1,6 @@
 .orb-container {
-  width: clamp(320px, 75vmin, 583px);
-  height: clamp(320px, 75vmin, 583px);
+  width: clamp(420px, 95vmin, 750px);
+  height: clamp(420px, 95vmin, 750px);
   position: absolute;
   top: 50%;
   left: 50%;
