@@ -56,10 +56,10 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
       return JSON.stringify({ error: `n8n retornou ${res.status}` });
     }
 
-    const data = await res.json();
-    return JSON.stringify(data);
+    const text = await res.text();
+    return text;
   } catch (err: any) {
     console.error("[meta-ads-tool] erro:", err?.message);
-    return JSON.stringify({ error: "Não foi possível buscar dados do Meta Ads agora." });
+    return "Não foi possível buscar dados do Meta Ads agora.";
   }
 }
