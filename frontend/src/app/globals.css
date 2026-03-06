@@ -36,7 +36,9 @@ body {
 .orb-wrap {
   width: clamp(260px, 45vmin, 460px);
   height: clamp(260px, 45vmin, 460px);
+  transition: filter 0.6s ease, transform 0.6s ease;
 }
+.orb-wrap:active { transform: scale(0.97); }
 
 .status {
   margin-top: 40px;
@@ -44,8 +46,13 @@ body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
-  transition: color 0.3s;
+  transition: color 0.5s ease, opacity 0.4s ease;
   min-height: 18px;
+  animation: statusIn 0.5s ease;
+}
+@keyframes statusIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .status--listening { color: var(--accent2); }
 .status--thinking  { color: var(--accent);  }
@@ -60,6 +67,7 @@ body {
   font-style: italic;
   min-height: 20px;
   padding: 0 24px;
+  transition: opacity 0.4s ease;
 }
 
 .fallback {

@@ -35,6 +35,7 @@ export default function VoiceController() {
   const [muted,       setMuted]       = useState(false);
   const [thinkingLogs, setThinkingLogs] = useState<{ id: number; msg: string }[]>([]);
   const [streamDone,   setStreamDone]   = useState(false);
+  const [statusKey,    setStatusKey]    = useState(0);
 
   const recogRef        = useRef<any>(null);
   const wakeRef         = useRef(false);
@@ -74,6 +75,7 @@ export default function VoiceController() {
     "levantando dados de investimento": "Levantando investimento...",
     "analisando conversões":            "Analisando leads...",
     "buscando dados de campanhas":      "Buscando campanhas...",
+    "MAX identificando agentes":        "Identificando agentes...",
     "chamando webhook Meta Ads...":     "Consultando agente...",
     "webhook respondeu":                "Dados recebidos...",
     "chamando Claude (2ª, pós-tool)...":"Formulando resposta...",
@@ -91,6 +93,7 @@ export default function VoiceController() {
     ["levantando dados de investimento", "Levantando dados de investimento"],
     ["analisando conversões",            "Analisando conversões e leads"],
     ["buscando dados de campanhas",      "Buscando dados de campanhas"],
+    ["MAX identificando agentes",        "MAX identificando agentes"],
     ["chamando webhook Meta Ads",        "Consultando agente de tráfego"],
     ["webhook respondeu",                "Dados do agente recebidos"],
     ["gerando áudio TTS",                "Preparando resposta em voz"],
@@ -147,6 +150,7 @@ export default function VoiceController() {
       thinking: "Pensando...", speaking: "Falando...",
     };
     setStatusText(labels[s]);
+    setStatusKey(k => k + 1);
     if (s === "thinking") {
       if (streamExitRef.current) { clearTimeout(streamExitRef.current); streamExitRef.current = null; }
       setStreamDone(false);
@@ -414,7 +418,7 @@ export default function VoiceController() {
         <Eyes state={orbState} />
       </div>
 
-      <div className={`status status--${orbState}`}>{statusText}</div>
+      <div key={statusKey} className={`status status--${orbState}`}>{statusText}</div>
 
       {(orbState === "thinking" || orbState === "speaking" || streamDone) && thinkingLogs.length > 0 && (
         <div className={`ts${streamDone ? " ts--exiting" : ""}`}>

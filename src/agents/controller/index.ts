@@ -163,7 +163,9 @@ controllerRouter.post("/ask", async (req, res) => {
       messages: session.history,
       ...(tools.length > 0 && { tools }),
     });
-    log("info", `Claude respondeu | stop_reason: ${claudeResponse.stop_reason}`);
+    if (claudeResponse.stop_reason === "tool_use") {
+      log("info", "MAX identificando agentes necessários...");
+    }
 
     // ── Loop de tool_use: Claude pode chamar ferramentas ──
     while (claudeResponse.stop_reason === "tool_use") {
@@ -227,7 +229,6 @@ controllerRouter.post("/ask", async (req, res) => {
         messages: messagesWithTool,
         ...(tools.length > 0 && { tools }),
       });
-      log("info", `Claude respondeu | stop_reason: ${claudeResponse.stop_reason}`);
     }
 
     const text =
