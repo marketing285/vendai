@@ -146,6 +146,7 @@ export default function VoiceController() {
     };
     setStatusText(labels[s]);
     if (s === "thinking") startStatusPoll();
+    else if (s === "speaking") stopStatusPoll();
     else { stopStatusPoll(); setThinkingLogs([]); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -400,12 +401,12 @@ export default function VoiceController() {
 
       <div className={`status status--${orbState}`}>{statusText}</div>
 
-      {orbState === "thinking" && thinkingLogs.length > 0 && (
+      {(orbState === "thinking" || orbState === "speaking") && thinkingLogs.length > 0 && (
         <div className="ts">
-          <div className="ts__bar" />
+          <div className="ts__bar" style={orbState === "speaking" ? { animationPlayState: "paused", opacity: 0.3 } : undefined} />
           <div className="ts__entries">
             {thinkingLogs.map((entry, i) => {
-              const isActive = i === thinkingLogs.length - 1;
+              const isActive = orbState === "thinking" && i === thinkingLogs.length - 1;
               return (
                 <div key={entry.id} className={`ts__entry${isActive ? " ts__entry--active" : ""}`}>
                   {isActive

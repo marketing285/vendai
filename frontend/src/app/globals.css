@@ -90,7 +90,7 @@ body {
 
 /* ── Thinking Stream ────────────────────────────────────────────── */
 .ts {
-  width: clamp(220px, 72vw, 360px);
+  width: clamp(280px, 88vw, 520px);
   background: rgba(255,255,255,0.025);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
