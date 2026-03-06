@@ -34,6 +34,7 @@ export default function VoiceController() {
   const [fallback,    setFallback]    = useState("");
   const [muted,       setMuted]       = useState(false);
   const [thinkingLogs, setThinkingLogs] = useState<{ id: number; msg: string }[]>([]);
+  const [streamDone,   setStreamDone]   = useState(false);
 
   const recogRef        = useRef<any>(null);
   const wakeRef         = useRef(false);
@@ -50,6 +51,7 @@ export default function VoiceController() {
   const mutedRef           = useRef(false);
   const orbStateRef        = useRef<OrbState>("idle");
   const logSinceRef        = useRef(0);
+  const streamExitRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   mutedRef.current = muted;
 
@@ -145,9 +147,22 @@ export default function VoiceController() {
       thinking: "Pensando...", speaking: "Falando...",
     };
     setStatusText(labels[s]);
-    if (s === "thinking") startStatusPoll();
-    else if (s === "speaking") stopStatusPoll();
-    else { stopStatusPoll(); setThinkingLogs([]); }
+    if (s === "thinking") {
+      if (streamExitRef.current) { clearTimeout(streamExitRef.current); streamExitRef.current = null; }
+      setStreamDone(false);
+      startStatusPoll();
+    } else if (s === "speaking") {
+      stopStatusPoll();
+    } else {
+      // idle ou listening — animação de saída suave
+      stopStatusPoll();
+      setStreamDone(true);
+      streamExitRef.current = setTimeout(() => {
+        setThinkingLogs([]);
+        setStreamDone(false);
+        streamExitRef.current = null;
+      }, 1800);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -401,9 +416,9 @@ export default function VoiceController() {
 
       <div className={`status status--${orbState}`}>{statusText}</div>
 
-      {(orbState === "thinking" || orbState === "speaking") && thinkingLogs.length > 0 && (
-        <div className="ts">
-          <div className="ts__bar" style={orbState === "speaking" ? { animationPlayState: "paused", opacity: 0.3 } : undefined} />
+      {(orbState === "thinking" || orbState === "speaking" || streamDone) && thinkingLogs.length > 0 && (
+        <div className={`ts${streamDone ? " ts--exiting" : ""}`}>
+          <div className="ts__bar" style={orbState !== "thinking" ? { animationPlayState: "paused", opacity: 0.15 } : undefined} />
           <div className="ts__entries">
             {thinkingLogs.map((entry, i) => {
               const isActive = orbState === "thinking" && i === thinkingLogs.length - 1;
@@ -417,6 +432,12 @@ export default function VoiceController() {
                 </div>
               );
             })}
+            {streamDone && (
+              <div className="ts__entry ts__entry--done">
+                <span className="ts__check ts__check--done">✓</span>
+                <span>Análise concluída</span>
+              </div>
+            )}
           </div>
         </div>
       )}
