@@ -88,6 +88,69 @@ body {
   opacity: 0.4;
 }
 
+/* ── Thinking Stream ────────────────────────────────────────────── */
+.ts {
+  width: clamp(220px, 72vw, 360px);
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 14px auto 0;
+  animation: tsIn 0.25s ease;
+}
+@keyframes tsIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ts__bar {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 40%, var(--accent2) 60%, transparent 100%);
+  background-size: 200% 100%;
+  animation: tsShimmer 1.8s linear infinite;
+}
+@keyframes tsShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.ts__entries {
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ts__entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  animation: tsEntryIn 0.2s ease;
+  letter-spacing: 0.02em;
+}
+@keyframes tsEntryIn {
+  from { opacity: 0; transform: translateX(-3px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.ts__entry--active { color: rgba(255,255,255,0.82); }
+.ts__check {
+  color: var(--accent);
+  font-size: 13px;
+  width: 10px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ts__spinner {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(108,99,255,0.25);
+  border-top-color: var(--accent2);
+  border-radius: 50%;
+  animation: tsSpin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes tsSpin { to { transform: rotate(360deg); } }
+
 .mute-btn {
   position: fixed;
   top: 18px;

@@ -33,6 +33,7 @@ export default function VoiceController() {
   const [transcript,  setTranscript]  = useState("");
   const [fallback,    setFallback]    = useState("");
   const [muted,       setMuted]       = useState(false);
+  const [thinkingLogs, setThinkingLogs] = useState<{ id: number; msg: string }[]>([]);
 
   const recogRef        = useRef<any>(null);
   const wakeRef         = useRef(false);
@@ -48,6 +49,7 @@ export default function VoiceController() {
   const suppressRestartRef = useRef(false);
   const mutedRef           = useRef(false);
   const orbStateRef        = useRef<OrbState>("idle");
+  const logSinceRef        = useRef(0);
 
   mutedRef.current = muted;
 
@@ -61,26 +63,74 @@ export default function VoiceController() {
   }
 
   const STATUS_LABELS: Record<string, string> = {
-    "chamando Claude (1ª)...":          "Pensando...",
-    "chamando Claude (2ª, pós-tool)...":"Formulando resposta...",
-    "chamando webhook Meta Ads...":     "Consultando Meta Ads...",
-    "webhook respondeu":                "Analisando dados...",
-    "gerando áudio TTS...":             "Preparando voz...",
     "contexto carregado":               "Carregando contexto...",
+    "chamando Claude (1ª)...":          "Analisando pergunta...",
+    "ativando agente de tráfego":       "Ativando agente...",
+    "varrendo campanhas":               "Varrendo campanhas...",
+    "entrando em nível de anúncio":     "Analisando anúncios...",
+    "coletando métricas":               "Coletando métricas...",
+    "levantando dados de investimento": "Levantando investimento...",
+    "analisando conversões":            "Analisando leads...",
+    "buscando dados de campanhas":      "Buscando campanhas...",
+    "chamando webhook Meta Ads...":     "Consultando agente...",
+    "webhook respondeu":                "Dados recebidos...",
+    "chamando Claude (2ª, pós-tool)...":"Formulando resposta...",
+    "gerando áudio TTS...":             "Preparando voz...",
   };
 
-  function startStatusPoll() {
+  const LOG_LABELS: [string, string][] = [
+    ["contexto carregado",               "Contexto carregado"],
+    ["chamando Claude (1ª)",             "Analisando pergunta"],
+    ["chamando Claude (2ª",              "Formulando resposta"],
+    ["ativando agente de tráfego",       "Ativando agente de tráfego"],
+    ["varrendo campanhas",               "Varrendo campanhas ativas"],
+    ["entrando em nível de anúncio",     "Analisando anúncios"],
+    ["coletando métricas",               "Coletando métricas de performance"],
+    ["levantando dados de investimento", "Levantando dados de investimento"],
+    ["analisando conversões",            "Analisando conversões e leads"],
+    ["buscando dados de campanhas",      "Buscando dados de campanhas"],
+    ["chamando webhook Meta Ads",        "Consultando agente de tráfego"],
+    ["webhook respondeu",                "Dados do agente recebidos"],
+    ["gerando áudio TTS",                "Preparando resposta em voz"],
+  ];
+
+  function formatLogMsg(msg: string): string {
+    const clean = msg.replace(/\s*\|.*$/, "").trim();
+    for (const [prefix, label] of LOG_LABELS) {
+      if (clean.toLowerCase().startsWith(prefix.toLowerCase())) {
+        // Preserva sufixo dinâmico (ex: "→ Empresa X")
+        const rest = clean.slice(prefix.length).trim();
+        return rest ? `${label} ${rest}` : label;
+      }
+    }
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+
+  async function startStatusPoll() {
     if (statusPollRef.current) clearInterval(statusPollRef.current);
+    setThinkingLogs([]);
+    // Seed baseline: ignora logs anteriores à pergunta atual
+    try {
+      const r = await fetch("/api/controller/status");
+      if (r.ok) { const e = await r.json(); logSinceRef.current = e?.id ?? 0; }
+    } catch (_) { logSinceRef.current = 0; }
+
     statusPollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/controller/status");
+        const res = await fetch(`/api/controller/logs?since=${logSinceRef.current}`);
         if (!res.ok) return;
-        const entry = await res.json();
-        if (!entry) return;
-        const label = Object.entries(STATUS_LABELS).find(([k]) => entry.msg?.startsWith(k))?.[1];
+        const entries: { id: number; msg: string; level: string }[] = await res.json();
+        if (!entries.length) return;
+        logSinceRef.current = entries[entries.length - 1].id;
+        setThinkingLogs(prev =>
+          [...prev, ...entries.map(e => ({ id: e.id, msg: e.msg }))].slice(-6)
+        );
+        const label = Object.entries(STATUS_LABELS).find(([k]) =>
+          entries[entries.length - 1].msg.startsWith(k)
+        )?.[1];
         if (label) setStatusText(label);
       } catch (_) {}
-    }, 600);
+    }, 700);
   }
 
   function stopStatusPoll() {
@@ -96,7 +146,7 @@ export default function VoiceController() {
     };
     setStatusText(labels[s]);
     if (s === "thinking") startStatusPoll();
-    else stopStatusPoll();
+    else { stopStatusPoll(); setThinkingLogs([]); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -349,6 +399,27 @@ export default function VoiceController() {
       </div>
 
       <div className={`status status--${orbState}`}>{statusText}</div>
+
+      {orbState === "thinking" && thinkingLogs.length > 0 && (
+        <div className="ts">
+          <div className="ts__bar" />
+          <div className="ts__entries">
+            {thinkingLogs.map((entry, i) => {
+              const isActive = i === thinkingLogs.length - 1;
+              return (
+                <div key={entry.id} className={`ts__entry${isActive ? " ts__entry--active" : ""}`}>
+                  {isActive
+                    ? <span className="ts__spinner" />
+                    : <span className="ts__check">›</span>
+                  }
+                  <span>{formatLogMsg(entry.msg)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="transcript">{transcript}</div>
 
       {fallback && <div className="fallback">{fallback}</div>}

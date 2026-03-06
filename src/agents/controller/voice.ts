@@ -8,7 +8,7 @@ function getClient(): ElevenLabsClient | null {
   return _client;
 }
 
-const MODEL_ID = "eleven_flash_v2_5";
+const MODEL_ID = "eleven_multilingual_v2";
 
 // Limpa o texto antes de enviar ao ElevenLabs:
 // remove markdown, pontuação excessiva e expande abreviações
@@ -68,9 +68,9 @@ export async function textToSpeech(rawText: string): Promise<string | null> {
       text: truncated,
       model_id: MODEL_ID,
       voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.3,
+        stability: 0.65,
+        similarity_boost: 0.85,
+        style: 0.2,
         use_speaker_boost: true,
       },
     });

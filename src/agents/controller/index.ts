@@ -177,8 +177,30 @@ controllerRouter.post("/ask", async (req, res) => {
       // Executa a ferramenta
       let toolResult = "";
       if (toolUseBlock.name === "query_meta_ads") {
+        const qInput = toolUseBlock.input as { empresa?: string; mensagem: string };
+        const empresa = (qInput.empresa ?? "").trim();
+        const qLower  = (qInput.mensagem ?? "").toLowerCase();
+
+        log("info", empresa
+          ? `ativando agente de tráfego → ${empresa}`
+          : "ativando agente de tráfego");
+
+        // Logs contextuais baseados na intenção da pergunta
+        const contextSteps: string[] = [];
+        if (/campanha|ad set|conjunto de anúnci/.test(qLower))              contextSteps.push("varrendo campanhas ativas");
+        if (/anúncio|criativo|copy/.test(qLower))                           contextSteps.push("entrando em nível de anúncio");
+        if (/roas|cpc|cpm|ctr|alcance|impressões|performance/.test(qLower)) contextSteps.push("coletando métricas de performance");
+        if (/investimento|gasto|verba|custo/.test(qLower))                  contextSteps.push("levantando dados de investimento");
+        if (/lead|captação|conversão/.test(qLower))                         contextSteps.push("analisando conversões e leads");
+        if (contextSteps.length === 0)                                       contextSteps.push("buscando dados de campanhas");
+
+        for (const step of contextSteps) {
+          await new Promise(r => setTimeout(r, 350));
+          log("info", step);
+        }
+
         log("info", "chamando webhook Meta Ads...");
-        toolResult = await callMetaAdsWebhook(toolUseBlock.input as any);
+        toolResult = await callMetaAdsWebhook(qInput);
         log("info", "webhook respondeu", toolResult.slice(0, 300));
       }
 
