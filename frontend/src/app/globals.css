@@ -171,6 +171,20 @@ body {
   30%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   100% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.97); }
 }
+.ts__entry--user {
+  color: rgba(255,255,255,0.55);
+  font-style: italic;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+.ts__mic {
+  color: var(--accent2);
+  font-size: 9px;
+  width: 10px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
 .ts__entry--done {
   color: rgba(167,139,250,0.7);
   margin-top: 2px;

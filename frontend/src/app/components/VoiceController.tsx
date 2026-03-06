@@ -420,33 +420,39 @@ export default function VoiceController() {
 
       <div key={statusKey} className={`status status--${orbState}`}>{statusText}</div>
 
-      {(orbState === "thinking" || orbState === "speaking" || streamDone) && thinkingLogs.length > 0 && (
-        <div className={`ts${streamDone ? " ts--exiting" : ""}`}>
-          <div className="ts__bar" style={orbState !== "thinking" ? { animationPlayState: "paused", opacity: 0.15 } : undefined} />
-          <div className="ts__entries">
-            {thinkingLogs.map((entry, i) => {
-              const isActive = orbState === "thinking" && i === thinkingLogs.length - 1;
-              return (
-                <div key={entry.id} className={`ts__entry${isActive ? " ts__entry--active" : ""}`}>
-                  {isActive
-                    ? <span className="ts__spinner" />
-                    : <span className="ts__check">›</span>
-                  }
-                  <span>{formatLogMsg(entry.msg)}</span>
+      {(orbState === "listening" && !!transcript.trim()) || orbState === "thinking" || orbState === "speaking" || streamDone
+        ? (
+          <div className={`ts${streamDone ? " ts--exiting" : ""}`}>
+            <div className="ts__bar" style={orbState !== "thinking" ? { animationPlayState: "paused", opacity: 0.15 } : undefined} />
+            <div className="ts__entries">
+              {transcript.trim() && (
+                <div className="ts__entry ts__entry--user">
+                  <span className="ts__mic">◎</span>
+                  <span>{transcript}</span>
                 </div>
-              );
-            })}
-            {streamDone && (
-              <div className="ts__entry ts__entry--done">
-                <span className="ts__check ts__check--done">✓</span>
-                <span>Análise concluída</span>
-              </div>
-            )}
+              )}
+              {thinkingLogs.map((entry, i) => {
+                const isActive = orbState === "thinking" && i === thinkingLogs.length - 1;
+                return (
+                  <div key={entry.id} className={`ts__entry${isActive ? " ts__entry--active" : ""}`}>
+                    {isActive
+                      ? <span className="ts__spinner" />
+                      : <span className="ts__check">›</span>
+                    }
+                    <span>{formatLogMsg(entry.msg)}</span>
+                  </div>
+                );
+              })}
+              {streamDone && (
+                <div className="ts__entry ts__entry--done">
+                  <span className="ts__check ts__check--done">✓</span>
+                  <span>Análise concluída</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="transcript">{transcript}</div>
+        ) : null
+      }
 
       {fallback && <div className="fallback">{fallback}</div>}
 
