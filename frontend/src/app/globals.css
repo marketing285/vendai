@@ -98,17 +98,21 @@ body {
 
 /* ── Thinking Stream ────────────────────────────────────────────── */
 .ts {
+  position: fixed;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
   width: clamp(280px, 88vw, 520px);
   background: rgba(255,255,255,0.025);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
   overflow: hidden;
-  margin: 14px auto 0;
-  animation: tsIn 0.25s ease;
+  animation: tsIn 0.3s ease;
+  z-index: 10;
 }
 @keyframes tsIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .ts__bar {
   height: 2px;
@@ -163,9 +167,9 @@ body {
   pointer-events: none;
 }
 @keyframes tsOut {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  30%  { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  30%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.97); }
 }
 .ts__entry--done {
   color: rgba(167,139,250,0.7);
