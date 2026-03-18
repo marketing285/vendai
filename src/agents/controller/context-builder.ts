@@ -48,14 +48,20 @@ export interface DesignMonthMetrics {
 
 export interface DesignProductionSummary {
   clientName: string;
+  designerName: string;
+  responsible: string;
   itemType: string;
+  quantity: number | null;
   status: string;
   urgency: string;
   date: string;
+  briefing: string;
+  approvalResponsible: string;
+  deliveryLink: string;
+  deliveryDate: string;
   neededRevision: string;
   revisionCount: number | null;
   complexity: string;
-  approvalResponsible: string;
 }
 
 export interface OperationalContext {
@@ -130,9 +136,10 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     db.from("clients").select("name, segment, portfolio, active").order("name"),
     // Produções de design dos últimos 12 meses (para métricas mensais)
     db.from("design_productions")
-      .select("client_name, item_type, status, urgency, date, needed_revision, revision_count, complexity, quantity, approval_responsible")
+      .select("client_name, designer_name, responsible, item_type, quantity, status, urgency, date, briefing, approval_responsible, delivery_link, delivery_date, needed_revision, revision_count, complexity")
       .gte("date", new Date(now.getTime() - 365 * 24 * 3_600_000).toISOString().slice(0, 10))
-      .order("date", { ascending: false }),
+      .order("date", { ascending: false })
+      .limit(2000),
   ]);
 
   // Tasks por área
@@ -197,20 +204,26 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     pacote: "—",
   }));
 
-  // Últimos 7 dias para status atual
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3_600_000).toISOString().slice(0, 10);
+  // Últimos 30 dias para status atual
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3_600_000).toISOString().slice(0, 10);
   const designProductions: DesignProductionSummary[] = (designRaw ?? [])
-    .filter((d: any) => d.date >= sevenDaysAgo)
+    .filter((d: any) => d.date >= thirtyDaysAgo)
     .map((d: any) => ({
-      clientName    : d.client_name ?? "—",
-      itemType      : d.item_type ?? "—",
-      status        : d.status ?? "—",
-      urgency       : d.urgency ?? "—",
-      date          : d.date ?? "—",
+      clientName          : d.client_name ?? "—",
+      designerName        : d.designer_name ?? "—",
+      responsible         : d.responsible ?? "—",
+      itemType            : d.item_type ?? "—",
+      quantity            : d.quantity ?? null,
+      status              : d.status ?? "—",
+      urgency             : d.urgency ?? "—",
+      date                : d.date ?? "—",
+      briefing            : d.briefing ?? "—",
+      approvalResponsible : d.approval_responsible ?? "—",
+      deliveryLink        : d.delivery_link ?? "—",
+      deliveryDate        : d.delivery_date ?? "—",
       neededRevision      : d.needed_revision ?? "—",
       revisionCount       : d.revision_count ?? null,
       complexity          : d.complexity ?? "—",
-      approvalResponsible : d.approval_responsible ?? "—",
     }));
 
   // Métricas mensais agrupadas

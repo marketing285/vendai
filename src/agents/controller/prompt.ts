@@ -202,11 +202,24 @@ function buildContextSection(ctx: OperationalContext): string {
     lines.push("");
   }
 
-  // Itens urgentes nos últimos 7 dias
+  // Produções de design (últimos 30 dias) — itens individuais
   if (ctx.designProductions.length > 0) {
-    const urgentes = ctx.designProductions.filter(d => d.urgency && d.urgency.toLowerCase().includes("urgente"));
-    if (urgentes.length > 0) {
-      lines.push(`Design urgente (últimos 7 dias): ${urgentes.map(d => `${d.itemType} para ${d.clientName}`).join(", ")}`);
+    lines.push(`Produções de design — últimos 30 dias (${ctx.designProductions.length} itens):`);
+    for (const d of ctx.designProductions) {
+      const qty   = d.quantity && d.quantity > 1 ? ` x${d.quantity}` : "";
+      const rev   = d.neededRevision?.toLowerCase() === "sim" ? ` | ${d.revisionCount ?? "?"}x revisão` : "";
+      const brief = d.briefing && d.briefing !== "—" ? ` | briefing: "${d.briefing}"` : "";
+      const resp  = d.responsible && d.responsible !== "—" ? ` | resp: ${d.responsible}` : "";
+      const aprov = d.approvalResponsible && d.approvalResponsible !== "—" ? ` | aprova: ${d.approvalResponsible}` : "";
+      lines.push(`- [${d.date}] ${d.clientName} — ${d.itemType}${qty} | ${d.status} | ${d.urgency}${rev}${resp}${aprov}${brief}`);
+    }
+    lines.push("");
+
+    const urgentesAbertos = ctx.designProductions.filter(
+      d => d.urgency?.toLowerCase().includes("urgente") && d.status !== "Entregue"
+    );
+    if (urgentesAbertos.length > 0) {
+      lines.push(`Design URGENTE em aberto: ${urgentesAbertos.map(d => `${d.itemType} para ${d.clientName}`).join(", ")}`);
       lines.push("");
     }
   }

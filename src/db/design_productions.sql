@@ -13,8 +13,9 @@ CREATE TABLE IF NOT EXISTS design_productions (
   quantity       INTEGER,
   responsible    TEXT,                      -- Responsavel
   briefing       TEXT,
-  status         TEXT,                      -- Status atual
-  delivery_link  TEXT,                      -- Link de entrega
+  status                TEXT,               -- Status atual
+  approval_responsible  TEXT,               -- Responsável pela aprovação
+  delivery_link         TEXT,               -- Link de entrega
   delivery_date  TEXT,                      -- Data de entrega
   needed_revision TEXT,                     -- Precisou de Alteração?
   complexity     TEXT,                      -- Complexidade
@@ -28,6 +29,9 @@ CREATE TABLE IF NOT EXISTS design_productions (
 CREATE INDEX IF NOT EXISTS idx_design_productions_client  ON design_productions (client_name);
 CREATE INDEX IF NOT EXISTS idx_design_productions_status  ON design_productions (status);
 CREATE INDEX IF NOT EXISTS idx_design_productions_date    ON design_productions (date DESC);
+
+-- Migração: adicionar coluna caso a tabela já exista sem ela
+ALTER TABLE design_productions ADD COLUMN IF NOT EXISTS approval_responsible TEXT;
 
 -- RLS
 ALTER TABLE design_productions ENABLE ROW LEVEL SECURITY;
