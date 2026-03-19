@@ -256,7 +256,7 @@ controllerRouter.post("/ask", async (req, res) => {
     log("info", "gerando áudio TTS...");
     const audioBase64 = await Promise.race([
       textToSpeech(text),
-      new Promise<null>(r => setTimeout(() => r(null), 12000)),
+      new Promise<null>(r => setTimeout(() => r(null), 25000)),
     ]);
 
     if (audioBase64) {

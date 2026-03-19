@@ -61,7 +61,7 @@ export async function textToSpeech(rawText: string): Promise<string | null> {
 
   try {
     const cleaned = cleanTextForSpeech(rawText);
-    const truncated = cleaned.length > 2500 ? cleaned.slice(0, 2500) : cleaned;
+    const truncated = cleaned.length > 1200 ? cleaned.slice(0, 1200) : cleaned;
 
     const audioStream = await client.generate({
       voice: VOICE_ID,
