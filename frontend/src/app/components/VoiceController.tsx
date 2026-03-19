@@ -418,7 +418,9 @@ export default function VoiceController() {
         <Eyes state={orbState} />
       </div>
 
-      <div key={statusKey} className={`status status--${orbState}`}>{statusText}</div>
+      {(orbState === "idle" || (orbState === "listening" && !transcript.trim())) && (
+        <div key={statusKey} className={`status status--${orbState}`}>{statusText}</div>
+      )}
 
       {(orbState === "listening" && !!transcript.trim()) || orbState === "thinking" || orbState === "speaking" || streamDone
         ? (

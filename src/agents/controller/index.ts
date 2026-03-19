@@ -236,13 +236,13 @@ controllerRouter.post("/ask", async (req, res) => {
       ];
 
       // Segunda chamada — Claude formula a resposta final com os dados
+      // Sem tools: evita loop de tool_use. Tokens aumentados para narrar dados longos.
       log("info", "chamando Claude (2ª, pós-tool)...");
       claudeResponse = await callClaude({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 600,
+        max_tokens: 1200,
         system: systemPrompt,
         messages: messagesWithTool,
-        ...(tools.length > 0 && { tools }),
       });
     }
 
