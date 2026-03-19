@@ -1,4 +1,5 @@
-import { ElevenLabsClient } from "elevenlabs";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { Readable } from "stream";
 
 let _client: ElevenLabsClient | null = null;
 
@@ -70,20 +71,20 @@ export async function textToSpeech(rawText: string): Promise<string | null> {
     }
     const truncated = cleaned.length > 1200 ? cleaned.slice(0, 1200) : cleaned;
 
-    const audioStream = await client.generate({
-      voice: VOICE_ID,
+    const webStream = await client.textToSpeech.convert(VOICE_ID, {
       text: truncated,
-      model_id: MODEL_ID,
-      voice_settings: {
+      modelId: MODEL_ID,
+      voiceSettings: {
         stability: 0.65,
-        similarity_boost: 0.85,
+        similarityBoost: 0.85,
         style: 0.2,
-        use_speaker_boost: true,
+        useSpeakerBoost: true,
       },
     });
 
+    const nodeStream = Readable.fromWeb(webStream as any);
     const chunks: Buffer[] = [];
-    for await (const chunk of audioStream) {
+    for await (const chunk of nodeStream) {
       chunks.push(Buffer.from(chunk));
     }
     return Buffer.concat(chunks).toString("base64");
