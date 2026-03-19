@@ -1,5 +1,4 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import { Readable } from "stream";
 
 let _client: ElevenLabsClient | null = null;
 
@@ -82,10 +81,17 @@ export async function textToSpeech(rawText: string): Promise<string | null> {
       },
     });
 
-    const nodeStream = Readable.fromWeb(webStream as any);
+    // Coleta chunks via getReader() — compatível com qualquer ambiente Node 18+
+    const reader = (webStream as ReadableStream<Uint8Array>).getReader();
     const chunks: Buffer[] = [];
-    for await (const chunk of nodeStream) {
-      chunks.push(Buffer.from(chunk));
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(Buffer.from(value));
+    }
+    if (chunks.length === 0) {
+      console.error("[voice] stream retornou 0 bytes");
+      return null;
     }
     return Buffer.concat(chunks).toString("base64");
   } catch (err: any) {
