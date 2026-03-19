@@ -17,7 +17,7 @@ Use esta ferramenta sempre que o usuário perguntar sobre:
     properties: {
       empresa: {
         type: "string",
-        description: "Nome da empresa/cliente mencionado. Deixe vazio para consultar todos.",
+        description: "Nome da empresa/cliente EXATAMENTE como o usuário disse, sem expandir, normalizar ou substituir por nomes completos da carteira. Se o usuário disse 'agropet', passe 'agropet'. Deixe vazio para consultar todos.",
       },
       mensagem: {
         type: "string",
