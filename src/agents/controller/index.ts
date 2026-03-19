@@ -201,23 +201,8 @@ controllerRouter.post("/ask", async (req, res) => {
           log("info", step);
         }
 
-        // Resolve account_id pelo nome da empresa no contexto já carregado
-        let accountId: string | undefined;
-        if (empresa) {
-          const clientMatch = context.clients.find(
-            c => c.name.toLowerCase().includes(empresa.toLowerCase()) ||
-                 empresa.toLowerCase().includes(c.name.toLowerCase())
-          );
-          accountId = clientMatch?.metaAdsAccountId ?? undefined;
-          if (accountId) {
-            log("info", `account_id encontrado para ${empresa}: ${accountId}`);
-          } else {
-            log("warn", `account_id não encontrado para "${empresa}" — n8n vai precisar resolver`);
-          }
-        }
-
         log("info", "chamando webhook Meta Ads...");
-        toolResult = await callMetaAdsWebhook({ ...qInput, account_id: accountId });
+        toolResult = await callMetaAdsWebhook(qInput);
         log("info", "webhook respondeu", toolResult.slice(0, 300));
       }
 
