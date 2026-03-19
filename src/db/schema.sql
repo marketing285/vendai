@@ -33,10 +33,14 @@ CREATE TABLE IF NOT EXISTS clients (
   whatsapp_group_ids   TEXT[],
   manager_id           UUID REFERENCES users(id),
   portfolio            TEXT CHECK (portfolio IN ('christian','junior','none')),
+  meta_ads_account_id  TEXT,               -- ex: act_760386872538367
   active               BOOLEAN DEFAULT true,
   created_at           TIMESTAMPTZ DEFAULT now(),
   updated_at           TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migração: adicionar coluna caso a tabela já exista
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta_ads_account_id TEXT;
 
 -- ─────────────────────────────────────────────────────────────
 -- TAREFAS

@@ -29,7 +29,7 @@ Use esta ferramenta sempre que o usuário perguntar sobre:
 };
 
 // Chama o webhook n8n com o formato { empresa, mensagem }
-export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: string }): Promise<string> {
+export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: string; account_id?: string }): Promise<string> {
   const webhookUrl = process.env.N8N_META_ADS_WEBHOOK;
 
   if (!webhookUrl) {
@@ -41,10 +41,11 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
     return "Não foi possível identificar a pergunta sobre as campanhas.";
   }
 
-  const payload = {
+  const payload: Record<string, string> = {
     empresa: (input.empresa ?? "").trim(),
     mensagem,
   };
+  if (input.account_id) payload.account_id = input.account_id;
 
   const TIMEOUT_MS = 55_000;
   const startedAt = Date.now();

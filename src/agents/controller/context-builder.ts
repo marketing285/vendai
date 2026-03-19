@@ -31,6 +31,7 @@ export interface ClientSummary {
   status: string;
   valor: number;
   pacote: string;
+  metaAdsAccountId: string | null;
 }
 
 export interface DesignMonthMetrics {
@@ -133,7 +134,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     db.from("tasks").select("protocol_id, title, area").eq("status", "pausado_bloqueado"),
     db.from("leads").select("name, segment, updated_at").eq("temperature", "hot").lte("updated_at", ago24h),
     db.from("tasks").select("area").eq("status", "em_producao"),
-    db.from("clients").select("name, segment, portfolio, active").order("name"),
+    db.from("clients").select("name, segment, portfolio, active, meta_ads_account_id").order("name"),
     // Produções de design dos últimos 12 meses (para métricas mensais)
     db.from("design_productions")
       .select("client_name, designer_name, responsible, item_type, quantity, status, urgency, date, briefing, approval_responsible, delivery_link, delivery_date, needed_revision, revision_count, complexity")
@@ -202,6 +203,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     status: c.active ? "Ativo" : "Pausado",
     valor: 0,
     pacote: "—",
+    metaAdsAccountId: c.meta_ads_account_id ?? null,
   }));
 
   // Últimos 30 dias para status atual
