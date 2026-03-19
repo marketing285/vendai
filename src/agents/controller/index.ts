@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { textToSpeech } from "./voice";
-import { metaAdsTool, callMetaAdsWebhook, probeMetaAdsWebhook } from "./meta-ads-tool";
+import { metaAdsTool, callMetaAdsWebhook } from "./meta-ads-tool";
 import { log, getLogs, getLatest } from "./logger";
 
 export const controllerRouter = Router();
@@ -266,12 +266,6 @@ controllerRouter.post("/ask", async (req, res) => {
 controllerRouter.delete("/session/:sessionId", (req, res) => {
   sessions.delete(req.params.sessionId);
   res.json({ ok: true });
-});
-
-// Diagnóstico do webhook n8n Meta Ads
-controllerRouter.get("/webhook-test", async (_req, res) => {
-  const result = await probeMetaAdsWebhook();
-  res.json(result);
 });
 
 // Logs em tempo real
