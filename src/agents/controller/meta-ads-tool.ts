@@ -50,6 +50,12 @@ export async function callMetaAdsWebhook(input: { empresa?: string; mensagem: st
   const TIMEOUT_MS = 55_000;
   const startedAt = Date.now();
 
+  // Log de debug visível no stream da UI
+  const empresaLabel = payload.empresa || "todos os clientes";
+  const msgPreview   = mensagem.length > 80 ? mensagem.slice(0, 80) + "…" : mensagem;
+  log("info", `n8n payload: empresa="${empresaLabel}" conta="${payload.account_id || "não encontrada"}"`);
+  log("info", `n8n payload: pergunta="${msgPreview}"`);
+
   try {
     log("info", `webhook n8n → POST (timeout ${TIMEOUT_MS / 1000}s)`, JSON.stringify(payload));
 

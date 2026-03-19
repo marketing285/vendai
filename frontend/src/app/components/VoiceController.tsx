@@ -95,6 +95,7 @@ export default function VoiceController() {
     ["buscando dados de campanhas",      "Buscando dados de campanhas"],
     ["MAX identificando agentes",        "MAX identificando agentes"],
     ["chamando webhook Meta Ads",        "Consultando agente de tráfego"],
+    ["n8n payload:",                     "→ n8n:"],
     ["webhook respondeu",                "Dados do agente recebidos"],
     ["gerando áudio TTS",                "Preparando resposta em voz"],
   ];
