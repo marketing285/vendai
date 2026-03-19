@@ -202,10 +202,11 @@ function buildContextSection(ctx: OperationalContext): string {
     lines.push("");
   }
 
-  // Produções de design (últimos 30 dias) — itens individuais
+  // Produções de design (últimos 30 dias) — itens individuais (máx. 20 mais recentes)
   if (ctx.designProductions.length > 0) {
-    lines.push(`Produções de design — últimos 30 dias (${ctx.designProductions.length} itens):`);
-    for (const d of ctx.designProductions) {
+    const recentProductions = ctx.designProductions.slice(0, 20);
+    lines.push(`Produções de design — últimos 30 dias (${ctx.designProductions.length} itens, exibindo os 20 mais recentes):`);
+    for (const d of recentProductions) {
       const qty   = d.quantity && d.quantity > 1 ? ` x${d.quantity}` : "";
       const rev   = d.neededRevision?.toLowerCase() === "sim" ? ` | ${d.revisionCount ?? "?"}x revisão` : "";
       const brief = d.briefing && d.briefing !== "—" ? ` | briefing: "${d.briefing}"` : "";

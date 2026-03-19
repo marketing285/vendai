@@ -158,7 +158,7 @@ controllerRouter.post("/ask", async (req, res) => {
     log("info", "chamando Claude (1ª)...");
     let claudeResponse = await callClaude({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 500,
+      max_tokens: 1000,
       system: systemPrompt,
       messages: session.history,
       ...(tools.length > 0 && { tools }),
@@ -221,28 +221,23 @@ controllerRouter.post("/ask", async (req, res) => {
         log("info", "webhook respondeu", toolResult.slice(0, 300));
       }
 
-      // Adiciona resposta do assistente + resultado da ferramenta ao histórico temporário
-      const messagesWithTool: Anthropic.MessageParam[] = [
+      // Segunda chamada — injeta dados da ferramenta como texto (evita tool_result sem tools)
+      // A API da Anthropic rejeita tool_result em messages sem tools definido (HTTP 400).
+      // Passar como texto simples resolve o problema e ainda evita loop de tool_use.
+      const synthesisMessages: Anthropic.MessageParam[] = [
         ...session.history,
-        { role: "assistant", content: claudeResponse.content },
         {
           role: "user",
-          content: [{
-            type: "tool_result" as const,
-            tool_use_id: toolUseBlock.id,
-            content: toolResult,
-          }],
+          content: `[Dados do agente de tráfego]\n${toolResult}\n\nResponda à pergunta original acima.`,
         },
       ];
 
-      // Segunda chamada — Claude formula a resposta final com os dados
-      // Sem tools: evita loop de tool_use. Tokens aumentados para narrar dados longos.
       log("info", "chamando Claude (2ª, pós-tool)...");
       claudeResponse = await callClaude({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1200,
         system: systemPrompt,
-        messages: messagesWithTool,
+        messages: synthesisMessages,
       });
     }
 

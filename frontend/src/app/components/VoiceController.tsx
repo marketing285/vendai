@@ -7,7 +7,7 @@ import Eyes from "./Eyes";
 
 const Orb = dynamic(() => import("./Orb"), { ssr: false });
 
-const WAKE_WORDS   = ["max", "mais", "maps", "mac", "mas", "mal", "mar", "mau", "mah", "maks"];
+const WAKE_WORDS   = ["max", "mais", "maps", "mac", "mas", "mal", "mar", "mau", "mah", "maks", "mak", "macs", "marks", "marx", "macks", "maxs", "fax"];
 const STOP_PHRASES = [
   "pode parar","para de ouvir","encerrar","encerra",
   "até logo","tchau","standby","pode descansar","pode dormir",
@@ -287,7 +287,7 @@ export default function VoiceController() {
       if (wakeRef.current && bufferRef.current.trim().length > 2 && orbStateRef.current === "listening") {
         sendToMAX(bufferRef.current.trim());
       }
-    }, 900);
+    }, 700);
   }, [sendToMAX]);
 
   useEffect(() => {
