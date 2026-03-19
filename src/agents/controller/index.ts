@@ -253,6 +253,7 @@ controllerRouter.post("/ask", async (req, res) => {
     // Limita histórico a 20 mensagens
     if (session.history.length > 20) session.history.splice(0, 2);
 
+    if (!text) log("warn", "texto da resposta vazio — TTS ignorado");
     log("info", "gerando áudio TTS...");
     const audioBase64 = await Promise.race([
       textToSpeech(text),

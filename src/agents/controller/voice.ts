@@ -55,12 +55,19 @@ export function cleanTextForSpeech(text: string): string {
 
 export async function textToSpeech(rawText: string): Promise<string | null> {
   const client = getClient();
-  if (!client) return null;
+  if (!client) {
+    console.error("[voice] ElevenLabs desabilitado — ELEVENLABS_API_KEY não configurado");
+    return null;
+  }
 
   const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
 
   try {
     const cleaned = cleanTextForSpeech(rawText);
+    if (!cleaned.trim()) {
+      console.error("[voice] texto vazio após limpeza — TTS cancelado");
+      return null;
+    }
     const truncated = cleaned.length > 1200 ? cleaned.slice(0, 1200) : cleaned;
 
     const audioStream = await client.generate({
@@ -81,7 +88,7 @@ export async function textToSpeech(rawText: string): Promise<string | null> {
     }
     return Buffer.concat(chunks).toString("base64");
   } catch (err: any) {
-    console.error("[voice] ElevenLabs error:", err?.message || err);
+    console.error("[voice] ElevenLabs error:", err?.status ?? "", err?.message || String(err));
     return null;
   }
 }
