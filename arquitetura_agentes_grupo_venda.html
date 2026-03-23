@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquitetura de Agentes — Grupo VENDA</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0D0F14;
+    --surface:   #141720;
+    --surface2:  #1C2030;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.12);
+
+    --blue:      #4A9EFF;
+    --blue-dim:  rgba(74,158,255,0.12);
+    --blue-mid:  rgba(74,158,255,0.25);
+
+    --coral:     #FF6B4A;
+    --coral-dim: rgba(255,107,74,0.12);
+    --coral-mid: rgba(255,107,74,0.25);
+
+    --teal:      #2DD4A0;
+    --teal-dim:  rgba(45,212,160,0.12);
+    --teal-mid:  rgba(45,212,160,0.25);
+
+    --purple:    #A78BFA;
+    --purple-dim:rgba(167,139,250,0.12);
+    --purple-mid:rgba(167,139,250,0.25);
+
+    --amber:     #FBBF24;
+    --amber-dim: rgba(251,191,36,0.10);
+    --amber-mid: rgba(251,191,36,0.22);
+
+    --text:      #F0F2F7;
+    --text-2:    #8B909E;
+    --text-3:    #5A5F6E;
+
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: 48px 32px 80px;
+  }
+
+  /* ─── HEADER ─────────────────────────────────── */
+  .page-header {
+    text-align: center;
+    margin-bottom: 64px;
+    position: relative;
+  }
+  .page-header::before {
+    content: '';
+    position: absolute;
+    top: -48px; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse at center, rgba(74,158,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .page-header .eyebrow {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .page-header .eyebrow::before,
+  .page-header .eyebrow::after {
+    content: '';
+    width: 32px; height: 1px;
+    background: var(--blue);
+    opacity: 0.4;
+  }
+  .page-header h1 {
+    font-family: var(--font-head);
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, #8B909E 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  .page-header .meta {
+    font-size: 13px;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .page-header .meta span {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .page-header .meta .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--text-3);
+  }
+
+  /* ─── LEGEND ─────────────────────────────────── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 24px;
+    margin-bottom: 56px;
+    padding: 16px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text-2);
+    font-weight: 400;
+  }
+  .legend-pill {
+    width: 28px; height: 6px; border-radius: 3px;
+  }
+
+  /* ─── ARCHITECTURE LAYOUT ─────────────────────── */
+  .arch {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ─── TIER ───────────────────────────────────── */
+  .tier-wrap {
+    position: relative;
+    margin-bottom: 0;
+  }
+  .tier-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .tier-label::before, .tier-label::after {
+    content: '';
+    flex: 1;
+    max-width: 120px;
+    height: 1px;
+    background: var(--border);
+  }
+  .tier-row {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  /* ─── CONNECTOR ──────────────────────────────── */
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    height: 56px;
+    position: relative;
+    margin: 0;
+  }
+  .connector-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .conn-line {
+    width: 1.5px;
+    flex: 1;
+    background: linear-gradient(to bottom, var(--border2), transparent);
+  }
+  .conn-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  /* Fan connector for 1→N */
+  .fan-connector {
+    position: relative;
+    height: 64px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fan-connector svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    overflow: visible;
+  }
+
+  /* ─── CARD ───────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 280px;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+
+  .card.wide { width: 320px; }
+  .card.narrow { width: 240px; }
+
+  /* Accent top bar */
+  .card-bar {
+    height: 3px;
+    width: 100%;
+  }
+
+  .card-body { padding: 18px 18px 16px; }
+
+  .card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+  .card-badge .badge-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+
+  .card-name {
+    font-family: var(--font-head);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .card-role {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-2);
+    margin-bottom: 3px;
+  }
+  .card-subtitle {
+    font-size: 10px;
+    color: var(--text-3);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .card-human {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: var(--text-2);
+    margin-bottom: 14px;
+  }
+  .card-human .human-icon {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+
+  .card-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 -18px 12px;
+  }
+
+  .section-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 8px;
+  }
+
+  /* Skills */
+  .skills-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 14px;
+  }
+  .skill-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    color: var(--text-2);
+    line-height: 1.4;
+  }
+  .skill-item::before {
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Tools */
+  .tools-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .tool-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    font-weight: 400;
+    padding: 4px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .tool-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ─── COLOR THEMES ───────────────────────────── */
+  .theme-blue  .card-bar            { background: var(--blue); }
+  .theme-blue  .card-badge          { background: var(--blue-dim); color: var(--blue); }
+  .theme-blue  .card-badge .badge-dot { background: var(--blue); }
+  .theme-blue  .card-name           { color: var(--blue); }
+  .theme-blue  .skill-item::before  { background: var(--blue); opacity: 0.5; }
+  .theme-blue  .card:hover          { border-color: var(--blue-mid); box-shadow: 0 12px 40px rgba(74,158,255,0.12); }
+
+  .theme-coral .card-bar            { background: var(--coral); }
+  .theme-coral .card-badge          { background: var(--coral-dim); color: var(--coral); }
+  .theme-coral .card-badge .badge-dot { background: var(--coral); }
+  .theme-coral .card-name           { color: var(--coral); }
+  .theme-coral .skill-item::before  { background: var(--coral); opacity: 0.5; }
+  .theme-coral .card:hover          { border-color: var(--coral-mid); box-shadow: 0 12px 40px rgba(255,107,74,0.12); }
+
+  .theme-teal  .card-bar            { background: var(--teal); }
+  .theme-teal  .card-badge          { background: var(--teal-dim); color: var(--teal); }
+  .theme-teal  .card-badge .badge-dot { background: var(--teal); }
+  .theme-teal  .card-name           { color: var(--teal); }
+  .theme-teal  .skill-item::before  { background: var(--teal); opacity: 0.5; }
+  .theme-teal  .card:hover          { border-color: var(--teal-mid); box-shadow: 0 12px 40px rgba(45,212,160,0.12); }
+
+  .theme-purple .card-bar           { background: var(--purple); }
+  .theme-purple .card-badge         { background: var(--purple-dim); color: var(--purple); }
+  .theme-purple .card-badge .badge-dot { background: var(--purple); }
+  .theme-purple .card-name          { color: var(--purple); }
+  .theme-purple .skill-item::before { background: var(--purple); opacity: 0.5; }
+  .theme-purple .card:hover         { border-color: var(--purple-mid); box-shadow: 0 12px 40px rgba(167,139,250,0.12); }
+
+  .theme-amber .card-bar            { background: var(--amber); }
+  .theme-amber .card-badge          { background: var(--amber-dim); color: var(--amber); }
+  .theme-amber .card-badge .badge-dot { background: var(--amber); }
+  .theme-amber .card-name           { color: var(--amber); }
+  .theme-amber .skill-item::before  { background: var(--amber); opacity: 0.5; }
+  .theme-amber .card:hover          { border-color: var(--amber-mid); box-shadow: 0 12px 40px rgba(251,191,36,0.12); }
+
+  /* ─── SECTION WRAPPER ────────────────────────── */
+  .section-wrap {
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px 24px 28px;
+    margin-bottom: 0;
+    position: relative;
+    background: rgba(255,255,255,0.015);
+  }
+  .section-wrap + .section-wrap { margin-top: 0; }
+
+  /* SVG connectors between sections */
+  .svg-connector-wrap {
+    position: relative;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .svg-connector-wrap svg {
+    overflow: visible;
+  }
+
+  /* ─── FOOTER ─────────────────────────────────── */
+  .page-footer {
+    text-align: center;
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-3);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* ─── PRINT ──────────────────────────────────── */
+  @media print {
+    body { background: #fff; color: #000; padding: 16px; }
+    .card { break-inside: avoid; }
+    .section-wrap { break-inside: avoid; }
+  }
+
+  /* ─── ANIMATIONS ─────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .card {
+    animation: fadeUp 0.5s ease both;
+  }
+  .tier-row .card:nth-child(1) { animation-delay: 0.05s; }
+  .tier-row .card:nth-child(2) { animation-delay: 0.12s; }
+  .tier-row .card:nth-child(3) { animation-delay: 0.19s; }
+  .tier-row .card:nth-child(4) { animation-delay: 0.26s; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="page-header">
+  <div class="eyebrow">Grupo VENDA · Documento Interno</div>
+  <h1>Arquitetura de Agentes</h1>
+  <div class="meta">
+    <span>Operação Humano + IA</span>
+    <span class="dot"></span>
+    <span>v1.0</span>
+    <span class="dot"></span>
+    <span>Março 2026</span>
+    <span class="dot"></span>
+    <span>11 Agentes · 5 Camadas</span>
+  </div>
+</header>
+
+<!-- ═══════════════ LEGEND ═══════════════ -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-pill" style="background:var(--blue)"></div>Controller estratégico</div>
+  <div class="legend-item"><div class="legend-pill" style="background:var(--coral)"></div>Entrada / Atendimento</div>
+  <div class="legend-item"><div class="legend-pill" style="background:var(--teal)"></div>Estratégia / CMO</div>
+  <div class="legend-item"><div class="legend-pill" style="background:var(--purple)"></div>Gestão de projetos (BU)</div>
+  <div class="legend-item"><div class="legend-pill" style="background:var(--amber)"></div>Agentes especialistas</div>
+  <div class="legend-item"><div style="width:16px;height:16px;border-radius:50%;border:1.5px dashed #5A5F6E"></div>Sub-agentes</div>
+</div>
+
+<!-- ═══════════════ ARCHITECTURE ═══════════════ -->
+<div class="arch">
+
+  <!-- ── TIER 0: MAX ── -->
+  <div class="section-wrap" style="border-color:rgba(74,158,255,0.15); background:rgba(74,158,255,0.02);">
+    <div class="tier-label" style="color:var(--blue)">Controller Estratégico</div>
+    <div class="tier-row">
+      <div class="theme-blue">
+        <div class="card wide">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>Controller · Nível 0</div>
+            <div class="card-name">MAX</div>
+            <div class="card-role">Visão total da operação</div>
+            <div class="card-subtitle">Não operacional — monitora, rastreia e escala para a Diretoria</div>
+            <div class="card-human"><div class="human-icon">👤</div>Bruno Zanardo (CEO)</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Monitoramento de todas as demandas ativas</div>
+              <div class="skill-item">Rastreabilidade e governança de agentes</div>
+              <div class="skill-item">Escalonamento para Diretoria</div>
+              <div class="skill-item">Visão consolidada da operação</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#4285F4"></span>Google Workspace</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="svg-connector-wrap">
+    <svg width="2" height="72"><line x1="1" y1="0" x2="1" y2="72" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-dasharray="4,4"/></svg>
+  </div>
+
+  <!-- ── TIER 1: CS Supremo + Agente CMO ── -->
+  <div class="section-wrap" style="border-color:rgba(255,107,74,0.12); background:rgba(255,107,74,0.015);">
+    <div class="tier-label" style="color:var(--coral)">Entrada e Estratégia</div>
+    <div class="tier-row">
+
+      <!-- CS Supremo -->
+      <div class="theme-coral">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>Entrada · Nível 1</div>
+            <div class="card-name">CS Supremo</div>
+            <div class="card-role">Triagem, roteamento e atendimento</div>
+            <div class="card-subtitle">Canal principal de entrada de todas as demandas</div>
+            <div class="card-human"><div class="human-icon">⚡</div>Canal principal de entrada</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Triagem e classificação de demandas</div>
+              <div class="skill-item">Atendimento ao cliente via WhatsApp</div>
+              <div class="skill-item">Roteamento para agente especialista</div>
+              <div class="skill-item">Registro de todas as interações</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#25D366"></span>WhatsApp</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agente CMO -->
+      <div class="theme-teal">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>Estratégia · Nível 1</div>
+            <div class="card-name">Agente CMO</div>
+            <div class="card-role">Suporte estratégico ao CMO</div>
+            <div class="card-subtitle">Resumos executivos, briefings e monitoramento</div>
+            <div class="card-human"><div class="human-icon">👤</div>Armando Cavazana (CMO)</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Consolidação de relatórios de marketing</div>
+              <div class="skill-item">Resumo diário para o CMO</div>
+              <div class="skill-item">Organização de briefings e pautas</div>
+              <div class="skill-item">Monitoramento de prazos e campanhas</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="svg-connector-wrap">
+    <svg width="2" height="72"><line x1="1" y1="0" x2="1" y2="72" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-dasharray="4,4"/></svg>
+  </div>
+
+  <!-- ── TIER 2: GPIA1 + GPIA2 ── -->
+  <div class="section-wrap" style="border-color:rgba(167,139,250,0.15); background:rgba(167,139,250,0.02);">
+    <div class="tier-label" style="color:var(--purple)">Gestão de Projetos por BU</div>
+    <div class="tier-row">
+
+      <!-- GPIA1 -->
+      <div class="theme-purple">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>BU1 · Nível 2</div>
+            <div class="card-name">GPIA1</div>
+            <div class="card-role">Gestão de projetos IA — BU1</div>
+            <div class="card-subtitle">Suporte operacional completo ao Christian</div>
+            <div class="card-human"><div class="human-icon">👤</div>Christian Castelhani</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Criação e gestão de tarefas no Notion</div>
+              <div class="skill-item">Organização de arquivos por cliente</div>
+              <div class="skill-item">Alertas de prazo e pendências</div>
+              <div class="skill-item">Estruturação de briefings recebidos</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GPIA2 -->
+      <div class="theme-purple">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>BU2 · Nível 2</div>
+            <div class="card-name">GPIA2</div>
+            <div class="card-role">Gestão de projetos IA — BU2</div>
+            <div class="card-subtitle">Suporte operacional completo ao Junior</div>
+            <div class="card-human"><div class="human-icon">👤</div>Junior Monte</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Criação e gestão de tarefas no Notion</div>
+              <div class="skill-item">Organização de arquivos por cliente</div>
+              <div class="skill-item">Alertas de prazo e pendências</div>
+              <div class="skill-item">Estruturação de briefings recebidos</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="svg-connector-wrap">
+    <svg width="2" height="72"><line x1="1" y1="0" x2="1" y2="72" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-dasharray="4,4"/></svg>
+  </div>
+
+  <!-- ── TIER 3: Especialistas ── -->
+  <div class="section-wrap" style="border-color:rgba(251,191,36,0.12); background:rgba(251,191,36,0.015);">
+    <div class="tier-label" style="color:var(--amber)">Agentes Especialistas</div>
+    <div class="tier-row">
+
+      <!-- GTPRO (with sub-agents) -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+        <div class="theme-amber">
+          <div class="card">
+            <div class="card-bar"></div>
+            <div class="card-body">
+              <div class="card-badge"><span class="badge-dot"></span>Tráfego · Nível 3</div>
+              <div class="card-name">GTPRO</div>
+              <div class="card-role">Orquestrador de tráfego pago</div>
+              <div class="card-subtitle">Coordena GT Analítico e GT Execução</div>
+              <div class="card-human"><div class="human-icon">🔗</div>Pai dos sub-agentes de tráfego</div>
+              <div class="card-divider"></div>
+              <div class="section-label">Skills</div>
+              <div class="skills-list">
+                <div class="skill-item">Visão macro de todas as campanhas</div>
+                <div class="skill-item">Consolidação de relatórios</div>
+                <div class="skill-item">Controle de orçamento total</div>
+              </div>
+              <div class="card-divider"></div>
+              <div class="section-label">Ferramentas</div>
+              <div class="tools-list">
+                <span class="tool-tag"><span class="tool-dot" style="background:#0866FF"></span>Meta Ads</span>
+                <span class="tool-tag"><span class="tool-dot" style="background:#FBBC04"></span>Google Ads</span>
+                <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+                <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-connector -->
+        <div style="display:flex;justify-content:center;height:28px;">
+          <svg width="240" height="28" overflow="visible">
+            <line x1="120" y1="0" x2="120" y2="14" stroke="rgba(251,191,36,0.25)" stroke-width="1.5" stroke-dasharray="3,3"/>
+            <line x1="60" y1="14" x2="180" y2="14" stroke="rgba(251,191,36,0.25)" stroke-width="1.5"/>
+            <line x1="60" y1="14" x2="60" y2="28" stroke="rgba(251,191,36,0.25)" stroke-width="1.5" stroke-dasharray="3,3"/>
+            <line x1="180" y1="14" x2="180" y2="28" stroke="rgba(251,191,36,0.25)" stroke-width="1.5" stroke-dasharray="3,3"/>
+          </svg>
+        </div>
+
+        <!-- Sub-agents row -->
+        <div style="display:flex;gap:12px;">
+          <div class="theme-amber">
+            <div class="card narrow" style="border-style:dashed;opacity:0.9;">
+              <div class="card-bar" style="background:repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 6px,transparent 6px,transparent 10px)"></div>
+              <div class="card-body">
+                <div class="card-badge"><span class="badge-dot"></span>Sub-agente</div>
+                <div class="card-name" style="font-size:16px;">GT Analítico</div>
+                <div class="card-role">Análise de performance</div>
+                <div class="card-divider"></div>
+                <div class="section-label">Skills</div>
+                <div class="skills-list">
+                  <div class="skill-item">CTR, CPC, ROAS, ROI</div>
+                  <div class="skill-item">Relatórios e insights</div>
+                  <div class="skill-item">Tendências e comparativos</div>
+                </div>
+                <div class="card-divider"></div>
+                <div class="tools-list">
+                  <span class="tool-tag"><span class="tool-dot" style="background:#0866FF"></span>Meta Ads</span>
+                  <span class="tool-tag"><span class="tool-dot" style="background:#FBBC04"></span>Google Ads</span>
+                  <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-amber">
+            <div class="card narrow" style="border-style:dashed;opacity:0.9;">
+              <div class="card-bar" style="background:repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 6px,transparent 6px,transparent 10px)"></div>
+              <div class="card-body">
+                <div class="card-badge"><span class="badge-dot"></span>Sub-agente</div>
+                <div class="card-name" style="font-size:16px;">GT Execução</div>
+                <div class="card-role">Execução de campanhas</div>
+                <div class="card-divider"></div>
+                <div class="section-label">Skills</div>
+                <div class="skills-list">
+                  <div class="skill-item">Ajuste de lances e orçamento</div>
+                  <div class="skill-item">Testes A/B de criativos</div>
+                  <div class="skill-item">Histórico de alterações</div>
+                </div>
+                <div class="card-divider"></div>
+                <div class="tools-list">
+                  <span class="tool-tag"><span class="tool-dot" style="background:#0866FF"></span>Meta Ads</span>
+                  <span class="tool-tag"><span class="tool-dot" style="background:#FBBC04"></span>Google Ads</span>
+                  <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sênior PerNEW -->
+      <div class="theme-amber">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>Social Media · Nível 3</div>
+            <div class="card-name">Sênior PerNEW</div>
+            <div class="card-role">Social media sênior</div>
+            <div class="card-subtitle">Auxilia gestores de projetos e GPIAs</div>
+            <div class="card-human"><div class="human-icon">👥</div>Christian, Junior, GPIA1, GPIA2</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Criação de calendário editorial</div>
+              <div class="skill-item">Redação de copies e legendas</div>
+              <div class="skill-item">Gestão e monitoramento de contas</div>
+              <div class="skill-item">Google Meu Negócio</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#0866FF"></span>Meta Business Suite</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#4285F4"></span>Google Meu Negócio</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CrIA -->
+      <div class="theme-amber">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>Criativo · Nível 3</div>
+            <div class="card-name">CrIA</div>
+            <div class="card-role">Criativo e design IA</div>
+            <div class="card-subtitle">Geração visual e organização criativa</div>
+            <div class="card-human"><div class="human-icon">👤</div>Bruna Benevides</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Geração de referências e moodboards</div>
+              <div class="skill-item">Apoio à criação de layouts e peças</div>
+              <div class="skill-item">Variações de copy criativo</div>
+              <div class="skill-item">Organização de arquivos criativos</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#8E44AD"></span>Gemini</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#E74C3C"></span>Nanobanana</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gestora de Captação -->
+      <div class="theme-amber">
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-badge"><span class="badge-dot"></span>Audiovisual · Nível 3</div>
+            <div class="card-name">Gestora de Captação</div>
+            <div class="card-role">Logística audiovisual</div>
+            <div class="card-subtitle">Agenda, notifica e organiza captações</div>
+            <div class="card-human"><div class="human-icon">👥</div>Hebert, André, Daniel</div>
+            <div class="card-divider"></div>
+            <div class="section-label">Skills</div>
+            <div class="skills-list">
+              <div class="skill-item">Agendamento de captações</div>
+              <div class="skill-item">Controle de agenda dos videomakers</div>
+              <div class="skill-item">Abertura de tasks de edição</div>
+              <div class="skill-item">Notificação automática dos GPIAs</div>
+            </div>
+            <div class="card-divider"></div>
+            <div class="section-label">Ferramentas</div>
+            <div class="tools-list">
+              <span class="tool-tag"><span class="tool-dot" style="background:#1A73E8"></span>Google Calendar</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#EA4335"></span>Gmail</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#0F9D58"></span>Drive</span>
+              <span class="tool-tag"><span class="tool-dot" style="background:#2C2C2A;border:1px solid #444"></span>Notion</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="page-footer">
+  <span>Grupo VENDA · Arquitetura de Agentes v1.0 · Março 2026</span>
+  <span>Documento confidencial — uso interno restrito</span>
+</footer>
+
+</body>
+</html>
