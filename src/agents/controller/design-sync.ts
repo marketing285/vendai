@@ -72,12 +72,7 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
           page_size: 1,
         });
 
-        if (existe.results.length > 0) {
-          ignoradas++;
-          continue;
-        }
-
-        // Extrai dados da task BU
+        // Extrai dados da task BU (usados tanto para criar quanto para atualizar)
         const props = (page as any).properties;
         const tarefa      = props["Tarefa"]?.title?.[0]?.text?.content ?? "—";
         const cliente     = props["Cliente"]?.select?.name;
@@ -85,37 +80,47 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
         const prioridade  = props["Prioridade"]?.select?.name;
         const tipo        = props["Tipo"]?.select?.name;
         const briefingUrl = props["Briefing Completo"]?.url ?? "";
+        const aprovador   = origem === "BU1" ? "Christian Castelhani" : "Junior Monte";
 
-        // Responsável pela aprovação: Christian (BU1) ou Junior Monte (BU2)
-        const aprovador = origem === "BU1" ? "Christian Castelhani" : "Junior Monte";
-
-        const novosProps: Record<string, any> = {
-          "Tarefa":      { title: [{ text: { content: tarefa } }] },
-          "Origem":      { select: { name: origem } },
-          "Task Origem": { rich_text: [{ text: { content: pageId } }] },
-          "Status":      { select: { name: "👤 Atribuído" } },
-          "Sincronizado": { checkbox: false },
+        // Campos que sempre são espelhados da BU
+        const camposEspelho: Record<string, any> = {
           "Responsável Aprovação": { select: { name: aprovador } },
         };
-
-        if (cliente)     novosProps["Cliente"]         = { select: { name: cliente } };
-        if (prazo)       novosProps["Prazo de Entrega"] = { date: { start: prazo } };
-        if (tipo)        novosProps["Tipo de Peça"]     = { select: { name: tipo } };
-        if (briefingUrl) novosProps["Briefing"]         = { rich_text: [{ text: { content: briefingUrl.slice(0, 2000) } }] };
-
-        // Mapeia prioridade (formato BU → Design)
+        if (cliente)     camposEspelho["Cliente"]         = { select: { name: cliente } };
+        if (prazo)       camposEspelho["Prazo de Entrega"] = { date: { start: prazo } };
+        if (tipo)        camposEspelho["Tipo de Peça"]     = { select: { name: tipo } };
+        if (briefingUrl) camposEspelho["Briefing"]         = { rich_text: [{ text: { content: briefingUrl.slice(0, 2000) } }] };
         if (prioridade) {
           const prioMap: Record<string, string> = {
             "🔴 P0 — Emergência": "🔴 P0 — Emergência",
             "🟠 P1 — Alta":       "🟠 P1 — Alta",
             "🟡 P2 — Normal":     "🟡 P2 — Normal",
           };
-          novosProps["Prioridade"] = { select: { name: prioMap[prioridade] ?? prioridade } };
+          camposEspelho["Prioridade"] = { select: { name: prioMap[prioridade] ?? prioridade } };
         }
 
+        if (existe.results.length > 0) {
+          // Atualiza task existente com os campos da BU
+          await notion.pages.update({
+            page_id: existe.results[0].id,
+            properties: camposEspelho,
+          });
+          ignoradas++;
+          await new Promise(r => setTimeout(r, 350));
+          continue;
+        }
+
+        // Cria nova task
         await notion.pages.create({
           parent: { database_id: dbDesign },
-          properties: novosProps,
+          properties: {
+            "Tarefa":      { title: [{ text: { content: tarefa } }] },
+            "Origem":      { select: { name: origem } },
+            "Task Origem": { rich_text: [{ text: { content: pageId } }] },
+            "Status":      { select: { name: "👤 Atribuído" } },
+            "Sincronizado": { checkbox: false },
+            ...camposEspelho,
+          },
         });
 
         criadas++;
