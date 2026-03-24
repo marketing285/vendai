@@ -18,7 +18,7 @@ import { Client } from "@notionhq/client";
 import { NOTION_DBS } from "./notion-tool";
 import { log } from "./logger";
 
-const INTERVALO_MS  = 5 * 60 * 1000; // 5 minutos
+const INTERVALO_MS  = 1 * 60 * 1000; // 1 minuto
 const NOME_BRUNA    = process.env.BRUNA_NOME ?? "Bruna"; // nome parcial para match
 
 // ─── Helper: verifica se uma página tem Bruna como responsável ────────────────
