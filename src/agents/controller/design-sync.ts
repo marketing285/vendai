@@ -78,7 +78,6 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
         const cliente     = props["Cliente"]?.select?.name;
         const prazo       = props["Prazo de Entrega"]?.date?.start;
         const prioridade  = props["Prioridade"]?.select?.name;
-        const tipo        = props["Tipo"]?.select?.name;
         const briefingUrl = props["Briefing Completo"]?.url ?? "";
         const aprovador   = origem === "BU1" ? "Christian Castelhani" : "Junior Monte";
 
@@ -88,7 +87,6 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
         };
         if (cliente)     camposEspelho["Cliente"]         = { select: { name: cliente } };
         if (prazo)       camposEspelho["Prazo de Entrega"] = { date: { start: prazo } };
-        if (tipo)        camposEspelho["Tipo de Peça"]     = { select: { name: tipo } };
         if (briefingUrl) camposEspelho["Briefing"]         = { rich_text: [{ text: { content: briefingUrl.slice(0, 2000) } }] };
         if (prioridade) {
           const prioMap: Record<string, string> = {
