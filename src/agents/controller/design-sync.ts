@@ -79,26 +79,29 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
 
         // Extrai dados da task BU
         const props = (page as any).properties;
-        const tarefa   = props["Tarefa"]?.title?.[0]?.text?.content ?? "—";
-        const cliente  = props["Cliente"]?.select?.name;
-        const prazo    = props["Prazo de Entrega"]?.date?.start;
-        const prioridade = props["Prioridade"]?.select?.name;
-        const status   = props["Status"]?.select?.name;
-        const briefing = props["Briefing"]?.rich_text?.[0]?.text?.content
-                      ?? props["Descrição"]?.rich_text?.[0]?.text?.content
-                      ?? "";
+        const tarefa      = props["Tarefa"]?.title?.[0]?.text?.content ?? "—";
+        const cliente     = props["Cliente"]?.select?.name;
+        const prazo       = props["Prazo de Entrega"]?.date?.start;
+        const prioridade  = props["Prioridade"]?.select?.name;
+        const tipo        = props["Tipo"]?.select?.name;
+        const briefingUrl = props["Briefing Completo"]?.url ?? "";
+
+        // Responsável pela aprovação: Christian (BU1) ou Junior Monte (BU2)
+        const aprovador = origem === "BU1" ? "Christian Castelhani" : "Junior Monte";
 
         const novosProps: Record<string, any> = {
-          "Tarefa": { title: [{ text: { content: tarefa } }] },
-          "Origem": { select: { name: origem } },
+          "Tarefa":      { title: [{ text: { content: tarefa } }] },
+          "Origem":      { select: { name: origem } },
           "Task Origem": { rich_text: [{ text: { content: pageId } }] },
-          "Status": { select: { name: "📥 Inbox" } },
+          "Status":      { select: { name: "👤 Atribuído" } },
           "Sincronizado": { checkbox: false },
+          "Responsável Aprovação": { select: { name: aprovador } },
         };
 
-        if (cliente)   novosProps["Cliente"]          = { select: { name: cliente } };
-        if (prazo)     novosProps["Prazo de Entrega"]  = { date: { start: prazo } };
-        if (briefing)  novosProps["Briefing"]          = { rich_text: [{ text: { content: briefing.slice(0, 2000) } }] };
+        if (cliente)     novosProps["Cliente"]         = { select: { name: cliente } };
+        if (prazo)       novosProps["Prazo de Entrega"] = { date: { start: prazo } };
+        if (tipo)        novosProps["Tipo de Peça"]     = { select: { name: tipo } };
+        if (briefingUrl) novosProps["Briefing"]         = { rich_text: [{ text: { content: briefingUrl.slice(0, 2000) } }] };
 
         // Mapeia prioridade (formato BU → Design)
         if (prioridade) {
@@ -107,8 +110,7 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
             "🟠 P1 — Alta":       "🟠 P1 — Alta",
             "🟡 P2 — Normal":     "🟡 P2 — Normal",
           };
-          const p = prioMap[prioridade] ?? prioridade;
-          novosProps["Prioridade"] = { select: { name: p } };
+          novosProps["Prioridade"] = { select: { name: prioMap[prioridade] ?? prioridade } };
         }
 
         await notion.pages.create({
