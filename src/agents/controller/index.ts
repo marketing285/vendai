@@ -4,6 +4,7 @@ import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { textToSpeech } from "./voice";
 import { metaAdsTool, callMetaAdsWebhook } from "./meta-ads-tool";
+import { NOTION_DBS, notionTasksTool, queryNotionTasks, designProductionsTool, queryDesignProductions, designTasksTool, queryDesignTasks } from "./notion-tool";
 import { log, getLogs, getLatest } from "./logger";
 
 export const controllerRouter = Router();
@@ -101,10 +102,16 @@ function tryAuthenticate(message: string, session: SessionState): boolean {
   return false;
 }
 
-// Ferramentas disponíveis — só inclui Meta Ads se webhook configurado
+// Ferramentas disponíveis
 function getTools(): Anthropic.Tool[] {
-  if (process.env.N8N_META_ADS_WEBHOOK) return [metaAdsTool];
-  return [];
+  const tools: Anthropic.Tool[] = [];
+  if (process.env.NOTION_TOKEN) {
+    tools.push(notionTasksTool as Anthropic.Tool);
+    tools.push(designProductionsTool as Anthropic.Tool);
+    if (NOTION_DBS.tasks_design_bruna) tools.push(designTasksTool as Anthropic.Tool);
+  }
+  if (process.env.N8N_META_ADS_WEBHOOK) tools.push(metaAdsTool);
+  return tools;
 }
 
 // Chamada ao Claude com retry em overload
@@ -178,7 +185,22 @@ controllerRouter.post("/ask", async (req, res) => {
 
       // Executa a ferramenta
       let toolResult = "";
-      if (toolUseBlock.name === "query_meta_ads") {
+      if (toolUseBlock.name === "query_notion_tasks") {
+        const nInput = toolUseBlock.input as Parameters<typeof queryNotionTasks>[0];
+        log("info", `consultando Notion: banco=${nInput.banco} status=${nInput.filtro_status ?? "todos"} area=${nInput.filtro_area ?? "—"}`);
+        toolResult = await queryNotionTasks(nInput);
+        log("info", "Notion respondeu", toolResult.slice(0, 300));
+      } else if (toolUseBlock.name === "query_design_productions") {
+        const dInput = toolUseBlock.input as Parameters<typeof queryDesignProductions>[0];
+        log("info", `consultando produções design: cliente=${dInput.filtro_cliente ?? "todos"} status=${dInput.filtro_status ?? "todos"}`);
+        toolResult = await queryDesignProductions(dInput);
+        log("info", "Design respondeu", toolResult.slice(0, 300));
+      } else if (toolUseBlock.name === "query_design_tasks") {
+        const tInput = toolUseBlock.input as Parameters<typeof queryDesignTasks>[0];
+        log("info", `consultando tasks design: status=${tInput.filtro_status ?? "abertas"} cliente=${tInput.filtro_cliente ?? "todos"}`);
+        toolResult = await queryDesignTasks(tInput);
+        log("info", "Design tasks respondeu", toolResult.slice(0, 300));
+      } else if (toolUseBlock.name === "query_meta_ads") {
         const qInput = toolUseBlock.input as { empresa?: string; mensagem: string };
         const empresa = (qInput.empresa ?? "").trim();
         const qLower  = (qInput.mensagem ?? "").toLowerCase();
@@ -209,11 +231,15 @@ controllerRouter.post("/ask", async (req, res) => {
       // Segunda chamada — injeta dados da ferramenta como texto (evita tool_result sem tools)
       // A API da Anthropic rejeita tool_result em messages sem tools definido (HTTP 400).
       // Passar como texto simples resolve o problema e ainda evita loop de tool_use.
+      const toolLabel = toolUseBlock.name === "query_notion_tasks"        ? "Dados do Notion (tasks BU)"
+                      : toolUseBlock.name === "query_design_productions" ? "Dados do Notion (histórico produções de design)"
+                      : toolUseBlock.name === "query_design_tasks"       ? "Dados do Notion (tasks de design — Bruna, em andamento)"
+                      : "Dados do agente de tráfego";
       const synthesisMessages: Anthropic.MessageParam[] = [
         ...session.history,
         {
           role: "user",
-          content: `[Dados do agente de tráfego]\n${toolResult}\n\nResponda à pergunta original acima.`,
+          content: `[${toolLabel}]\n${toolResult}\n\nResponda à pergunta original acima.`,
         },
       ];
 
