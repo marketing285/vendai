@@ -1,16 +1,16 @@
 /**
  * design-sync.ts
- * Fluxo completo de design (polling a cada 1 min) — usando NocoDB:
+ * Fluxo completo de design com aprovação do gestor — NocoDB:
  *
- * 1. Tasks BU1/BU2 → Tasks de Design
- *    Rows com Status "👤 Atribuído" e Responsável = Bruna são copiadas para
- *    Tasks de Design. O row na BU passa para "🎨 Em Design".
+ * 1. BU "👤 Atribuído" (Bruna) → Tasks de Design "👤 Atribuído"
+ *    BU vira "🎨 Em Design"
  *
- * 2. Tasks de Design "✅ Entregue" → BU de origem + Produções de Design
- *    Quando Bruna marca "✅ Entregue":
- *    - Row original na BU volta para "🔎 Revisão Interna"
- *    - Cópia enviada para Produções de Design (histórico)
- *    - Row de Design deletado
+ * 2. Tasks de Design "⏳ Em Aprovação" → BU "🔎 Revisão Interna"
+ *    Gestor analisa a entrega da Bruna.
+ *
+ * 3a. BU "✅ Entregue" (gestor aprovou) → Produções de Design + deleta task
+ * 3b. BU "🔄 Em Revisão" (gestor pediu revisão) → Tasks de Design "🔄 Em Revisão"
+ *     BU volta para "🎨 Em Design"
  */
 
 import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete } from "./nocodb-tool";
@@ -31,8 +31,8 @@ const URG_MAP: Record<string, string> = {
   "🟢 P3 — Baixa":      "Suave",
 };
 
-// ─── 1. BU → Tasks de Design ──────────────────────────────────────────────────
-async function syncBUparaTasks(): Promise<{ criadas: number; atualizadas: number }> {
+// ─── 1. BU "👤 Atribuído" → Tasks de Design ──────────────────────────────────
+async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number }> {
   let criadas = 0, atualizadas = 0;
 
   const bancos = [
@@ -69,7 +69,6 @@ async function syncBUparaTasks(): Promise<{ criadas: number; atualizadas: number
         if (urg) campos["Urgência"] = urg;
       }
 
-      // Verifica se já existe em Tasks de Design
       const existe = await ndbList(NDB.tables.tasks_design, `(Task Origem,eq,${buRowId})`);
 
       if (existe.length > 0) {
@@ -95,84 +94,138 @@ async function syncBUparaTasks(): Promise<{ criadas: number; atualizadas: number
   return { criadas, atualizadas };
 }
 
-// ─── 2. Tasks de Design "✅ Entregue" → BU + Produções ───────────────────────
-async function syncEntregues(): Promise<{ processadas: number }> {
-  let processadas = 0;
+// ─── 2. Tasks de Design "⏳ Em Aprovação" → BU "🔎 Revisão Interna" ──────────
+async function syncParaAprovacao(): Promise<{ enviadas: number }> {
+  let enviadas = 0;
 
+  // Sincronizado=false significa que ainda não notificou o gestor
   const rows = await ndbList(
     NDB.tables.tasks_design,
-    `(Status,eq,✅ Entregue)~and(Sincronizado,eq,false)`,
+    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,false)`,
   );
 
   for (const row of rows) {
     const rowId        = row["Id"] as number;
     const tarefa       = row["Tarefa"] ?? "—";
-    const cliente      = row["Cliente"];
-    const urg          = row["Urgência"];
-    const comp         = row["Complexidade"];
-    const prazoEnt     = row["Data de Entrega"];
-    const rev          = row["Precisou de Alteração?"];
-    const nRev         = row["Nº de Alterações"];
-    const link         = row["Link de Entrega"];
-    const briefing     = row["Briefing"];
-    const aprovNome    = row["Responsável Aprovação"];
     const taskOrigemId = row["Task Origem"];
-    const hoje         = new Date().toISOString().split("T")[0];
+    const origem       = row["Origem"] as string;
 
-    // Cópia para Produções de Design
-    const prod: Record<string, any> = {
-      Tarefa: tarefa,
-      Status: "Entregue",
-      Data:   prazoEnt ?? hoje,
-    };
-    if (cliente)   prod["Cliente"]                = cliente;
-    if (urg)       prod["Urgência"]               = urg;
-    if (comp)      prod["Complexidade"]           = comp;
-    if (prazoEnt)  prod["Data de Entrega"]        = prazoEnt;
-    if (rev)       prod["Precisou de Alteração?"] = rev;
-    if (nRev)      prod["Nº de Alterações"]       = nRev;
-    if (link)      prod["Link de Entrega"]        = link;
-    if (briefing)  prod["Briefing"]               = briefing;
-    if (aprovNome) prod["Responsável Aprovação"]  = aprovNome;
-
-    try {
-      await ndbCreate(NDB.tables.producoes_design, prod);
-      log("info", `[design-sync] "${tarefa}" copiada para Produções de Design`);
-    } catch (e: any) {
-      log("warn", `[design-sync] erro ao copiar para Produções: ${e?.message}`);
-    }
-
-    // Devolve para BU de origem
     if (taskOrigemId) {
       const buRowId = Number(taskOrigemId);
-      const origem  = row["Origem"] as string;
       const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
       try {
         await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
-        log("info", `[design-sync] "${tarefa}" devolvida à BU (🔎 Revisão Interna)`);
+        log("info", `[design-sync] "${tarefa}" enviada para aprovação do gestor`);
       } catch (e: any) {
-        log("warn", `[design-sync] erro ao devolver à BU: ${e?.message}`);
+        log("warn", `[design-sync] erro ao notificar BU: ${e?.message}`);
       }
     }
 
-    // Remove task de design
-    try {
-      await ndbDelete(NDB.tables.tasks_design, rowId);
-    } catch (e: any) {
-      log("warn", `[design-sync] erro ao deletar task de design: ${e?.message}`);
-    }
-
-    processadas++;
+    // Marca como notificado (Sincronizado=true) para aguardar decisão do gestor
+    await ndbUpdate(NDB.tables.tasks_design, rowId, { Sincronizado: true });
+    enviadas++;
     await new Promise(r => setTimeout(r, 300));
   }
 
-  return { processadas };
+  return { enviadas };
+}
+
+// ─── 3. Decisão do gestor na BU ───────────────────────────────────────────────
+// Monitora tasks de design aguardando aprovação (Sincronizado=true, Status=⏳ Em Aprovação)
+// e verifica o status da BU de origem.
+async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: number }> {
+  let aprovadas = 0, revisoes = 0;
+
+  const rows = await ndbList(
+    NDB.tables.tasks_design,
+    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,true)`,
+  );
+
+  for (const row of rows) {
+    const rowId        = row["Id"] as number;
+    const tarefa       = row["Tarefa"] ?? "—";
+    const taskOrigemId = row["Task Origem"];
+    const origem       = row["Origem"] as string;
+    if (!taskOrigemId) continue;
+
+    const buRowId = Number(taskOrigemId);
+    const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
+
+    // Busca o status atual da BU
+    const buRows = await ndbList(buTable, `(Id,eq,${buRowId})`);
+    if (buRows.length === 0) continue;
+    const buStatus = buRows[0]["Status"] as string;
+
+    if (buStatus === "✅ Entregue") {
+      // Gestor aprovou — copia para Produções e finaliza
+      await _finalizarTask(row, buTable, buRowId);
+      aprovadas++;
+
+    } else if (buStatus === "🔄 Em Revisão") {
+      // Gestor pediu revisão — devolve para Bruna
+      await ndbUpdate(NDB.tables.tasks_design, rowId, {
+        Status:       "🔄 Em Revisão",
+        Sincronizado: false,
+      });
+      await ndbUpdate(buTable, buRowId, { Status: "🎨 Em Design" });
+      log("info", `[design-sync] "${tarefa}" devolvida para revisão da Bruna`);
+      revisoes++;
+    }
+
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  return { aprovadas, revisoes };
+}
+
+async function _finalizarTask(row: any, buTable: string, buRowId: number): Promise<void> {
+  const rowId      = row["Id"] as number;
+  const tarefa     = row["Tarefa"] ?? "—";
+  const cliente    = row["Cliente"];
+  const urg        = row["Urgência"];
+  const comp       = row["Complexidade"];
+  const prazoEnt   = row["Data de Entrega"];
+  const rev        = row["Precisou de Alteração?"];
+  const nRev       = row["Nº de Alterações"];
+  const link       = row["Link de Entrega"];
+  const briefing   = row["Briefing"];
+  const aprovNome  = row["Responsável Aprovação"];
+  const hoje       = new Date().toISOString().split("T")[0];
+
+  const prod: Record<string, any> = {
+    Tarefa: tarefa,
+    Status: "Entregue",
+    Data:   prazoEnt ?? hoje,
+  };
+  if (cliente)   prod["Cliente"]                = cliente;
+  if (urg)       prod["Urgência"]               = urg;
+  if (comp)      prod["Complexidade"]           = comp;
+  if (prazoEnt)  prod["Data de Entrega"]        = prazoEnt;
+  if (rev)       prod["Precisou de Alteração?"] = rev;
+  if (nRev)      prod["Nº de Alterações"]       = nRev;
+  if (link)      prod["Link de Entrega"]        = link;
+  if (briefing)  prod["Briefing"]               = briefing;
+  if (aprovNome) prod["Responsável Aprovação"]  = aprovNome;
+
+  try {
+    await ndbCreate(NDB.tables.producoes_design, prod);
+    log("info", `[design-sync] "${tarefa}" copiada para Produções de Design`);
+  } catch (e: any) {
+    log("warn", `[design-sync] erro ao copiar para Produções: ${e?.message}`);
+  }
+
+  // Remove task de design
+  try {
+    await ndbDelete(NDB.tables.tasks_design, rowId);
+    log("info", `[design-sync] "${tarefa}" finalizada e removida das Tasks de Design`);
+  } catch (e: any) {
+    log("warn", `[design-sync] erro ao deletar task: ${e?.message}`);
+  }
 }
 
 // ─── Loop principal ───────────────────────────────────────────────────────────
 export function startDesignSync(): void {
   const token = process.env.NOCODB_TOKEN;
-
   if (!token) {
     log("warn", "[design-sync] NOCODB_TOKEN não configurado — sync desativado.");
     return;
@@ -181,10 +234,12 @@ export function startDesignSync(): void {
   async function runCycle() {
     try {
       log("info", "[design-sync] iniciando ciclo...");
-      const bu = await syncBUparaTasks();
-      log("info", `[design-sync] BU→Design: ${bu.criadas} criadas, ${bu.atualizadas} atualizadas`);
-      const en = await syncEntregues();
-      log("info", `[design-sync] Entregues: ${en.processadas} devolvidas à BU + copiadas para Produções`);
+      const a = await syncAtribuidos();
+      log("info", `[design-sync] Atribuídos: ${a.criadas} criadas, ${a.atualizadas} atualizadas`);
+      const p = await syncParaAprovacao();
+      log("info", `[design-sync] Em Aprovação: ${p.enviadas} enviadas ao gestor`);
+      const d = await syncDecisaoGestor();
+      log("info", `[design-sync] Decisões: ${d.aprovadas} aprovadas, ${d.revisoes} em revisão`);
     } catch (err: any) {
       log("error", `[design-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }
@@ -192,6 +247,5 @@ export function startDesignSync(): void {
 
   setTimeout(runCycle, 30_000);
   setInterval(runCycle, INTERVALO_MS);
-
   log("info", `[design-sync] sincronização iniciada — intervalo: ${INTERVALO_MS / 60000} min`);
 }
