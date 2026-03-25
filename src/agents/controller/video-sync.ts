@@ -1,229 +1,169 @@
 /**
  * video-sync.ts
- * Fluxo de edição de vídeo — Ana Laura (polling a cada 1 min):
+ * Fluxo de edição de vídeo — Ana Laura (polling a cada 1 min) — usando NocoDB:
  *
- * 1. BU1/BU2 → Tasks de Edição
- *    Tasks com Status "👤 Atribuído" e Responsável = Ana Laura são copiadas
- *    para Tasks de Edição. A task na BU passa para "🎬 Em Edição".
+ * 1. Tasks BU1/BU2 → Tasks de Edição
+ *    Rows com Status "👤 Atribuído" e Responsável = Ana Laura são copiados para
+ *    Tasks de Edição. O row na BU passa para "🎬 Em Edição".
  *
  * 2. Tasks de Edição "✅ Entregue" → BU de origem + Produções de Edição
  *    Quando Ana Laura marca "✅ Entregue":
- *    - Task original na BU volta para "🔎 Revisão Interna" (gestor aprova)
+ *    - Row original na BU volta para "🔎 Revisão Interna"
  *    - Cópia enviada para Produções de Edição (histórico/pagamento)
- *    - Task de Edição arquivada
- *
- * Ana Laura Marciliano Roma — ID: 209d872b-594c-8114-8f8d-000233b15362
+ *    - Row de Edição deletado
  */
 
-import { Client } from "@notionhq/client";
-import { NOTION_DBS } from "./notion-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete } from "./nocodb-tool";
 import { log } from "./logger";
 
-const INTERVALO_MS = 1 * 60 * 1000; // 1 minuto
+const INTERVALO_MS = 1 * 60 * 1000;
 const NOME_ANA     = process.env.ANA_NOME ?? "Ana Laura";
-const ANA_LAURA_ID = "209d872b-594c-8114-8f8d-000233b15362";
-const CHRISTIAN_ID = "247d872b-594c-8111-816a-00022a184432";
-const JUNIOR_ID    = "30dd872b-594c-81a1-abc0-000271dff430";
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
-function temAna(page: any): boolean {
-  const pessoas: any[] = page.properties?.["Responsável"]?.people ?? [];
-  return pessoas.some((p: any) =>
-    (p.name ?? "").toLowerCase().includes(NOME_ANA.toLowerCase())
-  );
-}
+const PRIO_MAP: Record<string, string> = {
+  "🔴 P0 — Emergência": "🔴 P0 — Emergência",
+  "🟠 P1 — Alta":       "🟠 P1 — Alta",
+  "🟡 P2 — Normal":     "🟡 P2 — Normal",
+};
+const URG_MAP: Record<string, string> = {
+  "🔴 P0 — Emergência": "Urgente",
+  "🟠 P1 — Alta":       "Urgente",
+  "🟡 P2 — Normal":     "Média",
+  "🟢 P3 — Baixa":      "Suave",
+};
 
-// ─── 1. BU1/BU2 → Tasks de Edição ────────────────────────────────────────────
-async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; atualizadas: number }> {
-  const dbTasks = NOTION_DBS.tasks_edicao_ana;
-  if (!dbTasks) return { criadas: 0, atualizadas: 0 };
+// ─── 1. BU → Tasks de Edição ──────────────────────────────────────────────────
+async function syncBUparaTasks(): Promise<{ criadas: number; atualizadas: number }> {
+  let criadas = 0, atualizadas = 0;
 
-  let criadas = 0;
-  let atualizadas = 0;
-
-  const bancos: { id: string; origem: string }[] = [
-    { id: NOTION_DBS.tasks_bu1, origem: "BU1" },
-    { id: NOTION_DBS.tasks_bu2, origem: "BU2" },
+  const bancos = [
+    { id: NDB.tables.tasks_bu1, origem: "BU1" },
+    { id: NDB.tables.tasks_bu2, origem: "BU2" },
   ];
 
-  for (const { id: dbId, origem } of bancos) {
-    let cursor: string | undefined;
-    do {
-      const resp = await notion.databases.query({
-        database_id: dbId,
-        filter: {
-          property: "Status",
-          select: { equals: "👤 Atribuído" },
-        },
-        page_size: 50,
-        ...(cursor ? { start_cursor: cursor } : {}),
-      });
+  for (const { id: buTable, origem } of bancos) {
+    const rows = await ndbList(buTable, `(Status,eq,👤 Atribuído)`);
 
-      for (const page of resp.results) {
-        if (page.object !== "page") continue;
-        if (!temAna(page)) continue;
+    for (const row of rows) {
+      const responsavel: string = row["Responsável"] ?? "";
+      if (!responsavel.toLowerCase().includes(NOME_ANA.toLowerCase())) continue;
 
-        const pageId = page.id;
-        const props  = (page as any).properties;
+      const buRowId    = row["Id"] as number;
+      const tarefa     = row["Tarefa"] ?? "—";
+      const cliente    = row["Cliente"];
+      const prazo      = row["Prazo de Entrega"];
+      const prioridade = row["Prioridade"];
+      const roteiro    = row["Briefing Completo"]; // Briefing Completo → Roteiro
+      const linkEnt    = row["Link de entrega"];
 
-        const tarefa      = props["Tarefa"]?.title?.[0]?.text?.content ?? "—";
-        const cliente     = props["Cliente"]?.select?.name;
-        const prazo       = props["Prazo de Entrega"]?.date?.start;
-        const prioridade  = props["Prioridade"]?.select?.name;
-        const roteiro     = props["Briefing Completo"]?.url ?? ""; // script/briefing → Roteiro
-        const linkEntrega = props["Link de entrega"]?.url ?? "";
-        const aprovadorId = origem === "BU1" ? CHRISTIAN_ID : JUNIOR_ID;
-
-        const campos: Record<string, any> = {
-          "Responsável Aprovação": { people: [{ object: "user", id: aprovadorId }] },
-        };
-        if (cliente)     campos["Cliente"]         = { select: { name: cliente } };
-        if (prazo)       campos["Prazo de Entrega"] = { date: { start: prazo } };
-        if (roteiro)     campos["Roteiro"]           = { url: roteiro };
-        if (linkEntrega) campos["Link de Entrega"]   = { url: linkEntrega };
-        if (prioridade) {
-          const prioMap: Record<string, string> = {
-            "🔴 P0 — Emergência": "🔴 P0 — Emergência",
-            "🟠 P1 — Alta":       "🟠 P1 — Alta",
-            "🟡 P2 — Normal":     "🟡 P2 — Normal",
-          };
-          campos["Prioridade"] = { select: { name: prioMap[prioridade] ?? prioridade } };
-          const urgMap: Record<string, string> = {
-            "🔴 P0 — Emergência": "Urgente",
-            "🟠 P1 — Alta":       "Urgente",
-            "🟡 P2 — Normal":     "Média",
-            "🟢 P3 — Baixa":      "Suave",
-          };
-          const urgencia = urgMap[prioridade];
-          if (urgencia) campos["Urgência"] = { select: { name: urgencia } };
-        }
-
-        const existe = await notion.databases.query({
-          database_id: dbTasks,
-          filter: { property: "Task Origem", rich_text: { contains: pageId } },
-          page_size: 1,
-        });
-
-        if (existe.results.length > 0) {
-          await notion.pages.update({ page_id: existe.results[0].id, properties: campos });
-          await notion.pages.update({
-            page_id: pageId,
-            properties: { "Status": { select: { name: "🎬 Em Edição" } } },
-          });
-          atualizadas++;
-          await new Promise(r => setTimeout(r, 350));
-          continue;
-        }
-
-        await notion.pages.create({
-          parent: { database_id: dbTasks },
-          properties: {
-            "Tarefa":       { title: [{ text: { content: tarefa } }] },
-            "Origem":       { select: { name: origem } },
-            "Task Origem":  { rich_text: [{ text: { content: pageId } }] },
-            "Status":       { select: { name: "👤 Atribuído" } },
-            "Sincronizado": { checkbox: false },
-            ...campos,
-          },
-        });
-        await notion.pages.update({
-          page_id: pageId,
-          properties: { "Status": { select: { name: "🎬 Em Edição" } } },
-        });
-
-        criadas++;
-        log("info", `[video-sync] nova task criada de ${origem}: "${tarefa}"`);
-        await new Promise(r => setTimeout(r, 350));
+      const campos: Record<string, any> = {
+        Origem:        origem,
+        "Task Origem": String(buRowId),
+      };
+      if (cliente)    campos["Cliente"]         = cliente;
+      if (prazo)      campos["Prazo de Entrega"] = prazo;
+      if (roteiro)    campos["Roteiro"]           = roteiro;
+      if (linkEnt)    campos["Link de Entrega"]   = linkEnt;
+      if (prioridade) {
+        campos["Prioridade"] = PRIO_MAP[prioridade] ?? prioridade;
+        const urg = URG_MAP[prioridade];
+        if (urg) campos["Urgência"] = urg;
       }
 
-      cursor = resp.has_more ? (resp.next_cursor ?? undefined) : undefined;
-    } while (cursor);
+      // Verifica se já existe em Tasks de Edição
+      const existe = await ndbList(NDB.tables.tasks_edicao, `(Task Origem,eq,${buRowId})`);
+
+      if (existe.length > 0) {
+        await ndbUpdate(NDB.tables.tasks_edicao, existe[0]["Id"], campos);
+        await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        atualizadas++;
+      } else {
+        await ndbCreate(NDB.tables.tasks_edicao, {
+          Tarefa:       tarefa,
+          Status:       "👤 Atribuído",
+          Sincronizado: false,
+          ...campos,
+        });
+        await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        criadas++;
+        log("info", `[video-sync] nova task criada de ${origem}: "${tarefa}"`);
+      }
+
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
   return { criadas, atualizadas };
 }
 
-// ─── 2. Tasks de Edição "✅ Entregue" → BU de origem + Produções de Edição ───
-async function syncEntregues(notion: Client): Promise<{ processadas: number }> {
-  const dbTasks = NOTION_DBS.tasks_edicao_ana;
-  const dbProds = NOTION_DBS.edicao_ana;
-  if (!dbTasks || !dbProds) return { processadas: 0 };
-
+// ─── 2. Tasks de Edição "✅ Entregue" → BU + Produções ───────────────────────
+async function syncEntregues(): Promise<{ processadas: number }> {
   let processadas = 0;
 
-  const resp = await notion.databases.query({
-    database_id: dbTasks,
-    filter: {
-      and: [
-        { property: "Status",       select:   { equals: "✅ Entregue" } },
-        { property: "Sincronizado", checkbox: { equals: false } },
-      ],
-    },
-    page_size: 50,
-  });
+  const rows = await ndbList(
+    NDB.tables.tasks_edicao,
+    `(Status,eq,✅ Entregue)~and(Sincronizado,eq,false)`,
+  );
 
-  for (const page of resp.results) {
-    if (page.object !== "page") continue;
-    const p = (page as any).properties;
-
-    const tarefa       = p["Tarefa"]?.title?.[0]?.text?.content ?? "—";
-    const cliente      = p["Cliente"]?.select?.name;
-    const urg          = p["Urgência"]?.select?.name;
-    const comp         = p["Complexidade"]?.select?.name;
-    const prazoEnt     = p["Data de Entrega"]?.date?.start;
-    const rev          = p["Precisou de Alteração?"]?.select?.name;
-    const nRev         = p["Nº de Alterações"]?.number;
-    const link         = p["Link de Entrega"]?.url;
-    const roteiro      = p["Roteiro"]?.url;
-    const aprovNome    = p["Responsável Aprovação"]?.people?.[0]?.name;
-    const taskOrigemId = p["Task Origem"]?.rich_text?.[0]?.text?.content;
+  for (const row of rows) {
+    const rowId        = row["Id"] as number;
+    const tarefa       = row["Tarefa"] ?? "—";
+    const cliente      = row["Cliente"];
+    const urg          = row["Urgência"];
+    const comp         = row["Complexidade"];
+    const prazoEnt     = row["Data de Entrega"];
+    const rev          = row["Precisou de Alteração?"];
+    const nRev         = row["Nº de Alterações"];
+    const link         = row["Link de Entrega"];
+    const roteiro      = row["Roteiro"];
+    const aprovNome    = row["Responsável Aprovação"];
+    const taskOrigemId = row["Task Origem"];
     const hoje         = new Date().toISOString().split("T")[0];
 
-    // ── Cópia para Produções de Edição ──
-    const prodProps: Record<string, any> = {
-      "Tarefa": { title: [{ text: { content: tarefa } }] },
-      "Status": { select: { name: "Entregue" } },
-      "Data":   { date: { start: prazoEnt ?? hoje } },
+    // Cópia para Produções de Edição
+    const prod: Record<string, any> = {
+      Tarefa: tarefa,
+      Status: "Entregue",
+      Data:   prazoEnt ?? hoje,
     };
-    if (cliente)   prodProps["Cliente"]                = { select: { name: cliente } };
-    if (urg)       prodProps["Urgência"]               = { select: { name: urg } };
-    if (comp)      prodProps["Complexidade"]           = { select: { name: comp } };
-    if (prazoEnt)  prodProps["Data de Entrega"]        = { date: { start: prazoEnt } };
-    if (rev)       prodProps["Precisou de Alteração?"] = { select: { name: rev } };
-    if (nRev)      prodProps["Nº de Alterações"]       = { number: nRev };
-    if (link)      prodProps["Link de Entrega"]        = { url: link };
-    if (roteiro)   prodProps["Roteiro"]                = { url: roteiro };
-    if (aprovNome) prodProps["Responsável Aprovação"]  = { select: { name: aprovNome } };
+    if (cliente)   prod["Cliente"]                = cliente;
+    if (urg)       prod["Urgência"]               = urg;
+    if (comp)      prod["Complexidade"]           = comp;
+    if (prazoEnt)  prod["Data de Entrega"]        = prazoEnt;
+    if (rev)       prod["Precisou de Alteração?"] = rev;
+    if (nRev)      prod["Nº de Alterações"]       = nRev;
+    if (link)      prod["Link de Entrega"]        = link;
+    if (roteiro)   prod["Roteiro"]                = roteiro;
+    if (aprovNome) prod["Responsável Aprovação"]  = aprovNome;
 
     try {
-      await notion.pages.create({ parent: { database_id: dbProds }, properties: prodProps });
+      await ndbCreate(NDB.tables.producoes_edicao, prod);
       log("info", `[video-sync] "${tarefa}" copiada para Produções de Edição`);
     } catch (e: any) {
       log("warn", `[video-sync] erro ao copiar para Produções: ${e?.message}`);
     }
 
-    // ── Devolve para BU de origem ──
+    // Devolve para BU de origem
     if (taskOrigemId) {
+      const buRowId = Number(taskOrigemId);
+      const origem  = row["Origem"] as string;
+      const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
       try {
-        await notion.pages.update({
-          page_id: taskOrigemId,
-          properties: { "Status": { select: { name: "🔎 Revisão Interna" } } },
-        });
+        await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
         log("info", `[video-sync] "${tarefa}" devolvida à BU (🔎 Revisão Interna)`);
       } catch (e: any) {
         log("warn", `[video-sync] erro ao devolver à BU: ${e?.message}`);
       }
     }
 
-    // ── Arquiva task de edição ──
-    await notion.pages.update({
-      page_id: page.id,
-      properties: { "Sincronizado": { checkbox: true } },
-      archived: true,
-    } as any);
+    // Remove task de edição
+    try {
+      await ndbDelete(NDB.tables.tasks_edicao, rowId);
+    } catch (e: any) {
+      log("warn", `[video-sync] erro ao deletar task de edição: ${e?.message}`);
+    }
 
     processadas++;
-    await new Promise(r => setTimeout(r, 350));
+    await new Promise(r => setTimeout(r, 300));
   }
 
   return { processadas };
@@ -231,33 +171,26 @@ async function syncEntregues(notion: Client): Promise<{ processadas: number }> {
 
 // ─── Loop principal ───────────────────────────────────────────────────────────
 export function startVideoSync(): void {
-  const token   = process.env.NOTION_TOKEN;
-  const dbTasks = NOTION_DBS.tasks_edicao_ana;
+  const token = process.env.NOCODB_TOKEN;
 
   if (!token) {
-    log("warn", "[video-sync] NOTION_TOKEN não configurado — sync desativado.");
+    log("warn", "[video-sync] NOCODB_TOKEN não configurado — sync desativado.");
     return;
   }
-  if (!dbTasks) {
-    log("warn", "[video-sync] tasks_edicao_ana não configurado.");
-    return;
-  }
-
-  const notion = new Client({ auth: token });
 
   async function runCycle() {
     try {
       log("info", "[video-sync] iniciando ciclo...");
-      const bu = await syncBUparaTasks(notion);
+      const bu = await syncBUparaTasks();
       log("info", `[video-sync] BU→Edição: ${bu.criadas} criadas, ${bu.atualizadas} atualizadas`);
-      const en = await syncEntregues(notion);
+      const en = await syncEntregues();
       log("info", `[video-sync] Entregues: ${en.processadas} devolvidas à BU + copiadas para Produções`);
     } catch (err: any) {
       log("error", `[video-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }
   }
 
-  setTimeout(runCycle, 35_000); // 5s depois do design-sync (evita colisão de rate limit)
+  setTimeout(runCycle, 35_000);
   setInterval(runCycle, INTERVALO_MS);
 
   log("info", `[video-sync] sincronização iniciada — intervalo: ${INTERVALO_MS / 60000} min`);
