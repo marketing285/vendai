@@ -11,6 +11,8 @@ export const NOTION_DBS = {
   resultados:          "32c16e0ee44681799552f87d30884235",
   design_bruna:        "32d16e0ee446815ab216c4820125556d",
   tasks_design_bruna:  "32d16e0ee4468158bd78d43a46d92851",
+  tasks_edicao_ana:    "32e16e0ee44681e2ada3eabb19e99717",
+  edicao_ana:          "32e16e0ee44681d2a91ad7e596a04acd",
 } as const;
 
 // ─── Tool definition (para o Anthropic tool_use) ─────────────────────────────
