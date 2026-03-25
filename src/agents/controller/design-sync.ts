@@ -1,27 +1,26 @@
 /**
  * design-sync.ts
- * Sincronização automática (sem Notion Automations — plan free):
+ * Fluxo completo de design (polling a cada 1 min):
  *
  * 1. BU1/BU2 → Tasks de Design
- *    A cada ciclo, busca tasks nas BUs onde Responsável inclui Bruna
- *    e cria a task correspondente em Tasks de Design se ainda não existir.
+ *    Tasks com Status "👤 Atribuído" e Responsável = Bruna são copiadas para
+ *    Tasks de Design. A task na BU passa para "🎨 Em Design" (travada).
  *
- * 2. Tasks de Design → Produções de Design
- *    Tasks marcadas como "✅ Entregue" e não sincronizadas são copiadas
- *    para Produções de Design e marcadas como Sincronizado = true.
- *
- * Intervalo padrão: 5 minutos.
- * Inicie com startDesignSync() no server.ts.
+ * 2. Tasks de Design "✅ Entregue" → BU de origem + Produções de Design
+ *    Quando Bruna marca "✅ Entregue":
+ *    - Task original na BU volta para "🔎 Revisão Interna" (gestor aprova)
+ *    - Cópia enviada para Produções de Design (histórico)
+ *    - Task de Design arquivada
  */
 
 import { Client } from "@notionhq/client";
 import { NOTION_DBS } from "./notion-tool";
 import { log } from "./logger";
 
-const INTERVALO_MS  = 1 * 60 * 1000; // 1 minuto
-const NOME_BRUNA    = process.env.BRUNA_NOME ?? "Bruna"; // nome parcial para match
+const INTERVALO_MS = 1 * 60 * 1000; // 1 minuto
+const NOME_BRUNA   = process.env.BRUNA_NOME ?? "Bruna";
 
-// ─── Helper: verifica se uma página tem Bruna como responsável ────────────────
+// ─── Helper ───────────────────────────────────────────────────────────────────
 function temBruna(page: any): boolean {
   const pessoas: any[] = page.properties?.["Responsável"]?.people ?? [];
   return pessoas.some((p: any) =>
@@ -30,12 +29,12 @@ function temBruna(page: any): boolean {
 }
 
 // ─── 1. BU1/BU2 → Tasks de Design ────────────────────────────────────────────
-async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignoradas: number }> {
+async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; atualizadas: number }> {
   const dbDesign = NOTION_DBS.tasks_design_bruna;
-  if (!dbDesign) return { criadas: 0, ignoradas: 0 };
+  if (!dbDesign) return { criadas: 0, atualizadas: 0 };
 
   let criadas = 0;
-  let ignoradas = 0;
+  let atualizadas = 0;
 
   const bancos: { id: string; origem: string }[] = [
     { id: NOTION_DBS.tasks_bu1, origem: "BU1" },
@@ -43,14 +42,14 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
   ];
 
   for (const { id: dbId, origem } of bancos) {
-    // Busca tasks abertas da BU (exclui concluídas)
+    // Só busca tasks recém-atribuídas (evita reprocessar tasks já em design ou em revisão)
     let cursor: string | undefined;
     do {
       const resp = await notion.databases.query({
         database_id: dbId,
         filter: {
           property: "Status",
-          select: { does_not_equal: "✅ Concluído" },
+          select: { equals: "👤 Atribuído" },
         },
         page_size: 50,
         ...(cursor ? { start_cursor: cursor } : {}),
@@ -61,37 +60,25 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
         if (!temBruna(page)) continue;
 
         const pageId = page.id;
+        const props  = (page as any).properties;
 
-        // Verifica se já existe em Tasks de Design pelo campo Task Origem
-        const existe = await notion.databases.query({
-          database_id: dbDesign,
-          filter: {
-            property: "Task Origem",
-            rich_text: { contains: pageId },
-          },
-          page_size: 1,
-        });
-
-        // Extrai dados da task BU (usados tanto para criar quanto para atualizar)
-        const props = (page as any).properties;
         const tarefa      = props["Tarefa"]?.title?.[0]?.text?.content ?? "—";
         const cliente     = props["Cliente"]?.select?.name;
         const prazo       = props["Prazo de Entrega"]?.date?.start;
         const prioridade  = props["Prioridade"]?.select?.name;
-        const briefingUrl  = props["Briefing Completo"]?.url ?? "";
-        const linkEntrega  = props["Link de entrega"]?.url ?? "";
+        const briefingUrl = props["Briefing Completo"]?.url ?? "";
+        const linkEntrega = props["Link de entrega"]?.url ?? "";
         const aprovadorId = origem === "BU1"
           ? "247d872b-594c-8111-816a-00022a184432"  // Christian Castilhoni
           : "30dd872b-594c-81a1-abc0-000271dff430"; // Junior Monte
 
-        // Campos que sempre são espelhados da BU
         const camposEspelho: Record<string, any> = {
           "Responsável Aprovação": { people: [{ object: "user", id: aprovadorId }] },
         };
         if (cliente)     camposEspelho["Cliente"]         = { select: { name: cliente } };
         if (prazo)       camposEspelho["Prazo de Entrega"] = { date: { start: prazo } };
-        if (briefingUrl)  camposEspelho["Briefing"]          = { rich_text: [{ text: { content: briefingUrl.slice(0, 2000) } }] };
-        if (linkEntrega)  camposEspelho["Link de Entrega"]   = { url: linkEntrega };
+        if (briefingUrl) camposEspelho["Briefing"]         = { rich_text: [{ text: { content: briefingUrl.slice(0, 2000) } }] };
+        if (linkEntrega) camposEspelho["Link de Entrega"]  = { url: linkEntrega };
         if (prioridade) {
           const prioMap: Record<string, string> = {
             "🔴 P0 — Emergência": "🔴 P0 — Emergência",
@@ -101,52 +88,64 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
           camposEspelho["Prioridade"] = { select: { name: prioMap[prioridade] ?? prioridade } };
         }
 
+        // Verifica se já existe em Tasks de Design
+        const existe = await notion.databases.query({
+          database_id: dbDesign,
+          filter: { property: "Task Origem", rich_text: { contains: pageId } },
+          page_size: 1,
+        });
+
         if (existe.results.length > 0) {
-          // Atualiza task existente com os campos da BU
+          // Atualiza campos e garante que BU está como "🎨 Em Design"
+          await notion.pages.update({ page_id: existe.results[0].id, properties: camposEspelho });
           await notion.pages.update({
-            page_id: existe.results[0].id,
-            properties: camposEspelho,
+            page_id: pageId,
+            properties: { "Status": { select: { name: "🎨 Em Design" } } },
           });
-          ignoradas++;
+          atualizadas++;
           await new Promise(r => setTimeout(r, 350));
           continue;
         }
 
-        // Cria nova task
+        // Cria nova task em Tasks de Design
         await notion.pages.create({
           parent: { database_id: dbDesign },
           properties: {
-            "Tarefa":      { title: [{ text: { content: tarefa } }] },
-            "Origem":      { select: { name: origem } },
-            "Task Origem": { rich_text: [{ text: { content: pageId } }] },
-            "Status":      { select: { name: "👤 Atribuído" } },
+            "Tarefa":       { title: [{ text: { content: tarefa } }] },
+            "Origem":       { select: { name: origem } },
+            "Task Origem":  { rich_text: [{ text: { content: pageId } }] },
+            "Status":       { select: { name: "👤 Atribuído" } },
             "Sincronizado": { checkbox: false },
             ...camposEspelho,
           },
         });
 
+        // Trava a task na BU — gestor sabe que está com o design
+        await notion.pages.update({
+          page_id: pageId,
+          properties: { "Status": { select: { name: "🎨 Em Design" } } },
+        });
+
         criadas++;
         log("info", `[design-sync] nova task criada de ${origem}: "${tarefa}"`);
-        await new Promise(r => setTimeout(r, 350)); // rate limit
+        await new Promise(r => setTimeout(r, 350));
       }
 
       cursor = resp.has_more ? (resp.next_cursor ?? undefined) : undefined;
     } while (cursor);
   }
 
-  return { criadas, ignoradas };
+  return { criadas, atualizadas };
 }
 
-// ─── 2. Tasks de Design (Entregue) → Produções de Design ─────────────────────
-async function syncTasksParaProducoes(notion: Client): Promise<{ copiadas: number }> {
-  const dbDesign  = NOTION_DBS.tasks_design_bruna;
-  const dbProds   = NOTION_DBS.design_bruna;
+// ─── 2. Tasks de Design "✅ Entregue" → BU de origem + Produções de Design ────
+async function syncEntregues(notion: Client): Promise<{ processadas: number }> {
+  const dbDesign = NOTION_DBS.tasks_design_bruna;
+  const dbProds  = NOTION_DBS.design_bruna;
+  if (!dbDesign || !dbProds) return { processadas: 0 };
 
-  if (!dbDesign || !dbProds) return { copiadas: 0 };
+  let processadas = 0;
 
-  let copiadas = 0;
-
-  // Busca tasks Entregue que ainda não foram sincronizadas
   const resp = await notion.databases.query({
     database_id: dbDesign,
     filter: {
@@ -162,62 +161,73 @@ async function syncTasksParaProducoes(notion: Client): Promise<{ copiadas: numbe
     if (page.object !== "page") continue;
     const p = (page as any).properties;
 
-    const tarefa   = p["Tarefa"]?.title?.[0]?.text?.content ?? "—";
-    const cliente  = p["Cliente"]?.select?.name;
-    const tipo     = p["Tipo de Peça"]?.select?.name;
-    const qtd      = p["Quantidade"]?.number;
-    const urg      = p["Urgência"]?.select?.name;
-    const comp     = p["Complexidade"]?.select?.name;
-    const prazoEnt = p["Data de Entrega"]?.date?.start;
-    const rev      = p["Precisou de Alteração?"]?.select?.name;
-    const nRev     = p["Nº de Alterações"]?.number;
-    const link     = p["Link de Entrega"]?.url;
-    const aprov    = p["Responsável Aprovação"]?.select?.name;
-    const hoje     = new Date().toISOString().split("T")[0];
+    const tarefa        = p["Tarefa"]?.title?.[0]?.text?.content ?? "—";
+    const cliente       = p["Cliente"]?.select?.name;
+    const tipo          = p["Tipo de Peça"]?.select?.name;
+    const qtd           = p["Quantidade"]?.number;
+    const urg           = p["Urgência"]?.select?.name;
+    const comp          = p["Complexidade"]?.select?.name;
+    const prazoEnt      = p["Data de Entrega"]?.date?.start;
+    const prazo         = p["Prazo de Entrega"]?.date?.start;
+    const rev           = p["Precisou de Alteração?"]?.select?.name;
+    const nRev          = p["Nº de Alterações"]?.number;
+    const link          = p["Link de Entrega"]?.url;
+    const briefing      = p["Briefing"]?.rich_text?.[0]?.text?.content;
+    const aprovNome     = p["Responsável Aprovação"]?.people?.[0]?.name;
+    const taskOrigemId  = p["Task Origem"]?.rich_text?.[0]?.text?.content;
+    const hoje          = new Date().toISOString().split("T")[0];
 
+    // ── Cópia para Produções de Design ──
     const prodProps: Record<string, any> = {
       "Tarefa": { title: [{ text: { content: tarefa } }] },
       "Status": { select: { name: "Entregue" } },
       "Data":   { date: { start: prazoEnt ?? hoje } },
-      "Sincronizado": { checkbox: true },
     };
+    if (cliente)   prodProps["Cliente"]                = { select: { name: cliente } };
+    if (tipo)      prodProps["Tipo"]                   = { select: { name: tipo } };
+    if (qtd)       prodProps["Quantidade"]             = { number: qtd };
+    if (urg)       prodProps["Urgência"]               = { select: { name: urg } };
+    if (comp)      prodProps["Complexidade"]           = { select: { name: comp } };
+    if (prazoEnt)  prodProps["Data de Entrega"]        = { date: { start: prazoEnt } };
+    if (rev)       prodProps["Precisou de Alteração?"] = { select: { name: rev } };
+    if (nRev)      prodProps["Nº de Alterações"]       = { number: nRev };
+    if (link)      prodProps["Link de Entrega"]        = { url: link };
+    if (briefing)  prodProps["Briefing"]               = { rich_text: [{ text: { content: briefing.slice(0, 2000) } }] };
+    if (aprovNome) prodProps["Responsável Aprovação"]  = { select: { name: aprovNome } };
 
-    if (cliente)  prodProps["Cliente"]                 = { select: { name: cliente } };
-    if (tipo)     prodProps["Tipo"]                    = { select: { name: tipo } };
-    if (qtd)      prodProps["Quantidade"]              = { number: qtd };
-    if (urg)      prodProps["Urgência"]                = { select: { name: urg } };
-    if (comp)     prodProps["Complexidade"]            = { select: { name: comp } };
-    if (prazoEnt) prodProps["Data de Entrega"]         = { date: { start: prazoEnt } };
-    if (rev)      prodProps["Precisou de Alteração?"]  = { select: { name: rev } };
-    if (nRev)     prodProps["Nº de Alterações"]        = { number: nRev };
-    if (link)     prodProps["Link de Entrega"]         = { url: link };
-    if (aprov)    prodProps["Responsável Aprovação"]   = { select: { name: aprov } };
+    await notion.pages.create({ parent: { database_id: dbProds }, properties: prodProps });
+    log("info", `[design-sync] "${tarefa}" copiada para Produções de Design`);
 
-    // Cria em Produções de Design
-    await notion.pages.create({
-      parent: { database_id: dbProds },
-      properties: prodProps,
-    });
+    // ── Devolve task para a BU de origem (Revisão Interna) ──
+    if (taskOrigemId) {
+      try {
+        await notion.pages.update({
+          page_id: taskOrigemId,
+          properties: { "Status": { select: { name: "🔎 Revisão Interna" } } },
+        });
+        log("info", `[design-sync] "${tarefa}" devolvida para BU (🔎 Revisão Interna)`);
+      } catch (e: any) {
+        log("warn", `[design-sync] não foi possível devolver task BU: ${e?.message}`);
+      }
+    }
 
-    // Marca como sincronizado na task de design
+    // ── Arquiva a task de design (saiu do board) ──
     await notion.pages.update({
       page_id: page.id,
-      properties: {
-        "Sincronizado": { checkbox: true },
-      },
-    });
+      properties: { "Sincronizado": { checkbox: true } },
+      archived: true,
+    } as any);
 
-    copiadas++;
-    log("info", `[design-sync] task entregue copiada para Produções: "${tarefa}"`);
+    processadas++;
     await new Promise(r => setTimeout(r, 350));
   }
 
-  return { copiadas };
+  return { processadas };
 }
 
 // ─── Loop principal ───────────────────────────────────────────────────────────
 export function startDesignSync(): void {
-  const token = process.env.NOTION_TOKEN;
+  const token    = process.env.NOTION_TOKEN;
   const dbDesign = NOTION_DBS.tasks_design_bruna;
 
   if (!token) {
@@ -225,7 +235,7 @@ export function startDesignSync(): void {
     return;
   }
   if (!dbDesign) {
-    log("warn", "[design-sync] tasks_design_bruna não configurado — rode setup-design-tasks.ts primeiro.");
+    log("warn", "[design-sync] tasks_design_bruna não configurado.");
     return;
   }
 
@@ -234,19 +244,18 @@ export function startDesignSync(): void {
   async function runCycle() {
     try {
       log("info", "[design-sync] iniciando ciclo...");
-      const bu = await syncBUparaTasks(notion);
-      log("info", `[design-sync] BU→Design: ${bu.criadas} criadas, ${bu.ignoradas} já existiam`);
 
-      const pr = await syncTasksParaProducoes(notion);
-      log("info", `[design-sync] Design→Produções: ${pr.copiadas} copiadas`);
+      const bu = await syncBUparaTasks(notion);
+      log("info", `[design-sync] BU→Design: ${bu.criadas} criadas, ${bu.atualizadas} atualizadas`);
+
+      const en = await syncEntregues(notion);
+      log("info", `[design-sync] Entregues: ${en.processadas} devolvidas à BU + copiadas para Produções`);
     } catch (err: any) {
       log("error", `[design-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }
   }
 
-  // Primeiro ciclo após 30s (dá tempo ao servidor subir)
   setTimeout(runCycle, 30_000);
-  // Ciclos subsequentes a cada 5 minutos
   setInterval(runCycle, INTERVALO_MS);
 
   log("info", `[design-sync] sincronização iniciada — intervalo: ${INTERVALO_MS / 60000} min`);
