@@ -86,6 +86,16 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; atual
             "🟡 P2 — Normal":     "🟡 P2 — Normal",
           };
           camposEspelho["Prioridade"] = { select: { name: prioMap[prioridade] ?? prioridade } };
+
+          // Mapeia Prioridade da BU → Urgência em Tasks de Design (flui para Produções)
+          const urgMap: Record<string, string> = {
+            "🔴 P0 — Emergência": "Urgente",
+            "🟠 P1 — Alta":       "Urgente",
+            "🟡 P2 — Normal":     "Média",
+            "🟢 P3 — Baixa":      "Suave",
+          };
+          const urgencia = urgMap[prioridade];
+          if (urgencia) camposEspelho["Urgência"] = { select: { name: urgencia } };
         }
 
         // Verifica se já existe em Tasks de Design
