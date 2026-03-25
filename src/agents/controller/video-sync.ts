@@ -12,8 +12,7 @@
  *    - Cópia enviada para Produções de Edição (histórico/pagamento)
  *    - Task de Edição arquivada
  *
- * ⚠️  Ana Laura precisa ser convidada ao workspace Grupo Venda e seu ID
- *     configurado em ANA_LAURA_ID (env ou hardcode abaixo após convite).
+ * Ana Laura Marciliano Roma — ID: 209d872b-594c-8114-8f8d-000233b15362
  */
 
 import { Client } from "@notionhq/client";
@@ -22,6 +21,7 @@ import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000; // 1 minuto
 const NOME_ANA     = process.env.ANA_NOME ?? "Ana Laura";
+const ANA_LAURA_ID = "209d872b-594c-8114-8f8d-000233b15362";
 const CHRISTIAN_ID = "247d872b-594c-8111-816a-00022a184432";
 const JUNIOR_ID    = "30dd872b-594c-81a1-abc0-000271dff430";
 
