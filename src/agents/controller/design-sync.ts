@@ -79,11 +79,13 @@ async function syncBUparaTasks(notion: Client): Promise<{ criadas: number; ignor
         const prazo       = props["Prazo de Entrega"]?.date?.start;
         const prioridade  = props["Prioridade"]?.select?.name;
         const briefingUrl = props["Briefing Completo"]?.url ?? "";
-        const aprovador   = origem === "BU1" ? "Christian Castelhani" : "Junior Monte";
+        const aprovadorId = origem === "BU1"
+          ? "247d872b-594c-8111-816a-00022a184432"  // Christian Castilhoni
+          : "30dd872b-594c-81a1-abc0-000271dff430"; // Junior Monte
 
         // Campos que sempre são espelhados da BU
         const camposEspelho: Record<string, any> = {
-          "Responsável Aprovação": { select: { name: aprovador } },
+          "Responsável Aprovação": { people: [{ object: "user", id: aprovadorId }] },
         };
         if (cliente)     camposEspelho["Cliente"]         = { select: { name: cliente } };
         if (prazo)       camposEspelho["Prazo de Entrega"] = { date: { start: prazo } };
