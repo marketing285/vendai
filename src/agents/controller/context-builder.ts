@@ -133,6 +133,87 @@ async function fetchClientesNocoDB(): Promise<ClientSummary[]> {
 }
 
 // ─────────────────────────────────────────────
+//  NocoDB — fetch de produções de design
+// ─────────────────────────────────────────────
+async function fetchProducoesDesignNocoDB(): Promise<{
+  productions: DesignProductionSummary[];
+  metrics: DesignMonthMetrics[];
+}> {
+  try {
+    // Busca todas as produções (até 1000 registros)
+    const rows = await ndbList(NDB.tables.producoes_design, undefined, 1000);
+
+    const productions: DesignProductionSummary[] = rows.map((r: any) => ({
+      clientName:          r["Cliente"] ?? "—",
+      designerName:        "Bruna Benevides",
+      responsible:         r["Responsável Aprovação"] ?? "—",
+      itemType:            r["Tipo"] ?? "—",
+      quantity:            r["Quantidade"] ?? null,
+      status:              r["Status"] ?? "—",
+      urgency:             r["Urgência"] ?? "—",
+      date:                r["Data"] ?? "—",
+      briefing:            r["Briefing"] ?? "—",
+      approvalResponsible: r["Responsável Aprovação"] ?? "—",
+      deliveryLink:        r["Link de Entrega"] ?? "—",
+      deliveryDate:        r["Data de Entrega"] ?? "—",
+      neededRevision:      r["Precisou de Alteração?"] ?? "—",
+      revisionCount:       r["Nº de Alterações"] ?? null,
+      complexity:          r["Complexidade"] ?? "—",
+    }));
+
+    // Métricas mensais
+    const MONTH_LABELS: Record<string, string> = {
+      "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
+      "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
+      "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
+    };
+    const monthMap: Record<string, {
+      totalPlanned: number; delivered: number; inApproval: number;
+      withRevision: number; days: Set<string>;
+    }> = {};
+
+    for (const r of rows) {
+      const date = r["Data"];
+      if (!date) continue;
+      // Suporta tanto DD-MM-YYYY quanto YYYY-MM-DD
+      const isoDate = date.match(/^\d{4}/)
+        ? date.slice(0, 10)
+        : date.split("-").reverse().join("-");
+      const m = isoDate.slice(0, 7);
+      if (!monthMap[m]) monthMap[m] = { totalPlanned: 0, delivered: 0, inApproval: 0, withRevision: 0, days: new Set() };
+      const qty = parseInt(r["Quantidade"]) || 1;
+      monthMap[m].totalPlanned += qty;
+      if (r["Status"] === "Entregue")     monthMap[m].delivered  += qty;
+      if (r["Status"] === "Em Aprovação") monthMap[m].inApproval += qty;
+      if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") monthMap[m].withRevision += qty;
+      monthMap[m].days.add(isoDate);
+    }
+
+    const metrics: DesignMonthMetrics[] = Object.keys(monthMap).sort().map(m => {
+      const v = monthMap[m];
+      const dias = v.days.size;
+      const pending = v.totalPlanned - v.delivered - v.inApproval;
+      return {
+        month: m,
+        label: `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
+        totalPlanned:         v.totalPlanned,
+        delivered:            v.delivered,
+        inApproval:           v.inApproval,
+        withRevision:         v.withRevision,
+        pending:              Math.max(0, pending),
+        completionPct:        v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
+        uniqueProductionDays: dias,
+        avgDailyProduction:   dias > 0 ? Math.round((v.delivered / dias) * 10) / 10 : 0,
+      };
+    });
+
+    return { productions, metrics };
+  } catch {
+    return { productions: [], metrics: [] };
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Cache de contexto (TTL: 30s)
 // ─────────────────────────────────────────────
 let contextCache: { data: OperationalContext; expiresAt: number } | null = null;
@@ -152,8 +233,14 @@ export async function buildContext(): Promise<OperationalContext> {
     base = getMockContext();
   }
 
-  // Clientes sempre vêm do NocoDB (fonte de verdade)
-  base.clients = await fetchClientesNocoDB();
+  // Clientes e produções de design sempre vêm do NocoDB (fonte de verdade)
+  const [clients, { productions, metrics }] = await Promise.all([
+    fetchClientesNocoDB(),
+    fetchProducoesDesignNocoDB(),
+  ]);
+  base.clients           = clients;
+  base.designProductions = productions;
+  base.designMetrics     = metrics;
 
   contextCache = { data: base, expiresAt: Date.now() + 30_000 };
   return base;
