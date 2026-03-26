@@ -18,6 +18,8 @@ export const NDB = {
     tasks_edicao:      "mhwjogramh4luq2",
     producoes_edicao:  "maock9v8vlhgoa3",
     clientes:          "mdlhtpamjtl21tk",
+    clientes_bu1:      "mfu9lwma8kebjqx",
+    clientes_bu2:      "m91u4p5s24vyti8",
   },
 } as const;
 

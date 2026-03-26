@@ -92,31 +92,41 @@ export interface OperationalContext {
 }
 
 // ─────────────────────────────────────────────
-//  NocoDB — fetch de clientes
+//  NocoDB — fetch de clientes das BUs
 // ─────────────────────────────────────────────
+function mapClienteRow(r: any, gestor: string, bu: string): ClientSummary {
+  return {
+    name:             r["Nome"] ?? "—",
+    segment:          r["Segmento"] ?? "—",
+    portfolio:        bu,
+    gestor,
+    status:           "Ativo",
+    valor:            0,
+    pacote:           "—",
+    metaAdsAccountId: null,
+    canaisAtivos:     Array.isArray(r["Canais Ativos"]) ? r["Canais Ativos"].join(", ") : (r["Canais Ativos"] ?? "—"),
+    escopoMensal:     r["Escopo Mensal"] ?? "—",
+    verbaTrafego:     r["Verba Mensal (Tráfego)"] ?? null,
+    linkInstagram:    r["Link Instagram"] ?? "",
+    linkFacebook:     r["Link Facebook"] ?? "",
+    linkDrive:        r["Link Drive"] ?? "",
+    linkGrupoWhatsApp:r["Link Grupo WhatsApp"] ?? "",
+    diaRelatorio:     r["Dia do Relatório"] ?? null,
+    dataInicio:       "",
+    nps:              null,
+  };
+}
+
 async function fetchClientesNocoDB(): Promise<ClientSummary[]> {
   try {
-    const rows = await ndbList(NDB.tables.clientes, undefined, 200);
-    return rows.map((r: any) => ({
-      name:             r["Nome do Cliente"] ?? "—",
-      segment:          r["Segmento"] ?? "—",
-      portfolio:        r["BU"] ?? "—",
-      gestor:           r["Gestor"] ?? "—",
-      status:           r["Status do Cliente"] ?? "Ativo",
-      valor:            r["Valor Mensal (R$)"] ?? 0,
-      pacote:           r["Pacote"] ?? "—",
-      metaAdsAccountId: null,
-      canaisAtivos:     Array.isArray(r["Canais Ativos"]) ? r["Canais Ativos"].join(", ") : (r["Canais Ativos"] ?? "—"),
-      escopoMensal:     r["Escopo Mensal"] ?? "—",
-      verbaTrafego:     r["Verba Mensal (Tráfego)"] ?? null,
-      linkInstagram:    r["Link Instagram"] ?? "",
-      linkFacebook:     r["Link Facebook"] ?? "",
-      linkDrive:        r["Link Drive"] ?? "",
-      linkGrupoWhatsApp:r["Link Grupo WhatsApp"] ?? "",
-      diaRelatorio:     r["Dia do Relatório"] ?? null,
-      dataInicio:       r["Data de Início"] ?? "",
-      nps:              r["NPS"] ?? null,
-    }));
+    const [bu1, bu2] = await Promise.all([
+      ndbList(NDB.tables.clientes_bu1, undefined, 200),
+      ndbList(NDB.tables.clientes_bu2, undefined, 200),
+    ]);
+    return [
+      ...bu1.map((r: any) => mapClienteRow(r, "Christian", "BU1")),
+      ...bu2.map((r: any) => mapClienteRow(r, "Junior Monte", "BU2")),
+    ];
   } catch {
     return [];
   }
