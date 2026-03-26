@@ -66,6 +66,29 @@ export async function ndbDelete(tableId: string, rowId: number): Promise<void> {
   await ndbFetch("DELETE", `${DATA(tableId)}/${rowId}`);
 }
 
+// ─── SLA helper — atualiza Dias até o Prazo e Status SLA em todas as tasks abertas ──
+export async function atualizarSLA(tableIds: string[]): Promise<void> {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  for (const tid of tableIds) {
+    const rows = await ndbList(tid, "(Prazo de Entrega,isnot,null)", 200);
+    for (const row of rows) {
+      const prazo = row["Prazo de Entrega"];
+      if (!prazo) continue;
+
+      const diff = Math.ceil((new Date(prazo).getTime() - hoje.getTime()) / 86_400_000);
+      const sla  = diff < 0 ? "🔴 Atrasado" : diff <= 2 ? "⚠️ Atenção" : "✅ No Prazo";
+
+      await ndbUpdate(tid, row["Id"], {
+        "Dias até o Prazo": diff,
+        "Status SLA":       sla,
+      });
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+}
+
 // ─── Auth: obter token via email/senha (usado no setup) ───────────────────────
 export async function ndbGetToken(email: string, password: string): Promise<string> {
   const r = await fetch(`${NOCODB_BASE_URL}/api/v1/auth/user/signin`, {

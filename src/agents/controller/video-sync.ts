@@ -13,7 +13,7 @@
  *     BU volta para "🎬 Em Edição"
  */
 
-import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete } from "./nocodb-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
@@ -231,6 +231,7 @@ export function startVideoSync(): void {
       log("info", `[video-sync] Em Aprovação: ${p.enviadas} enviadas ao gestor`);
       const d = await syncDecisaoGestor();
       log("info", `[video-sync] Decisões: ${d.aprovadas} aprovadas, ${d.revisoes} em revisão`);
+      await atualizarSLA([NDB.tables.tasks_edicao]);
     } catch (err: any) {
       log("error", `[video-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }

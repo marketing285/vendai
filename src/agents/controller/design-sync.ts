@@ -13,7 +13,7 @@
  *     BU volta para "🎨 Em Design"
  */
 
-import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete } from "./nocodb-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
@@ -240,6 +240,7 @@ export function startDesignSync(): void {
       log("info", `[design-sync] Em Aprovação: ${p.enviadas} enviadas ao gestor`);
       const d = await syncDecisaoGestor();
       log("info", `[design-sync] Decisões: ${d.aprovadas} aprovadas, ${d.revisoes} em revisão`);
+      await atualizarSLA([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_design]);
     } catch (err: any) {
       log("error", `[design-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }
