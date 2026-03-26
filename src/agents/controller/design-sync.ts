@@ -101,7 +101,7 @@ async function syncParaAprovacao(): Promise<{ enviadas: number }> {
   // Sincronizado=false significa que ainda não notificou o gestor
   const rows = await ndbList(
     NDB.tables.tasks_design,
-    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,false)`,
+    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,0)`,
   );
 
   for (const row of rows) {
@@ -138,7 +138,7 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
 
   const rows = await ndbList(
     NDB.tables.tasks_design,
-    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,true)`,
+    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,1)`,
   );
 
   for (const row of rows) {
