@@ -92,6 +92,29 @@ export async function atualizarSLA(tableIds: string[]): Promise<void> {
   }
 }
 
+// ─── Relatórios helper — atualiza Dias p/ Próx. Relatório nas tabelas de clientes ──
+export async function atualizarRelatorios(tableIds: string[]): Promise<void> {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  for (const tid of tableIds) {
+    const rows = await ndbList(tid, "(Dia do Relatório,isnot,null)", 200);
+    for (const row of rows) {
+      const dia = row["Dia do Relatório"] as number;
+      if (!dia) continue;
+
+      // Próxima ocorrência do dia: este mês ou próximo
+      const esteMs = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
+      const proxMs = new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia);
+      const alvo   = esteMs >= hoje ? esteMs : proxMs;
+      const diff   = Math.ceil((alvo.getTime() - hoje.getTime()) / 86_400_000);
+
+      await ndbUpdate(tid, row["Id"], { "Dias p/ Próx. Relatório": diff });
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+}
+
 // ─── Auth: obter token via email/senha (usado no setup) ───────────────────────
 export async function ndbGetToken(email: string, password: string): Promise<string> {
   const r = await fetch(`${NOCODB_BASE_URL}/api/v1/auth/user/signin`, {
