@@ -1,6 +1,8 @@
 // Agrega dados operacionais em tempo real.
 // Quando o Supabase estiver configurado, as funções reais substituem os mocks.
 
+import { NDB, ndbList } from "./nocodb-tool";
+
 export interface TaskSummary {
   protocol: string;
   title: string;
@@ -32,6 +34,17 @@ export interface ClientSummary {
   valor: number;
   pacote: string;
   metaAdsAccountId: string | null;
+  // Campos NocoDB Clientes
+  canaisAtivos: string;
+  escopoMensal: string;
+  verbaTrafego: number | null;
+  linkInstagram: string;
+  linkFacebook: string;
+  linkDrive: string;
+  linkGrupoWhatsApp: string;
+  diaRelatorio: number | null;
+  dataInicio: string;
+  nps: number | null;
 }
 
 export interface DesignMonthMetrics {
@@ -79,6 +92,37 @@ export interface OperationalContext {
 }
 
 // ─────────────────────────────────────────────
+//  NocoDB — fetch de clientes
+// ─────────────────────────────────────────────
+async function fetchClientesNocoDB(): Promise<ClientSummary[]> {
+  try {
+    const rows = await ndbList(NDB.tables.clientes, undefined, 200);
+    return rows.map((r: any) => ({
+      name:             r["Nome do Cliente"] ?? "—",
+      segment:          r["Segmento"] ?? "—",
+      portfolio:        r["BU"] ?? "—",
+      gestor:           r["Gestor"] ?? "—",
+      status:           r["Status do Cliente"] ?? "Ativo",
+      valor:            r["Valor Mensal (R$)"] ?? 0,
+      pacote:           r["Pacote"] ?? "—",
+      metaAdsAccountId: null,
+      canaisAtivos:     Array.isArray(r["Canais Ativos"]) ? r["Canais Ativos"].join(", ") : (r["Canais Ativos"] ?? "—"),
+      escopoMensal:     r["Escopo Mensal"] ?? "—",
+      verbaTrafego:     r["Verba Mensal (Tráfego)"] ?? null,
+      linkInstagram:    r["Link Instagram"] ?? "",
+      linkFacebook:     r["Link Facebook"] ?? "",
+      linkDrive:        r["Link Drive"] ?? "",
+      linkGrupoWhatsApp:r["Link Grupo WhatsApp"] ?? "",
+      diaRelatorio:     r["Dia do Relatório"] ?? null,
+      dataInicio:       r["Data de Início"] ?? "",
+      nps:              r["NPS"] ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Cache de contexto (TTL: 30s)
 // ─────────────────────────────────────────────
 let contextCache: { data: OperationalContext; expiresAt: number } | null = null;
@@ -87,16 +131,22 @@ export async function buildContext(): Promise<OperationalContext> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (supabaseUrl && supabaseKey && supabaseUrl !== "https://xxxx.supabase.co") {
-    if (contextCache && Date.now() < contextCache.expiresAt) {
-      return contextCache.data;
-    }
-    const data = await fetchLiveContext(supabaseUrl, supabaseKey);
-    contextCache = { data, expiresAt: Date.now() + 30_000 };
-    return data;
+  if (contextCache && Date.now() < contextCache.expiresAt) {
+    return contextCache.data;
   }
 
-  return getMockContext();
+  let base: OperationalContext;
+  if (supabaseUrl && supabaseKey && supabaseUrl !== "https://xxxx.supabase.co") {
+    base = await fetchLiveContext(supabaseUrl, supabaseKey);
+  } else {
+    base = getMockContext();
+  }
+
+  // Clientes sempre vêm do NocoDB (fonte de verdade)
+  base.clients = await fetchClientesNocoDB();
+
+  contextCache = { data: base, expiresAt: Date.now() + 30_000 };
+  return base;
 }
 
 // ─────────────────────────────────────────────
@@ -204,6 +254,9 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     valor: 0,
     pacote: "—",
     metaAdsAccountId: c.meta_ads_account_id ?? null,
+    canaisAtivos: "—", escopoMensal: "—", verbaTrafego: null,
+    linkInstagram: "", linkFacebook: "", linkDrive: "",
+    linkGrupoWhatsApp: "", diaRelatorio: null, dataInicio: "", nps: null,
   }));
 
   // Últimos 30 dias para status atual

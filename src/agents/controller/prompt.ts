@@ -228,9 +228,19 @@ function buildContextSection(ctx: OperationalContext): string {
     lines.push("");
   }
 
-  // Clientes ativos
+  // Carteira de clientes (NocoDB)
   if (ctx.clients.length > 0) {
-    lines.push(`Clientes ativos no sistema: ${ctx.clients.filter(c => c.status === "Ativo").length} ativos, ${ctx.clients.filter(c => c.status !== "Ativo").length} pausados.`);
+    const ativos  = ctx.clients.filter(c => c.status === "Ativo" || !c.status || c.status === "—");
+    const pausados = ctx.clients.filter(c => c.status && c.status !== "Ativo" && c.status !== "—");
+    lines.push(`Carteira de clientes: ${ativos.length} ativos${pausados.length > 0 ? `, ${pausados.length} pausados` : ""}.`);
+    for (const c of ctx.clients) {
+      const verba  = c.verbaTrafego ? ` | verba tráfego: R$${c.verbaTrafego.toLocaleString("pt-BR")}` : "";
+      const canais = c.canaisAtivos && c.canaisAtivos !== "—" ? ` | canais: ${c.canaisAtivos}` : "";
+      const dia    = c.diaRelatorio ? ` | relatório: dia ${c.diaRelatorio}` : "";
+      const escopo = c.escopoMensal && c.escopoMensal !== "—" ? ` | escopo: ${c.escopoMensal}` : "";
+      const status = c.status && c.status !== "—" ? ` [${c.status}]` : "";
+      lines.push(`- ${c.name} (${c.segment}) — ${c.gestor}${status}${verba}${canais}${dia}${escopo}`);
+    }
     lines.push("");
   }
 
