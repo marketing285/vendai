@@ -14,9 +14,11 @@ export const NDB = {
     tasks_bu1:         "m9zoy59q6nnwbdf",
     tasks_bu2:         "mi7dptf2jjezxwe",
     tasks_design:      "mmdcj3520zc4w4r",
-    producoes_design:  "monizzmow55l4ou",
+    producoes_design:  "maltkyh9ve4h90d",  // ativo — trabalho corrente Bruna
+    deposito_design:   "monizzmow55l4ou",  // histórico importado Bruna
     tasks_edicao:      "m96rva43spx02v8",
-    producoes_edicao:  "mkq6lpidc7k7oog",
+    producoes_edicao:  "meliqdygtzb6h6g",  // ativo — trabalho corrente Ana Laura
+    deposito_edicao:   "mkq6lpidc7k7oog",  // histórico importado Ana Laura
     clientes:          "mefxfhg7thuxljc",
     clientes_bu1:      "m6jiwooxmwaadrg",
     clientes_bu2:      "mo8f8vj4phh4m66",

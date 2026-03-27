@@ -170,8 +170,12 @@ async function fetchProducoesDesignNocoDB(): Promise<{
   metrics: DesignMonthMetrics[];
 }> {
   try {
-    // Busca todas as produções (até 1000 registros)
-    const rows = await ndbList(NDB.tables.producoes_design, undefined, 1000);
+    // Combina ativo (trabalho corrente) + depósito (histórico)
+    const [ativo, deposito] = await Promise.all([
+      ndbList(NDB.tables.producoes_design, undefined, 1000),
+      ndbList(NDB.tables.deposito_design,  undefined, 1000),
+    ]);
+    const rows = [...ativo, ...deposito];
 
     const productions: DesignProductionSummary[] = rows.map((r: any) => ({
       clientName:          r["Cliente"] ?? "—",
@@ -251,7 +255,12 @@ async function fetchProducoesEdicaoNocoDB(): Promise<{
   metrics: DesignMonthMetrics[];
 }> {
   try {
-    const rows = await ndbList(NDB.tables.producoes_edicao, undefined, 500);
+    // Combina ativo (trabalho corrente) + depósito (histórico)
+    const [ativo, deposito] = await Promise.all([
+      ndbList(NDB.tables.producoes_edicao, undefined, 500),
+      ndbList(NDB.tables.deposito_edicao,  undefined, 500),
+    ]);
+    const rows = [...ativo, ...deposito];
 
     const productions: NocoProdSummary[] = rows.map((r: any) => ({
       clientName:          r["Cliente"] ?? "—",
