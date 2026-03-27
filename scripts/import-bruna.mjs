@@ -10,8 +10,8 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 const NOCODB_BASE_URL = process.env.NOCODB_URL ?? "https://vendai-docudb.aw5nou.easypanel.host";
-const NOCODB_BASE_ID  = "pbyj8wdxyb1j3ix";
-const TABLE_ID        = "mge0ggcuapeaxiq"; // Produções de Design
+const NOCODB_BASE_ID  = "pok6cayan0pluio";
+const TABLE_ID        = "monizzmow55l4ou"; // Produções de Design
 
 const TOKEN = process.env.NOCODB_TOKEN;
 if (!TOKEN) { console.error("NOCODB_TOKEN não configurado"); process.exit(1); }
@@ -82,6 +82,23 @@ function normalizeClient(v) {
   return CLIENT_MAP[trimmed] ?? (trimmed || null);
 }
 
+const RESP_MAP = {
+  "Christian":          "Christian (Gestor)",
+  "Junior Monte":       "Júnior Monte (Gestor)",
+  "Júnior Monte":       "Júnior Monte (Gestor)",
+  "Armando Cavazana":   "Armando Cavazana (Dir.)",
+  "Bruno Zanardo":      "Bruno (CEO)",
+  "Bruno":              "Bruno (CEO)",
+};
+
+const VALID_RESP = new Set(["Christian (Gestor)", "Júnior Monte (Gestor)", "Bruno (CEO)", "Armando Cavazana (Dir.)"]);
+
+function normalizeResp(v) {
+  const trimmed = (v ?? "").trim();
+  const mapped = RESP_MAP[trimmed] ?? trimmed;
+  return VALID_RESP.has(mapped) ? mapped : null;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const csvPath = process.argv[2] ?? "/Users/grupovenda/Desktop/Tarefas Bruna - Tarefas Gerais (1).csv";
 const raw = readFileSync(csvPath, "utf8");
@@ -104,13 +121,13 @@ for (let i = 0; i < rows.length; i++) {
     "Tipo":                    r["itemType"] || null,
     "Quantidade":              r["Quantity"] ? Number(r["Quantity"]) : null,
     "Urgência":                r["Urgência"] || null,
-    "Complexidade":            r["Complexidade"] || null,
+    "Complexidade":            ["Simples","Média","Complexa"].includes(r["Complexidade"]) ? r["Complexidade"] : null,
     "Data de Entrega":         toISO(r["Data de entrega"]),
     "Precisou de Alteração?":  r["Precisou de Alteração?"] || null,
     "Nº de Alterações":        r["Nº de Alterações"] ? Number(r["Nº de Alterações"]) : null,
     "Link de Entrega":         r["Link de entrega"] || null,
     "Briefing":                r["Briefing"] || null,
-    "Responsável Aprovação":   r["Responsável aprovação"] || null,
+    "Responsável Aprovação":   normalizeResp(r["Responsável aprovação"]),
     "Tarefa":                  [r["itemType"], r["ClientName"]].filter(Boolean).join(" — "),
   };
 

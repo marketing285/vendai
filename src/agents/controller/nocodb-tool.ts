@@ -5,21 +5,21 @@
  */
 
 const NOCODB_BASE_URL = process.env.NOCODB_URL ?? "https://vendai-docudb.aw5nou.easypanel.host";
-const NOCODB_BASE_ID  = "pbyj8wdxyb1j3ix";
+const NOCODB_BASE_ID  = "pok6cayan0pluio";
 
 export const NDB = {
   baseUrl:  NOCODB_BASE_URL,
   baseId:   NOCODB_BASE_ID,
   tables: {
-    tasks_bu1:         "mpzj4jg5neca467",
-    tasks_bu2:         "mjwpxpjb22p58nu",
-    tasks_design:      "moz64dswno4vtxu",
-    producoes_design:  "mge0ggcuapeaxiq",
-    tasks_edicao:      "mhwjogramh4luq2",
-    producoes_edicao:  "maock9v8vlhgoa3",
-    clientes:          "mdlhtpamjtl21tk",
-    clientes_bu1:      "mfu9lwma8kebjqx",
-    clientes_bu2:      "m91u4p5s24vyti8",
+    tasks_bu1:         "m9zoy59q6nnwbdf",
+    tasks_bu2:         "mi7dptf2jjezxwe",
+    tasks_design:      "mmdcj3520zc4w4r",
+    producoes_design:  "monizzmow55l4ou",
+    tasks_edicao:      "m96rva43spx02v8",
+    producoes_edicao:  "mkq6lpidc7k7oog",
+    clientes:          "mefxfhg7thuxljc",
+    clientes_bu1:      "m6jiwooxmwaadrg",
+    clientes_bu2:      "mo8f8vj4phh4m66",
   },
 } as const;
 
