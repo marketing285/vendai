@@ -28,14 +28,19 @@ export interface WipInfo {
 export interface ClientSummary {
   name: string;
   segment: string;
-  portfolio: string;
+  bu: string;
   gestor: string;
   status: string;
-  valor: number;
   pacote: string;
-  metaAdsAccountId: string | null;
-  // Campos NocoDB Clientes
+  valorMensal: number | null;
+  nps: number | null;
   canaisAtivos: string;
+  dataInicio: string;
+  whatsapp: string;
+  // campos herdados / legado
+  portfolio: string;
+  valor: number;
+  metaAdsAccountId: string | null;
   escopoMensal: string;
   verbaTrafego: number | null;
   linkInstagram: string;
@@ -43,8 +48,35 @@ export interface ClientSummary {
   linkDrive: string;
   linkGrupoWhatsApp: string;
   diaRelatorio: number | null;
-  dataInicio: string;
-  nps: number | null;
+}
+
+export interface NocoProdSummary {
+  clientName: string;
+  itemType: string;
+  quantity: number | null;
+  status: string;
+  urgency: string;
+  date: string;
+  deliveryDate: string;
+  neededRevision: string;
+  revisionCount: number | null;
+  complexity: string;
+  approvalResponsible: string;
+  deliveryLink: string;
+  briefing: string;
+}
+
+export interface NocoTaskSummary {
+  id: number;
+  title: string;
+  area: string;
+  client: string;
+  status: string;
+  sla: string;
+  deadline: string;
+  daysLeft: number | null;
+  responsible: string;
+  priority: string;
 }
 
 export interface DesignMonthMetrics {
@@ -89,44 +121,42 @@ export interface OperationalContext {
   clients: ClientSummary[];
   designProductions: DesignProductionSummary[];
   designMetrics: DesignMonthMetrics[];
+  // NocoDB — tempo real
+  edicaoProductions: NocoProdSummary[];
+  edicaoMetrics: DesignMonthMetrics[];
+  tasks: NocoTaskSummary[];
 }
 
 // ─────────────────────────────────────────────
-//  NocoDB — fetch de clientes das BUs
+//  NocoDB — fetch de clientes (tabela principal)
 // ─────────────────────────────────────────────
-function mapClienteRow(r: any, gestor: string, bu: string): ClientSummary {
-  return {
-    name:             r["Nome"] ?? "—",
-    segment:          r["Segmento"] ?? "—",
-    portfolio:        bu,
-    gestor,
-    status:           "Ativo",
-    valor:            0,
-    pacote:           "—",
-    metaAdsAccountId: null,
-    canaisAtivos:     Array.isArray(r["Canais Ativos"]) ? r["Canais Ativos"].join(", ") : (r["Canais Ativos"] ?? "—"),
-    escopoMensal:     r["Escopo Mensal"] ?? "—",
-    verbaTrafego:     r["Verba Mensal (Tráfego)"] ?? null,
-    linkInstagram:    r["Link Instagram"] ?? "",
-    linkFacebook:     r["Link Facebook"] ?? "",
-    linkDrive:        r["Link Drive"] ?? "",
-    linkGrupoWhatsApp:r["Link Grupo WhatsApp"] ?? "",
-    diaRelatorio:     r["Dia do Relatório"] ?? null,
-    dataInicio:       "",
-    nps:              null,
-  };
-}
-
 async function fetchClientesNocoDB(): Promise<ClientSummary[]> {
   try {
-    const [bu1, bu2] = await Promise.all([
-      ndbList(NDB.tables.clientes_bu1, undefined, 200),
-      ndbList(NDB.tables.clientes_bu2, undefined, 200),
-    ]);
-    return [
-      ...bu1.map((r: any) => mapClienteRow(r, "Christian", "BU1")),
-      ...bu2.map((r: any) => mapClienteRow(r, "Junior Monte", "BU2")),
-    ];
+    const rows = await ndbList(NDB.tables.clientes, undefined, 200);
+    return rows.map((r: any): ClientSummary => ({
+      name:             r["Nome do Cliente"] ?? r["Nome"] ?? "—",
+      segment:          r["Segmento"] ?? "—",
+      bu:               r["BU"] ?? "—",
+      gestor:           r["Gestor"] ?? "—",
+      status:           r["Status do Cliente"] ?? r["Status"] ?? "—",
+      pacote:           r["Pacote"] ?? "—",
+      valorMensal:      r["Valor Mensal (R$)"] ?? null,
+      nps:              r["NPS"] ?? null,
+      canaisAtivos:     Array.isArray(r["Canais Ativos"]) ? r["Canais Ativos"].join(", ") : (r["Canais Ativos"] ?? "—"),
+      dataInicio:       r["Data de Início"] ?? "",
+      whatsapp:         r["WhatsApp do Cliente"] ?? "",
+      // legado
+      portfolio:        r["BU"] ?? "—",
+      valor:            r["Valor Mensal (R$)"] ?? 0,
+      metaAdsAccountId: null,
+      escopoMensal:     r["Escopo Mensal"] ?? "—",
+      verbaTrafego:     r["Verba Mensal (Tráfego)"] ?? null,
+      linkInstagram:    r["Link Instagram"] ?? "",
+      linkFacebook:     r["Link Facebook"] ?? "",
+      linkDrive:        r["Link Drive"] ?? "",
+      linkGrupoWhatsApp:r["Link Grupo WhatsApp"] ?? "",
+      diaRelatorio:     r["Dia do Relatório"] ?? null,
+    }));
   } catch {
     return [];
   }
@@ -214,6 +244,105 @@ async function fetchProducoesDesignNocoDB(): Promise<{
 }
 
 // ─────────────────────────────────────────────
+//  NocoDB — fetch de produções de edição (Ana Laura)
+// ─────────────────────────────────────────────
+async function fetchProducoesEdicaoNocoDB(): Promise<{
+  productions: NocoProdSummary[];
+  metrics: DesignMonthMetrics[];
+}> {
+  try {
+    const rows = await ndbList(NDB.tables.producoes_edicao, undefined, 500);
+
+    const productions: NocoProdSummary[] = rows.map((r: any) => ({
+      clientName:          r["Cliente"] ?? "—",
+      itemType:            r["Tarefa"] ?? "—",
+      quantity:            r["Nº de Alterações"] ?? null,
+      status:              r["Status"] ?? "—",
+      urgency:             r["Urgência"] ?? "—",
+      date:                r["Data"] ?? "—",
+      deliveryDate:        r["Data de Entrega"] ?? "—",
+      neededRevision:      r["Precisou de Alteração?"] ?? "—",
+      revisionCount:       r["Nº de Alterações"] ?? null,
+      complexity:          r["Complexidade"] ?? "—",
+      approvalResponsible: r["Responsável Aprovação"] ?? "—",
+      deliveryLink:        r["Link de Entrega"] ?? "—",
+      briefing:            r["Roteiro"] ?? "—",
+    }));
+
+    const MONTH_LABELS: Record<string, string> = {
+      "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
+      "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
+      "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
+    };
+    const monthMap: Record<string, { totalPlanned:number; delivered:number; inApproval:number; withRevision:number; days:Set<string> }> = {};
+    for (const r of rows) {
+      const date = r["Data"]; if (!date) continue;
+      const isoDate = date.match(/^\d{4}/) ? date.slice(0,10) : date.split("-").reverse().join("-");
+      const m = isoDate.slice(0,7);
+      if (!monthMap[m]) monthMap[m] = { totalPlanned:0, delivered:0, inApproval:0, withRevision:0, days:new Set() };
+      monthMap[m].totalPlanned += 1;
+      if (r["Status"] === "Entregue")     monthMap[m].delivered  += 1;
+      if (r["Status"] === "Em Aprovação") monthMap[m].inApproval += 1;
+      if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") monthMap[m].withRevision += 1;
+      monthMap[m].days.add(isoDate);
+    }
+    const metrics: DesignMonthMetrics[] = Object.keys(monthMap).sort().map(m => {
+      const v = monthMap[m];
+      const dias = v.days.size;
+      return {
+        month: m,
+        label: `${MONTH_LABELS[m.slice(5)]}/${m.slice(0,4)}`,
+        totalPlanned: v.totalPlanned, delivered: v.delivered, inApproval: v.inApproval,
+        withRevision: v.withRevision, pending: Math.max(0, v.totalPlanned - v.delivered - v.inApproval),
+        completionPct: v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
+        uniqueProductionDays: dias, avgDailyProduction: dias > 0 ? Math.round((v.delivered / dias)*10)/10 : 0,
+      };
+    });
+    return { productions, metrics };
+  } catch {
+    return { productions: [], metrics: [] };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  NocoDB — fetch de tasks (todas as BUs + Design + Edição)
+// ─────────────────────────────────────────────
+async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
+  try {
+    const tableMap: Array<[string, string]> = [
+      [NDB.tables.tasks_bu1,    "BU1"],
+      [NDB.tables.tasks_bu2,    "BU2"],
+      [NDB.tables.tasks_design, "Design"],
+      [NDB.tables.tasks_edicao, "Edição"],
+    ];
+    const results = await Promise.all(
+      tableMap.map(([tid]) => ndbList(tid, undefined, 200))
+    );
+    const tasks: NocoTaskSummary[] = [];
+    for (let i = 0; i < tableMap.length; i++) {
+      const area = tableMap[i][1];
+      for (const r of results[i]) {
+        tasks.push({
+          id:          r["Id"],
+          title:       r["Título"] ?? "—",
+          area,
+          client:      r["Cliente"] ?? "—",
+          status:      r["Status"] ?? "—",
+          sla:         r["Status SLA"] ?? "—",
+          deadline:    r["Prazo de Entrega"] ?? "—",
+          daysLeft:    r["Dias até o Prazo"] ?? null,
+          responsible: r["Responsável"] ?? "—",
+          priority:    r["Prioridade"] ?? "—",
+        });
+      }
+    }
+    return tasks;
+  } catch {
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Cache de contexto (TTL: 30s)
 // ─────────────────────────────────────────────
 let contextCache: { data: OperationalContext; expiresAt: number } | null = null;
@@ -233,14 +362,19 @@ export async function buildContext(): Promise<OperationalContext> {
     base = getMockContext();
   }
 
-  // Clientes e produções de design sempre vêm do NocoDB (fonte de verdade)
-  const [clients, { productions, metrics }] = await Promise.all([
+  // Todos os dados NocoDB em paralelo (fonte de verdade)
+  const [clients, designData, edicaoData, tasks] = await Promise.all([
     fetchClientesNocoDB(),
     fetchProducoesDesignNocoDB(),
+    fetchProducoesEdicaoNocoDB(),
+    fetchTasksNocoDB(),
   ]);
   base.clients           = clients;
-  base.designProductions = productions;
-  base.designMetrics     = metrics;
+  base.designProductions = designData.productions;
+  base.designMetrics     = designData.metrics;
+  base.edicaoProductions = edicaoData.productions;
+  base.edicaoMetrics     = edicaoData.metrics;
+  base.tasks             = tasks;
 
   contextCache = { data: base, expiresAt: Date.now() + 30_000 };
   return base;
@@ -351,6 +485,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     valor: 0,
     pacote: "—",
     metaAdsAccountId: c.meta_ads_account_id ?? null,
+    bu: c.portfolio ?? "—", valorMensal: null, whatsapp: "",
     canaisAtivos: "—", escopoMensal: "—", verbaTrafego: null,
     linkInstagram: "", linkFacebook: "", linkDrive: "",
     linkGrupoWhatsApp: "", diaRelatorio: null, dataInicio: "", nps: null,
@@ -421,7 +556,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
       };
     });
 
-  return { tasksByArea, criticalSLA, awaitingApproval, blocked, hotLeads, wipByArea, alerts: [], clients, designProductions, designMetrics };
+  return { tasksByArea, criticalSLA, awaitingApproval, blocked, hotLeads, wipByArea, alerts: [], clients, designProductions, designMetrics, edicaoProductions: [], edicaoMetrics: [], tasks: [] };
 }
 
 // ─────────────────────────────────────────────
@@ -477,5 +612,8 @@ function getMockContext(): OperationalContext {
     clients: [],
     designProductions: [],
     designMetrics: [],
+    edicaoProductions: [],
+    edicaoMetrics: [],
+    tasks: [],
   };
 }

@@ -228,72 +228,108 @@ function buildContextSection(ctx: OperationalContext): string {
     lines.push("");
   }
 
-  // Carteira de clientes (NocoDB)
+  // ── Carteira de clientes (NocoDB — tabela principal) ─────────────────────
   if (ctx.clients.length > 0) {
-    const ativos  = ctx.clients.filter(c => c.status === "Ativo" || !c.status || c.status === "—");
-    const pausados = ctx.clients.filter(c => c.status && c.status !== "Ativo" && c.status !== "—");
-    lines.push(`Carteira de clientes: ${ativos.length} ativos${pausados.length > 0 ? `, ${pausados.length} pausados` : ""}.`);
+    const ativos   = ctx.clients.filter(c => c.status === "Ativo");
+    const pausados = ctx.clients.filter(c => c.status === "Pausado");
+    const mrr = ctx.clients.reduce((s, c) => s + (c.valorMensal ?? 0), 0);
+    lines.push(`Carteira de clientes: ${ativos.length} ativos${pausados.length > 0 ? `, ${pausados.length} pausados` : ""} | MRR total: R$${mrr.toLocaleString("pt-BR")}`);
+
+    // Agrupar por BU
+    const porBU: Record<string, typeof ctx.clients> = {};
     for (const c of ctx.clients) {
-      const verba  = c.verbaTrafego ? ` | verba tráfego: R$${c.verbaTrafego.toLocaleString("pt-BR")}` : "";
-      const canais = c.canaisAtivos && c.canaisAtivos !== "—" ? ` | canais: ${c.canaisAtivos}` : "";
-      const dia    = c.diaRelatorio ? ` | relatório: dia ${c.diaRelatorio}` : "";
-      const escopo = c.escopoMensal && c.escopoMensal !== "—" ? ` | escopo: ${c.escopoMensal}` : "";
-      const status = c.status && c.status !== "—" ? ` [${c.status}]` : "";
-      lines.push(`- ${c.name} (${c.segment}) — ${c.gestor}${status}${verba}${canais}${dia}${escopo}`);
+      const bu = c.bu && c.bu !== "—" ? c.bu : "Diretoria";
+      if (!porBU[bu]) porBU[bu] = [];
+      porBU[bu].push(c);
     }
-    lines.push("");
-  }
-
-  // Métricas de design da Bruna (Google Sheets)
-  if (ctx.designMetrics.length > 0) {
-    const sorted = [...ctx.designMetrics].sort((a, b) => b.month.localeCompare(a.month));
-    const current = sorted[0];
-    const previous = sorted[1];
-
-    lines.push(`Produção de design da Bruna — ${current.label}:`);
-    lines.push(`- Total previsto: ${current.totalPlanned} | Entregue: ${current.delivered} | Em aprovação: ${current.inApproval} | Pendente: ${current.pending}`);
-    lines.push(`- Conclusão: ${current.completionPct}% | Dias produtivos: ${current.uniqueProductionDays} | Média diária: ${current.avgDailyProduction} artes/dia`);
-    lines.push(`- Itens com revisão: ${current.withRevision}`);
-
-    if (previous) {
-      const diff = current.completionPct - previous.completionPct;
-      const trend = diff > 0 ? `+${diff}pp acima` : diff < 0 ? `${diff}pp abaixo` : "igual";
-      lines.push(`- vs ${previous.label}: ${previous.delivered} entregues (${previous.completionPct}% conclusão) — ${trend} do mês anterior`);
-    }
-
-    if (sorted.length > 2) {
-      lines.push(`Histórico mensal:`);
-      for (const m of sorted.slice(0, 6)) {
-        lines.push(`- ${m.label}: ${m.delivered}/${m.totalPlanned} entregues (${m.completionPct}%) | média ${m.avgDailyProduction}/dia | ${m.withRevision} revisões`);
+    for (const [bu, lista] of Object.entries(porBU)) {
+      lines.push(`${bu}:`);
+      for (const c of lista) {
+        const valor  = c.valorMensal ? ` | R$${c.valorMensal.toLocaleString("pt-BR")}/mês` : "";
+        const nps    = c.nps != null ? ` | NPS ${c.nps}` : "";
+        const canais = c.canaisAtivos && c.canaisAtivos !== "—" ? ` | ${c.canaisAtivos}` : "";
+        const status = c.status && c.status !== "—" ? ` [${c.status}]` : "";
+        const pacote = c.pacote && c.pacote !== "—" ? ` — ${c.pacote}` : "";
+        lines.push(`  - ${c.name} (${c.segment})${pacote}${status}${valor}${nps}${canais}`);
       }
     }
     lines.push("");
   }
 
-  // Produções de design (últimos 30 dias) — itens individuais (máx. 20 mais recentes)
-  if (ctx.designProductions.length > 0) {
-    const recentProductions = ctx.designProductions.slice(0, 20);
-    lines.push(`Produções de design — últimos 30 dias (${ctx.designProductions.length} itens, exibindo os 20 mais recentes):`);
-    for (const d of recentProductions) {
-      const qty   = d.quantity && d.quantity > 1 ? ` x${d.quantity}` : "";
-      const rev   = d.neededRevision?.toLowerCase() === "sim" ? ` | ${d.revisionCount ?? "?"}x revisão` : "";
-      const brief = d.briefing && d.briefing !== "—" ? ` | briefing: "${d.briefing}"` : "";
-      const resp  = d.responsible && d.responsible !== "—" ? ` | resp: ${d.responsible}` : "";
-      const aprov = d.approvalResponsible && d.approvalResponsible !== "—" ? ` | aprova: ${d.approvalResponsible}` : "";
-      lines.push(`- [${d.date}] ${d.clientName} — ${d.itemType}${qty} | ${d.status} | ${d.urgency}${rev}${resp}${aprov}${brief}`);
+  // ── Tasks em aberto (NocoDB — todas as áreas) ────────────────────────────
+  if (ctx.tasks.length > 0) {
+    const abertas = ctx.tasks.filter(t => !["Concluído","Cancelado"].includes(t.status));
+    const atrasadas = abertas.filter(t => t.sla?.includes("Atrasado"));
+    const atencao   = abertas.filter(t => t.sla?.includes("Atenção"));
+
+    lines.push(`Tasks em aberto: ${abertas.length} total${atrasadas.length > 0 ? ` | 🔴 ${atrasadas.length} atrasadas` : ""}${atencao.length > 0 ? ` | ⚠️ ${atencao.length} atenção` : ""}`);
+
+    // Por área
+    const porArea: Record<string, typeof abertas> = {};
+    for (const t of abertas) {
+      if (!porArea[t.area]) porArea[t.area] = [];
+      porArea[t.area].push(t);
+    }
+    for (const [area, tasks] of Object.entries(porArea)) {
+      const criticas = tasks.filter(t => t.sla?.includes("Atrasado") || t.sla?.includes("Atenção"));
+      lines.push(`  ${area}: ${tasks.length} abertas${criticas.length > 0 ? ` (${criticas.length} críticas)` : ""}`);
+      for (const t of criticas.slice(0, 5)) {
+        const dias = t.daysLeft != null ? ` | ${t.daysLeft}d` : "";
+        lines.push(`    ${t.sla} ${t.title} — ${t.client} | ${t.responsible}${dias}`);
+      }
     }
     lines.push("");
-
-    const urgentesAbertos = ctx.designProductions.filter(
-      d => d.urgency?.toLowerCase().includes("urgente") && d.status !== "Entregue"
-    );
-    if (urgentesAbertos.length > 0) {
-      lines.push(`Design URGENTE em aberto: ${urgentesAbertos.map(d => `${d.itemType} para ${d.clientName}`).join(", ")}`);
-      lines.push("");
-    }
   }
 
-  // Alertas
+  // ── Produções de design — Bruna ──────────────────────────────────────────
+  if (ctx.designMetrics.length > 0) {
+    const sorted = [...ctx.designMetrics].sort((a, b) => b.month.localeCompare(a.month));
+    const current = sorted[0];
+    const previous = sorted[1];
+    lines.push(`Design (Bruna) — ${current.label}: ${current.delivered}/${current.totalPlanned} entregues (${current.completionPct}%) | ${current.inApproval} em aprovação | ${current.withRevision} revisões | média ${current.avgDailyProduction}/dia`);
+    if (previous) {
+      const diff = current.completionPct - previous.completionPct;
+      lines.push(`  vs ${previous.label}: ${previous.delivered} entregues (${previous.completionPct}%) — ${diff >= 0 ? "+" : ""}${diff}pp`);
+    }
+    if (sorted.length > 2) {
+      lines.push(`  Histórico: ${sorted.slice(0, 6).map(m => `${m.label} ${m.delivered}/${m.totalPlanned}(${m.completionPct}%)`).join(" | ")}`);
+    }
+    lines.push("");
+  }
+
+  if (ctx.designProductions.length > 0) {
+    const recentes = ctx.designProductions.slice(0, 20);
+    lines.push(`Produções design recentes (${ctx.designProductions.length} total, últimas 20):`);
+    for (const d of recentes) {
+      const qty  = d.quantity && d.quantity > 1 ? ` x${d.quantity}` : "";
+      const rev  = d.neededRevision?.toLowerCase() === "sim" ? ` | ${d.revisionCount ?? "?"}x rev` : "";
+      const aprov = d.approvalResponsible && d.approvalResponsible !== "—" ? ` | ${d.approvalResponsible}` : "";
+      lines.push(`  [${d.date}] ${d.clientName} — ${d.itemType}${qty} | ${d.status}${rev}${aprov}`);
+    }
+    const urgentes = ctx.designProductions.filter(d => d.urgency?.toLowerCase().includes("urgente") && d.status !== "Entregue");
+    if (urgentes.length > 0) lines.push(`  URGENTE aberto: ${urgentes.map(d => `${d.itemType}/${d.clientName}`).join(", ")}`);
+    lines.push("");
+  }
+
+  // ── Produções de edição — Ana Laura ─────────────────────────────────────
+  if (ctx.edicaoMetrics.length > 0) {
+    const sorted = [...ctx.edicaoMetrics].sort((a, b) => b.month.localeCompare(a.month));
+    const current = sorted[0];
+    lines.push(`Edição (Ana Laura) — ${current.label}: ${current.delivered}/${current.totalPlanned} entregues (${current.completionPct}%) | ${current.withRevision} precisaram de alteração`);
+    lines.push("");
+  }
+
+  if (ctx.edicaoProductions.length > 0) {
+    const recentes = ctx.edicaoProductions.slice(0, 10);
+    lines.push(`Produções de edição recentes (${ctx.edicaoProductions.length} total, últimas 10):`);
+    for (const d of recentes) {
+      const rev  = d.neededRevision?.toLowerCase() === "sim" ? ` | ${d.revisionCount ?? "?"}x alt` : "";
+      lines.push(`  [${d.date}] ${d.clientName} — ${d.itemType} | ${d.status}${rev}`);
+    }
+    lines.push("");
+  }
+
+  // ── Alertas ───────────────────────────────────────────────────────────────
   if (ctx.alerts.length > 0) {
     lines.push(`Alertas do sistema:`);
     for (const a of ctx.alerts) {
