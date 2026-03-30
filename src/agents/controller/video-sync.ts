@@ -200,8 +200,8 @@ async function _finalizarTask(row: any, buTable: string, buRowId: number): Promi
   if (aprovNome) prod["Responsável Aprovação"]  = aprovNome;
 
   try {
-    await ndbCreate(NDB.tables.producoes_edicao, prod);
-    log("info", `[video-sync] "${tarefa}" copiada para Produções de Edição`);
+    await ndbCreate(NDB.tables.deposito_edicao, prod);
+    log("info", `[video-sync] "${tarefa}" copiada para Depósito de Edição`);
   } catch (e: any) {
     log("warn", `[video-sync] erro ao copiar para Produções: ${e?.message}`);
   }
