@@ -187,9 +187,10 @@ async function _finalizarTask(row: any, buTable: string, buRowId: number): Promi
   const rowId      = row["Id"] as number;
   const tarefa     = row["Tarefa"] ?? "—";
   const cliente    = row["Cliente"];
+  const tipo       = row["Tipo"];
   const urg        = row["Urgência"];
   const comp       = row["Complexidade"];
-  const prazoEnt   = row["Data de Entrega"] ?? row["Prazo de Entrega"];
+  const dataEnt    = row["Data de Entrega"] ?? row["Prazo de Entrega"];
   const rev        = row["Precisou de Alteração?"];
   const nRev       = row["Nº de Alterações"];
   const qtd        = row["Quantidade"];
@@ -200,15 +201,16 @@ async function _finalizarTask(row: any, buTable: string, buRowId: number): Promi
   const hoje       = new Date().toISOString().split("T")[0];
 
   const prod: Record<string, any> = {
-    Tarefa:                 tarefa,
-    Status:                 "Entregue",
-    Data:                   prazoEnt ?? hoje,
+    Tarefa:                  tarefa,
+    Status:                  "Entregue",
+    Data:                    dataEnt ?? hoje,
     "Responsável Aprovação": gestor,
   };
   if (cliente)   prod["Cliente"]                = cliente;
+  if (tipo)      prod["Tipo"]                   = tipo;
   if (urg)       prod["Urgência"]               = urg;
   if (comp)      prod["Complexidade"]           = comp;
-  if (prazoEnt)  prod["Data de Entrega"]        = prazoEnt;
+  if (dataEnt)   prod["Data de Entrega"]        = dataEnt;
   if (rev)       prod["Precisou de Alteração?"] = rev;
   if (nRev)      prod["Nº de Alterações"]       = nRev;
   if (qtd)       prod["Quantidade"]             = qtd;
