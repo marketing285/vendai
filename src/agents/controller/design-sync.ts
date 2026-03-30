@@ -178,24 +178,32 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
   return { aprovadas, revisoes };
 }
 
+const GESTOR_MAP: Record<string, string> = {
+  BU1: "Christian (Gestor)",
+  BU2: "Júnior Monte (Gestor)",
+};
+
 async function _finalizarTask(row: any, buTable: string, buRowId: number): Promise<void> {
   const rowId      = row["Id"] as number;
   const tarefa     = row["Tarefa"] ?? "—";
   const cliente    = row["Cliente"];
   const urg        = row["Urgência"];
   const comp       = row["Complexidade"];
-  const prazoEnt   = row["Data de Entrega"];
+  const prazoEnt   = row["Data de Entrega"] ?? row["Prazo de Entrega"];
   const rev        = row["Precisou de Alteração?"];
   const nRev       = row["Nº de Alterações"];
+  const qtd        = row["Quantidade"];
   const link       = row["Link de Entrega"];
   const briefing   = row["Briefing"];
-  const aprovNome  = row["Responsável Aprovação"];
+  const origem     = row["Origem"] as string;
+  const gestor     = GESTOR_MAP[origem] ?? "Christian (Gestor)";
   const hoje       = new Date().toISOString().split("T")[0];
 
   const prod: Record<string, any> = {
-    Tarefa: tarefa,
-    Status: "Entregue",
-    Data:   prazoEnt ?? hoje,
+    Tarefa:                 tarefa,
+    Status:                 "Entregue",
+    Data:                   prazoEnt ?? hoje,
+    "Responsável Aprovação": gestor,
   };
   if (cliente)   prod["Cliente"]                = cliente;
   if (urg)       prod["Urgência"]               = urg;
@@ -203,9 +211,9 @@ async function _finalizarTask(row: any, buTable: string, buRowId: number): Promi
   if (prazoEnt)  prod["Data de Entrega"]        = prazoEnt;
   if (rev)       prod["Precisou de Alteração?"] = rev;
   if (nRev)      prod["Nº de Alterações"]       = nRev;
+  if (qtd)       prod["Quantidade"]             = qtd;
   if (link)      prod["Link de Entrega"]        = link;
   if (briefing)  prod["Briefing"]               = briefing;
-  if (aprovNome) prod["Responsável Aprovação"]  = aprovNome;
 
   try {
     await ndbCreate(NDB.tables.deposito_design, prod);
