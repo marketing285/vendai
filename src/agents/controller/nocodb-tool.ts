@@ -100,7 +100,7 @@ export async function atualizarRelatorios(tableIds: string[]): Promise<void> {
   hoje.setHours(0, 0, 0, 0);
 
   for (const tid of tableIds) {
-    const rows = await ndbList(tid, "(Dia do Relatório,isnot,null)", 200);
+    const rows = await ndbList(tid, undefined, 200);
     for (const row of rows) {
       const dia = row["Dia do Relatório"] as number;
       if (!dia) continue;
