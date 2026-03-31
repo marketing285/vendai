@@ -2,10 +2,10 @@
  * video-archive.ts
  * Sincronização do fluxo de edição de vídeo — Ana Laura:
  *
- * 1. Tasks Edição "▶️ Em Andamento" (sem Task Origem) → cria task na BU do gestor "🎬 Em Edição"
- *    Vincula Task Origem + Origem na task da Ana
+ * 1. BU "👤 Atribuído" (Ana Laura) → Tasks Edição "⬜ Em Standby"
+ *    BU vira "🎬 Em Edição"
  *
- * 2. Tasks Edição "⏳ Em Aprovação" (Sincronizado=0) → atualiza BU para "🔎 Revisão Interna"
+ * 2. Tasks Edição "⏳ Em Aprovação" (Sincronizado=0) → BU "🔎 Revisão Interna"
  *    Marca Sincronizado=1
  *
  * 3. Tasks Edição "⏳ Em Aprovação" (Sincronizado=1) → verifica decisão do gestor na BU
@@ -21,70 +21,68 @@ import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
+const NOME_ANA     = process.env.ANA_NOME ?? "Ana Laura";
 
-const GESTOR_PARA_BU: Record<string, string> = {
-  "Christian":    NDB.tables.tasks_bu1,
-  "Júnior Monte": NDB.tables.tasks_bu2,
-};
-const GESTOR_PARA_ORIGEM: Record<string, string> = {
-  "Christian":    "BU1",
-  "Júnior Monte": "BU2",
-};
 const GESTOR_PARA_RESP: Record<string, string> = {
-  "Christian":    "Christian (Gestor)",
-  "Júnior Monte": "Júnior Monte (Gestor)",
+  BU1: "Christian (Gestor)",
+  BU2: "Júnior Monte (Gestor)",
 };
 
-// ─── 1. Em Andamento sem BU → cria task na BU ────────────────────────────────
-async function syncEmAndamento(): Promise<{ criadas: number }> {
-  let criadas = 0;
+// ─── 1. BU "👤 Atribuído" (Ana) → Tasks Edição "⬜ Em Standby" ───────────────
+async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number }> {
+  let criadas = 0, atualizadas = 0;
 
-  const rows = await ndbList(
-    NDB.tables.tasks_edicao,
-    `(Status,eq,▶️ Em Andamento)~and(Task Origem,eq,)`,
-  );
+  const bancos = [
+    { id: NDB.tables.tasks_bu1, origem: "BU1" },
+    { id: NDB.tables.tasks_bu2, origem: "BU2" },
+  ];
 
-  for (const row of rows) {
-    const rowId  = row["Id"] as number;
-    const tarefa = row["Tarefa"] ?? "—";
-    const gestor = row["Gestor Responsável"] as string;
-    if (!gestor) continue;
+  for (const { id: buTable, origem } of bancos) {
+    const rows = await ndbList(buTable, `(Status,eq,👤 Atribuído)`);
 
-    const buTable = GESTOR_PARA_BU[gestor];
-    const origem  = GESTOR_PARA_ORIGEM[gestor];
-    if (!buTable || !origem) {
-      log("warn", `[video-archive] gestor "${gestor}" não mapeado — ignorando "${tarefa}"`);
-      continue;
-    }
+    for (const row of rows) {
+      const responsavel: string = row["Responsável"] ?? "";
+      if (!responsavel.toLowerCase().includes(NOME_ANA.toLowerCase())) continue;
 
-    try {
-      const buTask = await ndbCreate(buTable, {
-        Tarefa:               tarefa,
-        Status:               "🎬 Em Edição",
-        Responsável:          "Ana Laura",
-        Cliente:              row["Cliente"] ?? undefined,
-        Prioridade:           row["Prioridade"] ?? undefined,
-        "Prazo de Entrega":   row["Prazo de Entrega"] ?? undefined,
-        "Briefing Completo":  row["Roteiro"] ?? undefined,
-        "Link de entrega":    row["Link de Entrega"] ?? undefined,
-      });
+      const buRowId    = row["Id"] as number;
+      const tarefa     = row["Tarefa"] ?? "—";
+      const cliente    = row["Cliente"];
+      const prazo      = row["Prazo de Entrega"];
+      const roteiro    = row["Briefing Completo"];
+      const linkEnt    = row["Link de entrega"];
 
-      await ndbUpdate(NDB.tables.tasks_edicao, rowId, {
-        "Task Origem": String(buTask["Id"]),
+      const campos: Record<string, any> = {
         Origem:        origem,
-        Sincronizado:  false,
-      });
+        "Task Origem": String(buRowId),
+      };
+      if (cliente)  campos["Cliente"]         = cliente;
+      if (prazo)    campos["Prazo de Entrega"] = prazo;
+      if (roteiro)  campos["Roteiro"]          = roteiro;
+      if (linkEnt)  campos["Link de Entrega"]  = linkEnt;
 
-      log("info", `[video-archive] "${tarefa}" → BU ${origem} "🎬 Em Edição"`);
-      criadas++;
-    } catch (e: any) {
-      log("warn", `[video-archive] erro ao criar task na BU: ${e?.message}`);
+      const existe = await ndbList(NDB.tables.tasks_edicao, `(Task Origem,eq,${buRowId})`);
+
+      if (existe.length > 0) {
+        await ndbUpdate(NDB.tables.tasks_edicao, existe[0]["Id"], campos);
+        await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        atualizadas++;
+      } else {
+        await ndbCreate(NDB.tables.tasks_edicao, {
+          Tarefa:       tarefa,
+          Status:       "⬜ Em Standby",
+          Sincronizado: false,
+          ...campos,
+        });
+        await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        criadas++;
+        log("info", `[video-archive] nova task criada de ${origem}: "${tarefa}"`);
+      }
+
+      await new Promise(r => setTimeout(r, 300));
     }
-
-    await new Promise(r => setTimeout(r, 300));
   }
 
-  return { criadas };
+  return { criadas, atualizadas };
 }
 
 // ─── 2. Em Aprovação (Sincronizado=0) → notifica gestor na BU ────────────────
@@ -173,14 +171,14 @@ async function arquivarTasks(): Promise<{ arquivadas: number }> {
   for (const row of rows) {
     const rowId  = row["Id"] as number;
     const tarefa = row["Tarefa"] ?? "—";
-    const gestor = row["Gestor Responsável"] as string;
+    const origem = row["Origem"] as string;
     const hoje   = new Date().toISOString().split("T")[0];
 
     const deposito: Record<string, any> = {
       Tarefa:                  tarefa,
       Status:                  "📦 Arquivado",
       "Data da solicitação":   row["Prazo de Entrega"] ?? hoje,
-      "Responsável Aprovação": GESTOR_PARA_RESP[gestor] ?? gestor ?? "—",
+      "Responsável Aprovação": GESTOR_PARA_RESP[origem] ?? "—",
     };
 
     const campos: Array<[string, string]> = [
@@ -229,9 +227,9 @@ export function startVideoArchive(): void {
 
   async function runCycle() {
     try {
-      const a = await syncEmAndamento();
-      if (a.criadas > 0)
-        log("info", `[video-archive] ${a.criadas} task(s) criadas na BU (🎬 Em Edição)`);
+      const a = await syncAtribuidos();
+      if (a.criadas > 0 || a.atualizadas > 0)
+        log("info", `[video-archive] Atribuídos: ${a.criadas} criadas, ${a.atualizadas} atualizadas`);
 
       const p = await syncParaAprovacao();
       if (p.enviadas > 0)
