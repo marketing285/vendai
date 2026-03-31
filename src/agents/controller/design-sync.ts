@@ -26,6 +26,18 @@ import { log } from "./logger";
 const INTERVALO_MS = 1 * 60 * 1000;
 const NOME_BRUNA   = process.env.BRUNA_NOME ?? "Bruna";
 
+// BU "Formato" → Tasks Design "Tipo"
+const FORMATO_MAP: Record<string, string> = {
+  "Foto":        "Feed",
+  "Carrossel":   "Carrosel",
+  "Reels":       "Reels",
+  "Youtube":     "Outros",
+  "LinkedIn":    "Outros",
+  "Blog":        "Outros",
+  "Arte Gráfica":"Arte Estática",
+  "Extra":       "Outros",
+};
+
 const PRIO_MAP: Record<string, string> = {
   "🔴 P0 — Emergência": "🔴 P0 — Emergência",
   "🟠 P1 — Alta":       "🟠 P1 — Alta",
@@ -71,7 +83,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
       if (prazo)      campos["Prazo de Entrega"] = prazo;
       if (briefing)   campos["Briefing"]          = briefing;
       if (linkEnt)    campos["Link de Entrega"]   = linkEnt;
-      if (formato)    campos["Tipo"]              = formato;
+      if (formato)    campos["Tipo"]              = FORMATO_MAP[formato] ?? formato;
       if (prioridade) {
         campos["Prioridade"] = PRIO_MAP[prioridade] ?? prioridade;
         const urg = URG_MAP[prioridade];
@@ -180,7 +192,7 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
       if (bu["Briefing Completo"]) updateFields["Briefing"]          = bu["Briefing Completo"];
       if (bu["Cliente"])           updateFields["Cliente"]           = bu["Cliente"];
       if (bu["Prazo de Entrega"])  updateFields["Prazo de Entrega"]  = bu["Prazo de Entrega"];
-      if (bu["Formato"])           updateFields["Tipo"]              = bu["Formato"];
+      if (bu["Formato"])           updateFields["Tipo"]              = FORMATO_MAP[bu["Formato"]] ?? bu["Formato"];
       if (bu["Link de entrega"])   updateFields["Link de Entrega"]   = bu["Link de entrega"];
       if (bu["Prioridade"]) {
         updateFields["Prioridade"] = PRIO_MAP[bu["Prioridade"]] ?? bu["Prioridade"];
