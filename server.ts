@@ -4,9 +4,8 @@ import cors from "cors";
 import path from "path";
 import { controllerRouter } from "./src/agents/controller/index";
 import { csRouter } from "./src/agents/cs/index";
-import { nocoWebhookRouter } from "./src/agents/controller/nocodb-webhook";
 import { startDesignSync } from "./src/agents/controller/design-sync";
-import { startVideoSync } from "./src/agents/controller/video-sync";
+// video-sync desativado — fluxo de edição é manual (sem automação via BU)
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,7 +18,6 @@ app.use(express.static(path.join(ROOT, "frontend/out")));
 // Rotas dos agentes
 app.use("/api/controller", controllerRouter);
 app.use("/webhook", csRouter);
-app.use("/webhook/nocodb", nocoWebhookRouter);
 
 // Interface web
 app.get("/", (_req, res) => {
@@ -30,5 +28,4 @@ app.listen(PORT, () => {
   console.log(`\n🤖 MAX — Monitor Ativo de Operações`);
   console.log(`✅ Servidor rodando em http://localhost:${PORT}\n`);
   startDesignSync();
-  startVideoSync();
 });
