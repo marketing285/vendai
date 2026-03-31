@@ -2,13 +2,20 @@
  * design-sync.ts
  * Fluxo completo de design com aprovação do gestor — NocoDB:
  *
+ * FLUXO A — Gestor atribui à Bruna via BU:
  * 1. BU "👤 Atribuído" (Bruna) → Tasks de Design "👤 Atribuído"
  *    BU vira "🎨 Em Design"
  *
+ * FLUXO B — Bruna cria task por iniciativa própria:
+ * 1. Bruna cria task direto nas Tasks Design com "Gestor Responsável" preenchido
+ *    (sem Task Origem). Quando muda para "⏳ Em Aprovação", o sistema cria
+ *    uma task na BU do gestor em "🔎 Revisão Interna" e vincula.
+ *
+ * FLUXO COMUM (A e B):
  * 2. Tasks de Design "⏳ Em Aprovação" → BU "🔎 Revisão Interna"
  *    Gestor analisa a entrega da Bruna.
  *
- * 3a. BU "✅ Entregue" (gestor aprovou) → Produções de Design + deleta task
+ * 3a. BU "✅ Entregue" (gestor aprovou) → Depósito de Design + deleta task
  * 3b. BU "🔄 Em Revisão" (gestor pediu revisão) → Tasks de Design "🔄 Em Revisão"
  *     BU volta para "🎨 Em Design"
  */
@@ -178,10 +185,76 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
   return { aprovadas, revisoes };
 }
 
+// Gestor selecionado pela Bruna → BU e Origem internos
+const GESTOR_PARA_BU: Record<string, string> = {
+  "Christian":    NDB.tables.tasks_bu1,
+  "Júnior Monte": NDB.tables.tasks_bu2,
+};
+const GESTOR_PARA_ORIGEM: Record<string, string> = {
+  "Christian":    "BU1",
+  "Júnior Monte": "BU2",
+};
+
+// Origem interna → nome do gestor para o Depósito
 const GESTOR_MAP: Record<string, string> = {
   BU1: "Christian (Gestor)",
   BU2: "Júnior Monte (Gestor)",
 };
+
+// ─── 0. Tasks criadas pela Bruna (sem Task Origem) → cria task na BU ──────────
+async function syncAutoIniciadas(): Promise<{ criadas: number }> {
+  let criadas = 0;
+
+  // Tasks sem Task Origem, com Gestor Responsável preenchido e em aprovação
+  const rows = await ndbList(
+    NDB.tables.tasks_design,
+    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,0)~and(Task Origem,eq,)`,
+  );
+
+  for (const row of rows) {
+    const rowId  = row["Id"] as number;
+    const tarefa = row["Tarefa"] ?? "—";
+    const gestor = row["Gestor Responsável"] as string;
+    if (!gestor) continue;
+
+    const buTable = GESTOR_PARA_BU[gestor];
+    const origem  = GESTOR_PARA_ORIGEM[gestor];
+    if (!buTable || !origem) {
+      log("warn", `[design-sync] gestor "${gestor}" não mapeado — ignorando "${tarefa}"`);
+      continue;
+    }
+
+    try {
+      // Cria task na BU direto em Revisão Interna (Bruna já fez o trabalho)
+      const buTask = await ndbCreate(buTable, {
+        Tarefa:           tarefa,
+        Status:           "🔎 Revisão Interna",
+        Responsável:      "Bruna Benevides",
+        Cliente:          row["Cliente"] ?? undefined,
+        Prioridade:       row["Prioridade"] ?? undefined,
+        "Prazo de Entrega": row["Prazo de Entrega"] ?? undefined,
+        "Briefing Completo": row["Briefing"] ?? undefined,
+        "Link de entrega":   row["Link de Entrega"] ?? undefined,
+      });
+
+      // Vincula a task de design à BU recém-criada
+      await ndbUpdate(NDB.tables.tasks_design, rowId, {
+        "Task Origem": String(buTask["Id"]),
+        Origem:        origem,
+        Sincronizado:  true,
+      });
+
+      log("info", `[design-sync] "${tarefa}" (auto-iniciada) → BU ${origem} em Revisão Interna`);
+      criadas++;
+    } catch (e: any) {
+      log("warn", `[design-sync] erro ao criar task auto-iniciada: ${e?.message}`);
+    }
+
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  return { criadas };
+}
 
 async function _finalizarTask(row: any, buTable: string, buRowId: number): Promise<void> {
   const rowId      = row["Id"] as number;
@@ -246,6 +319,8 @@ export function startDesignSync(): void {
       log("info", "[design-sync] iniciando ciclo...");
       const a = await syncAtribuidos();
       log("info", `[design-sync] Atribuídos: ${a.criadas} criadas, ${a.atualizadas} atualizadas`);
+      const i = await syncAutoIniciadas();
+      log("info", `[design-sync] Auto-iniciadas: ${i.criadas} enviadas ao gestor`);
       const p = await syncParaAprovacao();
       log("info", `[design-sync] Em Aprovação: ${p.enviadas} enviadas ao gestor`);
       const d = await syncDecisaoGestor();
