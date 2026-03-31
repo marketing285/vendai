@@ -171,11 +171,23 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
       aprovadas++;
 
     } else if (buStatus === "🔄 Em Revisão") {
-      // Gestor pediu revisão — devolve para Bruna
-      await ndbUpdate(NDB.tables.tasks_design, rowId, {
+      // Gestor pediu revisão — devolve para Bruna com todos os campos atualizados da BU
+      const bu = buRows[0];
+      const updateFields: Record<string, any> = {
         Status:       "🔄 Em Revisão",
         Sincronizado: false,
-      });
+      };
+      if (bu["Briefing Completo"]) updateFields["Briefing"]          = bu["Briefing Completo"];
+      if (bu["Cliente"])           updateFields["Cliente"]           = bu["Cliente"];
+      if (bu["Prazo de Entrega"])  updateFields["Prazo de Entrega"]  = bu["Prazo de Entrega"];
+      if (bu["Formato"])           updateFields["Tipo"]              = bu["Formato"];
+      if (bu["Link de entrega"])   updateFields["Link de Entrega"]   = bu["Link de entrega"];
+      if (bu["Prioridade"]) {
+        updateFields["Prioridade"] = PRIO_MAP[bu["Prioridade"]] ?? bu["Prioridade"];
+        const urg = URG_MAP[bu["Prioridade"]];
+        if (urg) updateFields["Urgência"] = urg;
+      }
+      await ndbUpdate(NDB.tables.tasks_design, rowId, updateFields);
       await ndbUpdate(buTable, buRowId, { Status: "🎨 Em Design" });
       log("info", `[design-sync] "${tarefa}" devolvida para revisão da Bruna`);
       revisoes++;
