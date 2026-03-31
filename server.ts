@@ -5,7 +5,7 @@ import path from "path";
 import { controllerRouter } from "./src/agents/controller/index";
 import { csRouter } from "./src/agents/cs/index";
 import { startDesignSync } from "./src/agents/controller/design-sync";
-// video-sync desativado — fluxo de edição é manual (sem automação via BU)
+import { startVideoArchive } from "./src/agents/controller/video-archive";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,4 +28,5 @@ app.listen(PORT, () => {
   console.log(`\n🤖 MAX — Monitor Ativo de Operações`);
   console.log(`✅ Servidor rodando em http://localhost:${PORT}\n`);
   startDesignSync();
+  startVideoArchive();
 });
