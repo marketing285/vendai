@@ -61,6 +61,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
       const prioridade = row["Prioridade"];
       const briefing   = row["Briefing Completo"];
       const linkEnt    = row["Link de entrega"];
+      const formato    = row["Formato"];
 
       const campos: Record<string, any> = {
         Origem:        origem,
@@ -70,6 +71,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
       if (prazo)      campos["Prazo de Entrega"] = prazo;
       if (briefing)   campos["Briefing"]          = briefing;
       if (linkEnt)    campos["Link de Entrega"]   = linkEnt;
+      if (formato)    campos["Tipo"]              = formato;
       if (prioridade) {
         campos["Prioridade"] = PRIO_MAP[prioridade] ?? prioridade;
         const urg = URG_MAP[prioridade];
