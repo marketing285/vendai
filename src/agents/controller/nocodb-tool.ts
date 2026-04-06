@@ -4,8 +4,8 @@
  * Substitui o notion-tool.ts como fonte de dados principal.
  */
 
-const NOCODB_BASE_URL = process.env.NOCODB_URL ?? "https://vendai-docudb.aw5nou.easypanel.host";
-const NOCODB_BASE_ID  = "pok6cayan0pluio";
+const NOCODB_BASE_URL = process.env.NOCODB_URL ?? "";
+const NOCODB_BASE_ID  = process.env.NOCODB_BASE_ID ?? "";
 
 export const NDB = {
   baseUrl:  NOCODB_BASE_URL,
