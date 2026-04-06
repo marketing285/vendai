@@ -250,7 +250,7 @@ async function fetchProducoesEdicaoNocoDB(): Promise<{
   metrics: DesignMonthMetrics[];
 }> {
   try {
-    const rows = await ndbList(NDB.tables.deposito_edicao, undefined, 500);
+    const rows = await ndbList(NDB.tables.tasks_edicao, undefined, 500);
 
     const productions: NocoProdSummary[] = rows.map((r: any) => ({
       clientName:          r["Cliente"] ?? "—",
@@ -258,14 +258,14 @@ async function fetchProducoesEdicaoNocoDB(): Promise<{
       quantity:            r["Nº de Alterações"] ?? null,
       status:              r["Status"] ?? "—",
       urgency:             r["Urgência"] ?? "—",
-      date:                r["Data"] ?? "—",
-      deliveryDate:        r["Data de Entrega"] ?? "—",
+      date:                r["Prazo de Entrega"] ?? r["Data de Entrega"] ?? "—",
+      deliveryDate:        r["Data de Entrega"] ?? r["Prazo de Entrega"] ?? "—",
       neededRevision:      r["Precisou de Alteração?"] ?? "—",
       revisionCount:       r["Nº de Alterações"] ?? null,
       complexity:          r["Complexidade"] ?? "—",
       approvalResponsible: r["Responsável Aprovação"] ?? "—",
       deliveryLink:        r["Link de Entrega"] ?? "—",
-      briefing:            r["Roteiro"] ?? "—",
+      briefing:            r["Briefing Completo"] ?? "—",
     }));
 
     const MONTH_LABELS: Record<string, string> = {
@@ -275,13 +275,13 @@ async function fetchProducoesEdicaoNocoDB(): Promise<{
     };
     const monthMap: Record<string, { totalPlanned:number; delivered:number; inApproval:number; withRevision:number; days:Set<string> }> = {};
     for (const r of rows) {
-      const date = r["Data"]; if (!date) continue;
+      const date = r["Prazo de Entrega"] ?? r["Data de Entrega"]; if (!date) continue;
       const isoDate = date.match(/^\d{4}/) ? date.slice(0,10) : date.split("-").reverse().join("-");
       const m = isoDate.slice(0,7);
       if (!monthMap[m]) monthMap[m] = { totalPlanned:0, delivered:0, inApproval:0, withRevision:0, days:new Set() };
       monthMap[m].totalPlanned += 1;
-      if (r["Status"] === "Entregue")     monthMap[m].delivered  += 1;
-      if (r["Status"] === "Em Aprovação") monthMap[m].inApproval += 1;
+      if (r["Status"] === "✅ Entregue")     monthMap[m].delivered  += 1;
+      if (r["Status"] === "⏳ Em Aprovação") monthMap[m].inApproval += 1;
       if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") monthMap[m].withRevision += 1;
       monthMap[m].days.add(isoDate);
     }
@@ -323,7 +323,7 @@ async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
       for (const r of results[i]) {
         tasks.push({
           id:          r["Id"],
-          title:       r["Título"] ?? "—",
+          title:       r["Tarefa"] ?? r["Título"] ?? "—",
           area,
           client:      r["Cliente"] ?? "—",
           status:      r["Status"] ?? "—",

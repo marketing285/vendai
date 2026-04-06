@@ -300,3 +300,97 @@ controllerRouter.get("/logs", (req, res) => {
 controllerRouter.get("/status", (_req, res) => {
   res.json(getLatest());
 });
+
+// Contexto operacional completo (para o dashboard)
+controllerRouter.get("/context", async (_req, res) => {
+  try {
+    const ctx = await buildContext();
+    res.json(ctx);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? String(err) });
+  }
+});
+
+// ─── Briefing operacional — MAX analisa e pontua o momento atual ─────────────
+controllerRouter.get("/briefing", async (_req, res) => {
+  try {
+    const ctx = await buildContext();
+    const systemPrompt = buildSystemPrompt(ctx, false);
+
+    const CLOSED_STATUSES = ["Concluído","Cancelado","✅ Entregue","✅ Concluído","📦 Arquivo","📦 Arquivado"];
+    const abertas   = ctx.tasks.filter(t => !CLOSED_STATUSES.includes(t.status));
+    const atrasadas = abertas.filter(t => t.sla?.includes("Atrasado"));
+    const atencao   = abertas.filter(t => t.sla?.includes("Atenção"));
+    const aprovacao = abertas.filter(t => t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna"));
+
+    const areaStats = ["BU1","BU2","Design","Edição"].map(area => {
+      const at = abertas.filter(t => t.area === area);
+      const late = at.filter(t => t.sla?.includes("Atrasado")).length;
+      const warn = at.filter(t => t.sla?.includes("Atenção")).length;
+      return { area, total: at.length, late, warn };
+    });
+
+    const dmCurrent = [...(ctx.designMetrics ?? [])].sort((a, b) => b.month.localeCompare(a.month))[0];
+    const emCurrent = [...(ctx.edicaoMetrics  ?? [])].sort((a, b) => b.month.localeCompare(a.month))[0];
+
+    const contextResume = [
+      `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length}`,
+      ...areaStats.map(s => `  ${s.area}: ${s.total} abertas, ${s.late} atrasadas, ${s.warn} atenção`),
+      dmCurrent ? `Design (Bruna): ${dmCurrent.delivered}/${dmCurrent.totalPlanned} entregues (${dmCurrent.completionPct}%), ${dmCurrent.withRevision} revisões este mês` : "",
+      emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered}/${emCurrent.totalPlanned} entregues (${emCurrent.completionPct}%), ${emCurrent.withRevision} precisaram de alteração` : "",
+      `Clientes ativos: ${ctx.clients.filter(c => c.status === "Ativo").length}`,
+    ].filter(Boolean).join("\n");
+
+    const userMessage = `Com base nos dados operacionais abaixo, gere um briefing estruturado em JSON.
+
+DADOS ATUAIS:
+${contextResume}
+
+Retorne SOMENTE um JSON válido, sem markdown, sem explicações, no formato exato abaixo:
+{
+  "score": <número 0-100 representando saúde geral da operação>,
+  "status": <"Operação Saudável" | "Atenção Necessária" | "Situação Crítica">,
+  "statusColor": <"#22C55E" | "#F59E0B" | "#EF4444">,
+  "summary": <string de 1-2 frases com diagnóstico direto do momento atual>,
+  "areas": [
+    { "name": "BU1",    "score": <0-100>, "note": <string curta com diagnóstico da área> },
+    { "name": "BU2",    "score": <0-100>, "note": <string curta> },
+    { "name": "Design", "score": <0-100>, "note": <string curta> },
+    { "name": "Edição", "score": <0-100>, "note": <string curta> }
+  ],
+  "gargalos": [
+    { "severity": <"alta" | "media" | "baixa">, "text": <string descrevendo o gargalo> }
+  ],
+  "acoes": [<string com ação recomendada>, ...]
+}
+
+Regras:
+- score 0-100: 100 = operação perfeita, 0 = colapso total
+- gargalos: máximo 4, só inclua se forem reais com base nos dados
+- acoes: máximo 3, objetivas e acionáveis agora
+- summary: fale como COO, direto ao ponto, sem enrolação`;
+
+    const response = await callClaude({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 800,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+    });
+
+    const rawText = response.content.find(b => b.type === "text")?.type === "text"
+      ? (response.content.find(b => b.type === "text") as Anthropic.TextBlock).text
+      : "";
+
+    // Extrai JSON limpo (remove eventuais blocos markdown)
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("MAX não retornou JSON válido");
+
+    const briefing = JSON.parse(jsonMatch[0]);
+    briefing.generatedAt = new Date().toISOString();
+
+    res.json(briefing);
+  } catch (err: any) {
+    log("error", "erro no /briefing", err?.message || String(err));
+    res.status(500).json({ error: err?.message ?? String(err) });
+  }
+});

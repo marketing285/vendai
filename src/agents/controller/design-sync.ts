@@ -20,7 +20,7 @@
  *     BU volta para "🎨 Em Design"
  */
 
-import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA, atualizarRelatorios } from "./nocodb-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA, atualizarRelatorios, extrairNome, autoAtribuirPorResponsavel } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
@@ -63,8 +63,11 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
     const rows = await ndbList(buTable, `(Status,eq,👤 Atribuído)`);
 
     for (const row of rows) {
-      const responsavel: string = row["Responsável"] ?? "";
-      if (!responsavel.toLowerCase().includes(NOME_BRUNA.toLowerCase())) continue;
+      const responsavel = extrairNome(row["Responsável"]);
+      if (!responsavel.toLowerCase().includes(NOME_BRUNA.toLowerCase())) {
+        log("info", `[design-sync] task "${row["Tarefa"]}" ignorada — responsável: "${responsavel}"`);
+        continue;
+      }
 
       const buRowId    = row["Id"] as number;
       const tarefa     = row["Tarefa"] ?? "—";
@@ -90,7 +93,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
         if (urg) campos["Urgência"] = urg;
       }
 
-      const existe = await ndbList(NDB.tables.tasks_design, `(Task Origem,eq,${buRowId})`);
+      const existe = await ndbList(NDB.tables.tasks_design, `(Task Origem,eq,${buRowId})~and(Origem,eq,${origem})`);
 
       if (existe.length > 0) {
         await ndbUpdate(NDB.tables.tasks_design, existe[0]["Id"], campos);
@@ -131,15 +134,16 @@ async function syncParaAprovacao(): Promise<{ enviadas: number }> {
     const taskOrigemId = row["Task Origem"];
     const origem       = row["Origem"] as string;
 
-    if (taskOrigemId) {
-      const buRowId = Number(taskOrigemId);
-      const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
-      try {
-        await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
-        log("info", `[design-sync] "${tarefa}" enviada para aprovação do gestor`);
-      } catch (e: any) {
-        log("warn", `[design-sync] erro ao notificar BU: ${e?.message}`);
-      }
+    // Fluxo B (sem Task Origem) é tratado por syncAutoIniciadas — não processar aqui
+    if (!taskOrigemId) continue;
+
+    const buRowId = Number(taskOrigemId);
+    const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
+    try {
+      await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
+      log("info", `[design-sync] "${tarefa}" enviada para aprovação do gestor`);
+    } catch (e: any) {
+      log("warn", `[design-sync] erro ao notificar BU: ${e?.message}`);
     }
 
     // Marca como notificado (Sincronizado=true) para aguardar decisão do gestor
@@ -234,7 +238,7 @@ async function syncAutoIniciadas(): Promise<{ criadas: number }> {
   // Tasks sem Task Origem, com Gestor Responsável preenchido e em aprovação
   const rows = await ndbList(
     NDB.tables.tasks_design,
-    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,0)~and(Task Origem,eq,)`,
+    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,0)~and(Task Origem,isblank,)`,
   );
 
   for (const row of rows) {
@@ -330,6 +334,13 @@ async function _finalizarTask(row: any, buTable: string, buRowId: number): Promi
   } catch (e: any) {
     log("warn", `[design-sync] erro ao deletar task: ${e?.message}`);
   }
+
+  // Arquiva task na BU de origem
+  try {
+    await ndbUpdate(buTable, buRowId, { Status: "📦 Arquivado" });
+  } catch (e: any) {
+    log("warn", `[design-sync] erro ao arquivar task na BU: ${e?.message}`);
+  }
 }
 
 // ─── Loop principal ───────────────────────────────────────────────────────────
@@ -343,6 +354,10 @@ export function startDesignSync(): void {
   async function runCycle() {
     try {
       log("info", "[design-sync] iniciando ciclo...");
+      const m = await autoAtribuirPorResponsavel(
+        [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2], [NOME_BRUNA],
+      );
+      if (m > 0) log("info", `[design-sync] ${m} task(s) auto-atribuídas à Bruna por menção`);
       const a = await syncAtribuidos();
       log("info", `[design-sync] Atribuídos: ${a.criadas} criadas, ${a.atualizadas} atualizadas`);
       const i = await syncAutoIniciadas();

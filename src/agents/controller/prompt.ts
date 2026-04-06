@@ -258,7 +258,8 @@ function buildContextSection(ctx: OperationalContext): string {
 
   // ── Tasks em aberto (NocoDB — todas as áreas) ────────────────────────────
   if (ctx.tasks.length > 0) {
-    const abertas = ctx.tasks.filter(t => !["Concluído","Cancelado"].includes(t.status));
+    const CLOSED_STATUSES = ["Concluído","Cancelado","✅ Entregue","✅ Concluído","📦 Arquivo","📦 Arquivado"];
+    const abertas = ctx.tasks.filter(t => !CLOSED_STATUSES.includes(t.status));
     const atrasadas = abertas.filter(t => t.sla?.includes("Atrasado"));
     const atencao   = abertas.filter(t => t.sla?.includes("Atenção"));
 

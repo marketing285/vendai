@@ -12,6 +12,12 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, sans-serif;
+  position: relative;
+  z-index: 1;
+}
+
+/* página principal do MAX (orb) — centralizada e sem scroll */
+body.page-orb {
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -19,8 +25,13 @@ body {
   justify-content: center;
   overflow: hidden;
   user-select: none;
-  position: relative;
-  z-index: 1;
+}
+
+/* dashboard — scroll livre, largura total */
+body.page-dashboard {
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 

@@ -24,6 +24,14 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(ROOT, "frontend/out/index.html"));
 });
 
+app.get("/dashboard", (_req, res) => {
+  res.sendFile(path.join(ROOT, "frontend/out/dashboard/index.html"));
+});
+
+app.get("/dashboard/", (_req, res) => {
+  res.sendFile(path.join(ROOT, "frontend/out/dashboard/index.html"));
+});
+
 app.listen(PORT, () => {
   console.log(`\n🤖 MAX — Monitor Ativo de Operações`);
   console.log(`✅ Servidor rodando em http://localhost:${PORT}\n`);

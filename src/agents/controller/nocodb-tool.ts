@@ -69,13 +69,53 @@ export async function ndbDelete(tableId: string, rowId: number): Promise<void> {
   await ndbFetch("DELETE", `${DATA(tableId)}/${rowId}`);
 }
 
+// ─── Campo helper — extrai string de campos User/Collaborator do NocoDB ──────
+export function extrairNome(campo: unknown): string {
+  if (!campo) return "";
+  if (typeof campo === "string") return campo;
+  if (Array.isArray(campo)) return (campo as unknown[]).map(extrairNome).join(", ");
+  if (typeof campo === "object") {
+    const obj = campo as Record<string, any>;
+    return obj["display_name"] ?? obj["name"] ?? obj["email"] ?? "";
+  }
+  return String(campo);
+}
+
+// ─── Auto-atribuição — detecta Responsável preenchido sem Status processado ──
+const STATUSES_JA_PROCESSADOS = new Set([
+  "👤 Atribuído", "🎨 Em Design", "🎬 Em Edição", "🔎 Revisão Interna",
+  "✅ Entregue", "🔄 Em Revisão", "📦 Arquivado", "📦 Arquivo",
+  "Concluído", "Cancelado",
+]);
+
+export async function autoAtribuirPorResponsavel(
+  buTableIds: string[],
+  nomes: string[],
+): Promise<number> {
+  let atribuidas = 0;
+  for (const tid of buTableIds) {
+    const rows = await ndbList(tid, "(Responsável,isnotblank,)", 200);
+    for (const row of rows) {
+      const status = (row["Status"] as string) ?? "";
+      if (STATUSES_JA_PROCESSADOS.has(status)) continue;
+      const responsavel = extrairNome(row["Responsável"]);
+      const match = nomes.some(n => responsavel.toLowerCase().includes(n.toLowerCase()));
+      if (!match) continue;
+      await ndbUpdate(tid, row["Id"] as number, { Status: "👤 Atribuído" });
+      atribuidas++;
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+  return atribuidas;
+}
+
 // ─── SLA helper — atualiza Dias até o Prazo e Status SLA em todas as tasks abertas ──
 export async function atualizarSLA(tableIds: string[]): Promise<void> {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
   for (const tid of tableIds) {
-    const rows = await ndbList(tid, "(Prazo de Entrega,isnot,null)", 200);
+    const rows = await ndbList(tid, "(Prazo de Entrega,isnotblank,)", 200);
     for (const row of rows) {
       const prazo = row["Prazo de Entrega"];
       if (!prazo) continue;

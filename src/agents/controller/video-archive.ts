@@ -17,7 +17,7 @@
  * Roda a cada 1 minuto.
  */
 
-import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete } from "./nocodb-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, extrairNome, autoAtribuirPorResponsavel } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
@@ -41,26 +41,26 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
     const rows = await ndbList(buTable, `(Status,eq,👤 Atribuído)`);
 
     for (const row of rows) {
-      const responsavel: string = row["Responsável"] ?? "";
+      const responsavel = extrairNome(row["Responsável"]);
       if (!responsavel.toLowerCase().includes(NOME_ANA.toLowerCase())) continue;
 
       const buRowId    = row["Id"] as number;
       const tarefa     = row["Tarefa"] ?? "—";
       const cliente    = row["Cliente"];
       const prazo      = row["Prazo de Entrega"];
-      const roteiro    = row["Briefing Completo"];
+      const briefing   = row["Briefing Completo"];
       const linkEnt    = row["Link de entrega"];
 
       const campos: Record<string, any> = {
         Origem:        origem,
         "Task Origem": String(buRowId),
       };
-      if (cliente)  campos["Cliente"]         = cliente;
-      if (prazo)    campos["Prazo de Entrega"] = prazo;
-      if (roteiro)  campos["Roteiro"]          = roteiro;
-      if (linkEnt)  campos["Link de Entrega"]  = linkEnt;
+      if (cliente)   campos["Cliente"]            = cliente;
+      if (prazo)     campos["Prazo de Entrega"]   = prazo;
+      if (briefing)  campos["Briefing Completo"]  = briefing;
+      if (linkEnt)   campos["Link de Entrega"]    = linkEnt;
 
-      const existe = await ndbList(NDB.tables.tasks_edicao, `(Task Origem,eq,${buRowId})`);
+      const existe = await ndbList(NDB.tables.tasks_edicao, `(Task Origem,eq,${buRowId})~and(Origem,eq,${origem})`);
 
       if (existe.length > 0) {
         await ndbUpdate(NDB.tables.tasks_edicao, existe[0]["Id"], campos);
@@ -166,7 +166,10 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
 async function arquivarTasks(): Promise<{ arquivadas: number }> {
   let arquivadas = 0;
 
-  const rows = await ndbList(NDB.tables.tasks_edicao, `(Status,eq,📦 Arquivo)`);
+  const rows = await ndbList(
+    NDB.tables.tasks_edicao,
+    `(Status,eq,📦 Arquivo)~or(Status,eq,✅ Entregue)`,
+  );
 
   for (const row of rows) {
     const rowId  = row["Id"] as number;
@@ -189,7 +192,7 @@ async function arquivarTasks(): Promise<{ arquivadas: number }> {
       ["Precisou de Alteração?","Precisou de Alteração?"],
       ["Nº de Alterações",      "Nº de Alterações"],
       ["Link de Entrega",       "Link de Entrega"],
-      ["Roteiro",               "Roteiro"],
+      ["Briefing Completo",     "Briefing Completo"],
     ];
     for (const [src, dst] of campos) {
       if (row[src] != null) deposito[dst] = row[src];
@@ -227,6 +230,10 @@ export function startVideoArchive(): void {
 
   async function runCycle() {
     try {
+      const m = await autoAtribuirPorResponsavel(
+        [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2], [NOME_ANA],
+      );
+      if (m > 0) log("info", `[video-archive] ${m} task(s) auto-atribuídas à Ana Laura por menção`);
       const a = await syncAtribuidos();
       if (a.criadas > 0 || a.atualizadas > 0)
         log("info", `[video-archive] Atribuídos: ${a.criadas} criadas, ${a.atualizadas} atualizadas`);
