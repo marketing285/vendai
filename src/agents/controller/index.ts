@@ -385,7 +385,9 @@ Regras:
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("MAX não retornou JSON válido");
 
-    const briefing = JSON.parse(jsonMatch[0]);
+    // Remove newlines literais dentro de strings (Claude às vezes gera isso)
+    const cleanJson = jsonMatch[0].replace(/[\r\n\t]+/g, " ");
+    const briefing = JSON.parse(cleanJson);
     briefing.generatedAt = new Date().toISOString();
 
     res.json(briefing);
