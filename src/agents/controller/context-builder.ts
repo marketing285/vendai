@@ -82,14 +82,16 @@ export interface NocoTaskSummary {
 export interface DesignMonthMetrics {
   month: string;          // "2026-01"
   label: string;          // "Janeiro/2026"
-  totalPlanned: number;
-  delivered: number;
+  totalPlanned: number;   // total de artes (soma de Quantidade)
+  delivered: number;      // artes entregues
   inApproval: number;
   withRevision: number;
   pending: number;
   completionPct: number;
   uniqueProductionDays: number;
-  avgDailyProduction: number;
+  avgDailyProduction: number; // artes entregues / dias de produção
+  uniqueTasks: number;        // nº de tarefas únicas (linhas no deposito)
+  uniqueDeliveredTasks: number; // nº de tarefas únicas entregues
 }
 
 export interface DesignProductionSummary {
@@ -199,6 +201,7 @@ async function fetchProducoesDesignNocoDB(): Promise<{
     const monthMap: Record<string, {
       totalPlanned: number; delivered: number; inApproval: number;
       withRevision: number; days: Set<string>;
+      uniqueTasks: number; uniqueDeliveredTasks: number;
     }> = {};
 
     for (const r of rows) {
@@ -209,10 +212,14 @@ async function fetchProducoesDesignNocoDB(): Promise<{
         ? date.slice(0, 10)
         : date.split("-").reverse().join("-");
       const m = isoDate.slice(0, 7);
-      if (!monthMap[m]) monthMap[m] = { totalPlanned: 0, delivered: 0, inApproval: 0, withRevision: 0, days: new Set() };
+      if (!monthMap[m]) monthMap[m] = { totalPlanned: 0, delivered: 0, inApproval: 0, withRevision: 0, days: new Set(), uniqueTasks: 0, uniqueDeliveredTasks: 0 };
       const qty = parseInt(r["Quantidade"]) || 1;
       monthMap[m].totalPlanned += qty;
-      if (r["Status"] === "Entregue")     monthMap[m].delivered  += qty;
+      monthMap[m].uniqueTasks  += 1;
+      if (r["Status"] === "Entregue") {
+        monthMap[m].delivered            += qty;
+        monthMap[m].uniqueDeliveredTasks += 1;
+      }
       if (r["Status"] === "Em Aprovação") monthMap[m].inApproval += qty;
       if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") monthMap[m].withRevision += qty;
       monthMap[m].days.add(isoDate);
@@ -225,14 +232,16 @@ async function fetchProducoesDesignNocoDB(): Promise<{
       return {
         month: m,
         label: `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
-        totalPlanned:         v.totalPlanned,
-        delivered:            v.delivered,
-        inApproval:           v.inApproval,
-        withRevision:         v.withRevision,
-        pending:              Math.max(0, pending),
-        completionPct:        v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
-        uniqueProductionDays: dias,
-        avgDailyProduction:   dias > 0 ? Math.round((v.delivered / dias) * 10) / 10 : 0,
+        totalPlanned:            v.totalPlanned,
+        delivered:               v.delivered,
+        inApproval:              v.inApproval,
+        withRevision:            v.withRevision,
+        pending:                 Math.max(0, pending),
+        completionPct:           v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
+        uniqueProductionDays:    dias,
+        avgDailyProduction:      dias > 0 ? Math.round((v.delivered / dias) * 10) / 10 : 0,
+        uniqueTasks:             v.uniqueTasks,
+        uniqueDeliveredTasks:    v.uniqueDeliveredTasks,
       };
     });
 
@@ -295,6 +304,7 @@ async function fetchProducoesEdicaoNocoDB(): Promise<{
         withRevision: v.withRevision, pending: Math.max(0, v.totalPlanned - v.delivered - v.inApproval),
         completionPct: v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
         uniqueProductionDays: dias, avgDailyProduction: dias > 0 ? Math.round((v.delivered / dias)*10)/10 : 0,
+        uniqueTasks: v.totalPlanned, uniqueDeliveredTasks: v.delivered, // edição: 1 por row
       };
     });
     return { productions, metrics };
@@ -550,8 +560,10 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
         withRevision        : v.withRevision,
         pending             : Math.max(0, pending),
         completionPct       : v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
-        uniqueProductionDays: dias,
-        avgDailyProduction  : dias > 0 ? Math.round((v.delivered / dias) * 10) / 10 : 0,
+        uniqueProductionDays:    dias,
+        avgDailyProduction:      dias > 0 ? Math.round((v.delivered / dias) * 10) / 10 : 0,
+        uniqueTasks:             v.totalPlanned,
+        uniqueDeliveredTasks:    v.delivered,
       };
     });
 
