@@ -104,8 +104,12 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    document.body.classList.remove("page-orb");
     document.body.classList.add("page-dashboard");
-    return () => document.body.classList.remove("page-dashboard");
+    return () => {
+      document.body.classList.remove("page-dashboard");
+      document.body.classList.add("page-orb");
+    };
   }, []);
 
   useEffect(() => {
