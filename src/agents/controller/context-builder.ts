@@ -77,6 +77,7 @@ export interface NocoTaskSummary {
   daysLeft: number | null;
   responsible: string;
   priority: string;
+  quantity: number | null; // campo Quantidade (Design)
 }
 
 export interface DesignMonthMetrics {
@@ -342,6 +343,7 @@ async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
           daysLeft:    r["Dias até o Prazo"] ?? null,
           responsible: r["Responsável"] ?? "—",
           priority:    r["Prioridade"] ?? "—",
+          quantity:    area === "Design" ? (parseInt(r["Quantidade"]) || null) : null,
         });
       }
     }
@@ -349,6 +351,73 @@ async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
   } catch {
     return [];
   }
+}
+
+// ─────────────────────────────────────────────
+//  Métricas da Bruna a partir de tasks_design
+//  Usa o campo Quantidade de cada task para somar artes reais
+// ─────────────────────────────────────────────
+function computeDesignMetricsFromTasks(rows: any[]): DesignMonthMetrics[] {
+  const CLOSED = ["Concluído","Cancelado","✅ Entregue","✅ Concluído","📦 Arquivo","📦 Arquivado"];
+  const MONTH_LABELS: Record<string, string> = {
+    "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
+    "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
+    "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
+  };
+
+  const monthMap: Record<string, {
+    totalArtes: number; deliveredArtes: number; inApprovalArtes: number;
+    withRevisionArtes: number; uniqueTasks: number; uniqueDeliveredTasks: number; days: Set<string>;
+  }> = {};
+
+  for (const r of rows) {
+    const date = r["Prazo de Entrega"];
+    if (!date) continue;
+    const isoDate = date.match(/^\d{4}/) ? date.slice(0, 10) : date.split("-").reverse().join("-");
+    const m = isoDate.slice(0, 7);
+    const qty = parseInt(r["Quantidade"]) || 1;
+    const status = r["Status"] ?? "";
+
+    if (!monthMap[m]) monthMap[m] = {
+      totalArtes: 0, deliveredArtes: 0, inApprovalArtes: 0,
+      withRevisionArtes: 0, uniqueTasks: 0, uniqueDeliveredTasks: 0, days: new Set(),
+    };
+
+    monthMap[m].totalArtes   += qty;
+    monthMap[m].uniqueTasks  += 1;
+    monthMap[m].days.add(isoDate);
+
+    if (CLOSED.includes(status)) {
+      monthMap[m].deliveredArtes       += qty;
+      monthMap[m].uniqueDeliveredTasks += 1;
+    }
+    if (status.includes("Aprovação") || status.includes("Revisão")) {
+      monthMap[m].inApprovalArtes += qty;
+    }
+    if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") {
+      monthMap[m].withRevisionArtes += qty;
+    }
+  }
+
+  return Object.keys(monthMap).sort().map(m => {
+    const v = monthMap[m];
+    const dias = v.days.size;
+    const pending = v.totalArtes - v.deliveredArtes - v.inApprovalArtes;
+    return {
+      month:                m,
+      label:                `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
+      totalPlanned:         v.totalArtes,
+      delivered:            v.deliveredArtes,
+      inApproval:           v.inApprovalArtes,
+      withRevision:         v.withRevisionArtes,
+      pending:              Math.max(0, pending),
+      completionPct:        v.totalArtes > 0 ? Math.round((v.deliveredArtes / v.totalArtes) * 100) : 0,
+      uniqueProductionDays: dias,
+      avgDailyProduction:   dias > 0 ? Math.round((v.deliveredArtes / dias) * 10) / 10 : 0,
+      uniqueTasks:          v.uniqueTasks,
+      uniqueDeliveredTasks: v.uniqueDeliveredTasks,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -372,15 +441,17 @@ export async function buildContext(): Promise<OperationalContext> {
   }
 
   // Todos os dados NocoDB em paralelo (fonte de verdade)
-  const [clients, designData, edicaoData, tasks] = await Promise.all([
+  const [clients, designData, edicaoData, tasks, rawDesignTasks] = await Promise.all([
     fetchClientesNocoDB(),
     fetchProducoesDesignNocoDB(),
     fetchProducoesEdicaoNocoDB(),
     fetchTasksNocoDB(),
+    ndbList(NDB.tables.tasks_design, undefined, 500),
   ]);
   base.clients           = clients;
   base.designProductions = designData.productions;
-  base.designMetrics     = designData.metrics;
+  // Métricas da Bruna calculadas direto das tasks_design (Quantidade por task)
+  base.designMetrics     = computeDesignMetricsFromTasks(rawDesignTasks);
   base.edicaoProductions = edicaoData.productions;
   base.edicaoMetrics     = edicaoData.metrics;
   base.tasks             = tasks;
