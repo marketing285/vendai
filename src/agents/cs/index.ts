@@ -2,7 +2,7 @@ import { Router } from "express";
 import { classifyMessage } from "./classifier";
 import { buildBriefingQuestions, isBriefingComplete } from "./briefing";
 import { generateProtocolIdFromDB } from "./protocol";
-import { createNotionTask } from "./notion-sync";
+import { createNocoDBTask } from "./nocodb-sync";
 import {
   sendTextMessage,
   extractMessageText,
@@ -105,19 +105,19 @@ csRouter.post("/whatsapp", async (req, res) => {
       });
     }
 
-    // 6. Sincroniza com Notion
-    const notionPageId = await createNotionTask({
+    // 6. Cria task no NocoDB
+    const nocoRowId = await createNocoDBTask({
       protocolId,
       title: classification.summary,
       classification,
       sourceMessage: messageText,
-      groupName,
+      groupId,
       deadline,
     });
 
-    // Atualiza task com ID do Notion
-    if (db && taskDbId && notionPageId) {
-      await db.from("tasks").update({ notion_task_id: notionPageId }).eq("id", taskDbId);
+    // Atualiza task no Supabase com ID do NocoDB
+    if (db && taskDbId && nocoRowId) {
+      await db.from("tasks").update({ notion_task_id: nocoRowId }).eq("id", taskDbId);
     }
 
     // 7. Monta resposta para o grupo
