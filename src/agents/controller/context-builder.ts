@@ -354,68 +354,84 @@ async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
 }
 
 // ─────────────────────────────────────────────
-//  Métricas da Bruna a partir de tasks_design
-//  Usa o campo Quantidade de cada task para somar artes reais
+//  Métricas da Bruna combinando duas fontes:
+//  - deposito_design: tasks entregues (com Quantidade e data real de entrega)
+//  - tasks_design:    tasks abertas (com Quantidade, agrupadas pelo mês do prazo)
 // ─────────────────────────────────────────────
-function computeDesignMetricsFromTasks(rows: any[]): DesignMonthMetrics[] {
-  const CLOSED = ["Concluído","Cancelado","✅ Entregue","✅ Concluído","📦 Arquivo","📦 Arquivado"];
+function computeDesignMetricsFromTasks(
+  openTasks: any[],   // tasks_design — abertas
+  delivered: any[],   // deposito_design — entregues
+): DesignMonthMetrics[] {
   const MONTH_LABELS: Record<string, string> = {
     "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
     "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
     "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
   };
 
-  const monthMap: Record<string, {
-    totalArtes: number; deliveredArtes: number; inApprovalArtes: number;
-    withRevisionArtes: number; uniqueTasks: number; uniqueDeliveredTasks: number; days: Set<string>;
-  }> = {};
+  type MonthBucket = {
+    openArtes: number; openTasks: number;
+    deliveredArtes: number; deliveredTasks: number;
+    inApprovalArtes: number; withRevision: number;
+    days: Set<string>;
+  };
+  const monthMap: Record<string, MonthBucket> = {};
 
-  for (const r of rows) {
+  const bucket = (m: string): MonthBucket => {
+    if (!monthMap[m]) monthMap[m] = {
+      openArtes: 0, openTasks: 0,
+      deliveredArtes: 0, deliveredTasks: 0,
+      inApprovalArtes: 0, withRevision: 0,
+      days: new Set(),
+    };
+    return monthMap[m];
+  };
+
+  // tasks abertas → agrupadas pelo mês do prazo
+  for (const r of openTasks) {
     const date = r["Prazo de Entrega"];
     if (!date) continue;
     const isoDate = date.match(/^\d{4}/) ? date.slice(0, 10) : date.split("-").reverse().join("-");
     const m = isoDate.slice(0, 7);
     const qty = parseInt(r["Quantidade"]) || 1;
     const status = r["Status"] ?? "";
+    const b = bucket(m);
+    b.openArtes += qty;
+    b.openTasks += 1;
+    if (status.includes("Aprovação") || status.includes("Revisão")) b.inApprovalArtes += qty;
+  }
 
-    if (!monthMap[m]) monthMap[m] = {
-      totalArtes: 0, deliveredArtes: 0, inApprovalArtes: 0,
-      withRevisionArtes: 0, uniqueTasks: 0, uniqueDeliveredTasks: 0, days: new Set(),
-    };
-
-    monthMap[m].totalArtes   += qty;
-    monthMap[m].uniqueTasks  += 1;
-    monthMap[m].days.add(isoDate);
-
-    if (CLOSED.includes(status)) {
-      monthMap[m].deliveredArtes       += qty;
-      monthMap[m].uniqueDeliveredTasks += 1;
-    }
-    if (status.includes("Aprovação") || status.includes("Revisão")) {
-      monthMap[m].inApprovalArtes += qty;
-    }
-    if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") {
-      monthMap[m].withRevisionArtes += qty;
-    }
+  // tasks entregues → agrupadas pelo mês da data de entrega
+  for (const r of delivered) {
+    const date = r["Data"] ?? r["Data de Entrega"];
+    if (!date) continue;
+    const isoDate = date.match(/^\d{4}/) ? date.slice(0, 10) : date.split("-").reverse().join("-");
+    const m = isoDate.slice(0, 7);
+    const qty = parseInt(r["Quantidade"]) || 1;
+    const b = bucket(m);
+    b.deliveredArtes += qty;
+    b.deliveredTasks += 1;
+    b.days.add(isoDate);
+    if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") b.withRevision += qty;
   }
 
   return Object.keys(monthMap).sort().map(m => {
     const v = monthMap[m];
-    const dias = v.days.size;
-    const pending = v.totalArtes - v.deliveredArtes - v.inApprovalArtes;
+    const totalArtes = v.deliveredArtes + v.openArtes;
+    const dias = v.days.size || 1;
+    const pending = v.openArtes - v.inApprovalArtes;
     return {
       month:                m,
       label:                `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
-      totalPlanned:         v.totalArtes,
+      totalPlanned:         totalArtes,
       delivered:            v.deliveredArtes,
       inApproval:           v.inApprovalArtes,
-      withRevision:         v.withRevisionArtes,
+      withRevision:         v.withRevision,
       pending:              Math.max(0, pending),
-      completionPct:        v.totalArtes > 0 ? Math.round((v.deliveredArtes / v.totalArtes) * 100) : 0,
-      uniqueProductionDays: dias,
-      avgDailyProduction:   dias > 0 ? Math.round((v.deliveredArtes / dias) * 10) / 10 : 0,
-      uniqueTasks:          v.uniqueTasks,
-      uniqueDeliveredTasks: v.uniqueDeliveredTasks,
+      completionPct:        totalArtes > 0 ? Math.round((v.deliveredArtes / totalArtes) * 100) : 0,
+      uniqueProductionDays: v.days.size,
+      avgDailyProduction:   v.days.size > 0 ? Math.round((v.deliveredArtes / dias) * 10) / 10 : 0,
+      uniqueTasks:          v.deliveredTasks + v.openTasks,
+      uniqueDeliveredTasks: v.deliveredTasks,
     };
   });
 }
@@ -450,8 +466,10 @@ export async function buildContext(): Promise<OperationalContext> {
   ]);
   base.clients           = clients;
   base.designProductions = designData.productions;
-  // Métricas da Bruna calculadas direto das tasks_design (Quantidade por task)
-  base.designMetrics     = computeDesignMetricsFromTasks(rawDesignTasks);
+  // Métricas: open tasks (tasks_design) + entregues (deposito_design) com Quantidade real
+  base.designMetrics     = computeDesignMetricsFromTasks(rawDesignTasks, designData.productions.map(p => ({
+    "Data": p.date, "Quantidade": p.quantity, "Precisou de Alteração?": p.neededRevision,
+  })));
   base.edicaoProductions = edicaoData.productions;
   base.edicaoMetrics     = edicaoData.metrics;
   base.tasks             = tasks;
