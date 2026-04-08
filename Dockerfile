@@ -1,4 +1,5 @@
 FROM node:20-alpine
+ARG CACHEBUST=3
 
 WORKDIR /app
 
