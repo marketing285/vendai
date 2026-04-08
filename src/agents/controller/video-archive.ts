@@ -179,12 +179,13 @@ async function arquivarTasks(): Promise<{ arquivadas: number }> {
     const origem = row["Origem"] as string;
     const hoje   = new Date().toISOString().split("T")[0];
 
+    const gestor = GESTOR_PARA_RESP[origem];
     const deposito: Record<string, any> = {
-      Tarefa:                  tarefa,
-      Status:                  "📦 Arquivado",
-      "Data da solicitação":   row["Prazo de Entrega"] ?? hoje,
-      "Responsável Aprovação": GESTOR_PARA_RESP[origem] ?? "—",
+      Tarefa:                tarefa,
+      Status:                "📦 Arquivado",
+      "Data da solicitação": row["Prazo de Entrega"] ?? hoje,
     };
+    if (gestor) deposito["Responsável Aprovação"] = gestor;
 
     const campos: Array<[string, string]> = [
       ["Cliente",               "Cliente"],
