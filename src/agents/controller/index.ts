@@ -2,6 +2,7 @@ import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
+import { getBriefing } from "./briefing-scheduler";
 import { textToSpeech } from "./voice";
 import { metaAdsTool, callMetaAdsWebhook } from "./meta-ads-tool";
 import { NOTION_DBS, notionTasksTool, queryNotionTasks, designProductionsTool, queryDesignProductions, designTasksTool, queryDesignTasks } from "./notion-tool";
@@ -311,86 +312,10 @@ controllerRouter.get("/context", async (_req, res) => {
   }
 });
 
-// ─── Briefing operacional — MAX analisa e pontua o momento atual ─────────────
+// ─── Briefing operacional — servido do cache gerado pelo scheduler ───────────
 controllerRouter.get("/briefing", async (_req, res) => {
   try {
-    const ctx = await buildContext();
-    const systemPrompt = buildSystemPrompt(ctx, false);
-
-    const CLOSED_STATUSES = ["Concluído","Cancelado","✅ Entregue","✅ Concluído","📦 Arquivo","📦 Arquivado"];
-    const abertas   = ctx.tasks.filter(t => !CLOSED_STATUSES.includes(t.status));
-    const atrasadas = abertas.filter(t => t.sla?.includes("Atrasado"));
-    const atencao   = abertas.filter(t => t.sla?.includes("Atenção"));
-    const aprovacao = abertas.filter(t => t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna"));
-
-    const areaStats = ["BU1","BU2","Design","Edição"].map(area => {
-      const at = abertas.filter(t => t.area === area);
-      const late = at.filter(t => t.sla?.includes("Atrasado")).length;
-      const warn = at.filter(t => t.sla?.includes("Atenção")).length;
-      return { area, total: at.length, late, warn };
-    });
-
-    const dmCurrent = [...(ctx.designMetrics ?? [])].sort((a, b) => b.month.localeCompare(a.month))[0];
-    const emCurrent = [...(ctx.edicaoMetrics  ?? [])].sort((a, b) => b.month.localeCompare(a.month))[0];
-
-    const contextResume = [
-      `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length}`,
-      ...areaStats.map(s => `  ${s.area}: ${s.total} tasks abertas, ${s.late} atrasadas, ${s.warn} atenção`),
-      dmCurrent ? `Design (Bruna): ${dmCurrent.delivered} artes entregues de ${dmCurrent.totalPlanned} total | ${dmCurrent.inApproval} artes em aprovação | ${dmCurrent.withRevision} revisões | ${dmCurrent.uniqueDeliveredTasks} tasks entregues de ${dmCurrent.uniqueTasks} total | média ${dmCurrent.avgDailyProduction} artes/dia útil` : "",
-      emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered} vídeos entregues de ${emCurrent.totalPlanned} total | ${emCurrent.withRevision} precisaram de alteração` : "",
-      `Clientes ativos: ${ctx.clients.filter(c => c.status === "Ativo").length}`,
-    ].filter(Boolean).join("\n");
-
-    const userMessage = `Com base nos dados operacionais abaixo, gere um briefing estruturado em JSON.
-
-DADOS ATUAIS:
-${contextResume}
-
-Retorne SOMENTE um JSON válido, sem markdown, sem explicações, no formato exato abaixo:
-{
-  "score": <número 0-100 representando saúde geral da operação>,
-  "status": <"Operação Saudável" | "Atenção Necessária" | "Situação Crítica">,
-  "statusColor": <"#22C55E" | "#F59E0B" | "#EF4444">,
-  "summary": <string de 1-2 frases com diagnóstico direto do momento atual>,
-  "areas": [
-    { "name": "BU1",    "score": <0-100>, "note": <string curta com diagnóstico da área> },
-    { "name": "BU2",    "score": <0-100>, "note": <string curta> },
-    { "name": "Design", "score": <0-100>, "note": <string curta> },
-    { "name": "Edição", "score": <0-100>, "note": <string curta> }
-  ],
-  "gargalos": [
-    { "severity": <"alta" | "media" | "baixa">, "text": <string descrevendo o gargalo> }
-  ],
-  "acoes": [<string com ação recomendada>, ...]
-}
-
-Regras:
-- score 0-100: 100 = operação perfeita, 0 = colapso total
-- gargalos: máximo 4, só inclua se forem reais com base nos dados
-- acoes: máximo 3, objetivas e acionáveis agora
-- summary: fale como COO, direto ao ponto, sem enrolação
-- IMPORTANTE: para Design, sempre use "artes" (não "tasks") — cada task pode conter múltiplas artes. Ex: "58 artes em aprovação" e não "58 tasks em aprovação"`;
-
-    const response = await callClaude({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 800,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    });
-
-    const rawText = response.content.find(b => b.type === "text")?.type === "text"
-      ? (response.content.find(b => b.type === "text") as Anthropic.TextBlock).text
-      : "";
-
-    // Extrai JSON limpo (remove eventuais blocos markdown)
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("MAX não retornou JSON válido");
-
-    // Remove newlines literais dentro de strings (Claude às vezes gera isso)
-    const cleanJson = jsonMatch[0].replace(/[\r\n\t]+/g, " ");
-    const briefing = JSON.parse(cleanJson);
-    briefing.generatedAt = new Date().toISOString();
-
+    const briefing = await getBriefing();
     res.json(briefing);
   } catch (err: any) {
     log("error", "erro no /briefing", err?.message || String(err));

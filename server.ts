@@ -6,6 +6,7 @@ import { controllerRouter } from "./src/agents/controller/index";
 import { csRouter } from "./src/agents/cs/index";
 import { startDesignSync } from "./src/agents/controller/design-sync";
 import { startVideoArchive } from "./src/agents/controller/video-archive";
+import { startBriefingScheduler } from "./src/agents/controller/briefing-scheduler";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,4 +38,5 @@ app.listen(PORT, () => {
   console.log(`✅ Servidor rodando em http://localhost:${PORT}\n`);
   startDesignSync();
   startVideoArchive();
+  startBriefingScheduler();
 });
