@@ -10,8 +10,8 @@ import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { log } from "./logger";
 
-const INTERVALO_MS  = 15 * 60 * 1000; // gera a cada 15 min
-const MAX_AGE_MS    = 14 * 60 * 1000; // cache válido por 14 min (serve ao dashboard sem recalcular)
+const INTERVALO_MS  = 30 * 60 * 1000; // gera a cada 30 min
+const MAX_AGE_MS    = 29 * 60 * 1000; // cache válido por 29 min (serve ao dashboard sem recalcular)
 
 interface Briefing {
   score: number;
@@ -159,5 +159,5 @@ export function startBriefingScheduler(): void {
     catch (e: any) { log("error", "[briefing] erro no ciclo", e?.message); }
   }, INTERVALO_MS);
 
-  log("info", `[briefing] scheduler iniciado — intervalo: ${INTERVALO_MS / 60000} min`);
+  log("info", `[briefing] scheduler iniciado — intervalo: ${INTERVALO_MS / 60_000} min`);
 }
