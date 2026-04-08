@@ -186,6 +186,16 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
       await _finalizarTask(row, buTable, buRowId);
       aprovadas++;
 
+    } else if (buStatus !== "🔎 Revisão Interna" && buStatus !== "🔄 Em Revisão") {
+      // BU saiu de Revisão Interna sem decisão (ex: gestor voltou para Em Design)
+      // e Bruna voltou a marcar Em Aprovação — re-notifica o gestor
+      try {
+        await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
+        log("info", `[design-sync] "${tarefa}" re-enviada para aprovação (BU estava em "${buStatus}")`);
+      } catch (e: any) {
+        log("warn", `[design-sync] erro ao re-notificar BU: ${e?.message}`);
+      }
+
     } else if (buStatus === "🔄 Em Revisão") {
       // Gestor pediu revisão — devolve para Bruna com todos os campos atualizados da BU
       const bu = buRows[0];
