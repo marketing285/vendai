@@ -102,7 +102,13 @@ Regras:
   const jsonMatch = rawText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("MAX não retornou JSON válido");
 
-  const cleanJson = jsonMatch[0].replace(/[\r\n\t]+/g, " ");
+  // Sanitiza o JSON: remove quebras de linha literais dentro de strings
+  // e escapa corretamente para evitar SyntaxError no parse
+  let cleanJson = jsonMatch[0];
+  // Remove controle chars mantendo \n e \t apenas fora de strings
+  cleanJson = cleanJson.replace(/("(?:[^"\\]|\\.)*")|[\r\n\t]+/g, (m, str) =>
+    str ? str.replace(/\n/g, "\\n").replace(/\r/g, "").replace(/\t/g, " ") : " "
+  );
   const briefing = JSON.parse(cleanJson) as Briefing;
   briefing.generatedAt = new Date().toISOString();
   return briefing;
