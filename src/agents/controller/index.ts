@@ -335,9 +335,9 @@ controllerRouter.get("/briefing", async (_req, res) => {
 
     const contextResume = [
       `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length}`,
-      ...areaStats.map(s => `  ${s.area}: ${s.total} abertas, ${s.late} atrasadas, ${s.warn} atenção`),
-      dmCurrent ? `Design (Bruna): ${dmCurrent.delivered}/${dmCurrent.totalPlanned} entregues (${dmCurrent.completionPct}%), ${dmCurrent.withRevision} revisões este mês` : "",
-      emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered}/${emCurrent.totalPlanned} entregues (${emCurrent.completionPct}%), ${emCurrent.withRevision} precisaram de alteração` : "",
+      ...areaStats.map(s => `  ${s.area}: ${s.total} tasks abertas, ${s.late} atrasadas, ${s.warn} atenção`),
+      dmCurrent ? `Design (Bruna): ${dmCurrent.delivered} artes entregues de ${dmCurrent.totalPlanned} total | ${dmCurrent.inApproval} artes em aprovação | ${dmCurrent.withRevision} revisões | ${dmCurrent.uniqueDeliveredTasks} tasks entregues de ${dmCurrent.uniqueTasks} total | média ${dmCurrent.avgDailyProduction} artes/dia útil` : "",
+      emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered} vídeos entregues de ${emCurrent.totalPlanned} total | ${emCurrent.withRevision} precisaram de alteração` : "",
       `Clientes ativos: ${ctx.clients.filter(c => c.status === "Ativo").length}`,
     ].filter(Boolean).join("\n");
 
@@ -368,7 +368,8 @@ Regras:
 - score 0-100: 100 = operação perfeita, 0 = colapso total
 - gargalos: máximo 4, só inclua se forem reais com base nos dados
 - acoes: máximo 3, objetivas e acionáveis agora
-- summary: fale como COO, direto ao ponto, sem enrolação`;
+- summary: fale como COO, direto ao ponto, sem enrolação
+- IMPORTANTE: para Design, sempre use "artes" (não "tasks") — cada task pode conter múltiplas artes. Ex: "58 artes em aprovação" e não "58 tasks em aprovação"`;
 
     const response = await callClaude({
       model: "claude-haiku-4-5-20251001",

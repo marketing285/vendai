@@ -414,11 +414,26 @@ function computeDesignMetricsFromTasks(
     if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") b.withRevision += qty;
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+  const todayMonth = today.slice(0, 7);
+
   return Object.keys(monthMap).sort().map(m => {
     const v = monthMap[m];
     const totalArtes = v.deliveredArtes + v.openArtes;
-    const dias = v.days.size || 1;
+    const artesProducidas = v.deliveredArtes + v.inApprovalArtes; // já trabalhadas
     const pending = v.openArtes - v.inApprovalArtes;
+
+    // Dias úteis (seg-sex) do mês, até hoje se for o mês atual
+    const [year, mon] = m.split("-").map(Number);
+    const lastDay = m === todayMonth
+      ? new Date().getDate()
+      : new Date(year, mon, 0).getDate(); // último dia do mês
+    let workingDays = 0;
+    for (let d = 1; d <= lastDay; d++) {
+      const dow = new Date(year, mon - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workingDays++;
+    }
+
     return {
       month:                m,
       label:                `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
@@ -428,8 +443,8 @@ function computeDesignMetricsFromTasks(
       withRevision:         v.withRevision,
       pending:              Math.max(0, pending),
       completionPct:        totalArtes > 0 ? Math.round((v.deliveredArtes / totalArtes) * 100) : 0,
-      uniqueProductionDays: v.days.size,
-      avgDailyProduction:   v.days.size > 0 ? Math.round((v.deliveredArtes / dias) * 10) / 10 : 0,
+      uniqueProductionDays: workingDays,
+      avgDailyProduction:   workingDays > 0 ? Math.round((artesProducidas / workingDays) * 10) / 10 : 0,
       uniqueTasks:          v.deliveredTasks + v.openTasks,
       uniqueDeliveredTasks: v.deliveredTasks,
     };
