@@ -166,9 +166,11 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
 async function arquivarTasks(): Promise<{ arquivadas: number }> {
   let arquivadas = 0;
 
+  // Só arquiva quando Ana move explicitamente para "📦 Arquivo"
+  // "✅ Entregue" significa aprovado pelo gestor mas Ana ainda não arquivou
   const rows = await ndbList(
     NDB.tables.tasks_edicao,
-    `(Status,eq,📦 Arquivo)~or(Status,eq,✅ Entregue)`,
+    `(Status,eq,📦 Arquivo)`,
   );
 
   for (const row of rows) {
