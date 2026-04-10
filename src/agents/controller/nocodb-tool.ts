@@ -85,7 +85,7 @@ export function extrairNome(campo: unknown): string {
 const STATUSES_JA_PROCESSADOS = new Set([
   "👤 Atribuído", "🎨 Em Design", "🎬 Em Edição", "🔎 Revisão Interna",
   "✅ Entregue", "🔄 Em Revisão", "📦 Arquivado", "📦 Arquivo",
-  "Concluído", "Cancelado",
+  "⏳ Pausado", "🚫 Bloqueado", "Concluído", "Cancelado",
 ]);
 
 export async function autoAtribuirPorResponsavel(

@@ -38,7 +38,10 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
   ];
 
   for (const { id: buTable, origem } of bancos) {
-    const rows = await ndbList(buTable, `(Status,eq,👤 Atribuído)`);
+    // Processa tasks recém-atribuídas à Ana E tasks já Em Edição com campos faltando
+    const atribuidas  = await ndbList(buTable, `(Status,eq,👤 Atribuído)`);
+    const emEdicao    = await ndbList(buTable, `(Status,eq,🎬 Em Edição)`);
+    const rows        = [...atribuidas, ...emEdicao];
 
     for (const row of rows) {
       const responsavel = extrairNome(row["Responsável"]);
@@ -50,23 +53,36 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
       const prazo      = row["Prazo de Entrega"];
       const briefing   = row["Briefing Completo"];
       const linkEnt    = row["Link de entrega"];
+      const responsavelNome = row["Responsável"];
 
       const campos: Record<string, any> = {
         Origem:        origem,
         "Task Origem": String(buRowId),
       };
-      if (cliente)   campos["Cliente"]            = cliente;
-      if (prazo)     campos["Prazo de Entrega"]   = prazo;
-      if (briefing)  campos["Briefing Completo"]  = briefing;
-      if (linkEnt)   campos["Link de Entrega"]    = linkEnt;
+      if (cliente)         campos["Cliente"]            = cliente;
+      if (prazo)           campos["Prazo de Entrega"]   = prazo;
+      if (briefing)        campos["Briefing Completo"]  = briefing;
+      if (linkEnt)         campos["Link de Entrega"]    = linkEnt;
+      if (responsavelNome) campos["Responsável"]        = responsavelNome;
 
       const existe = await ndbList(NDB.tables.tasks_edicao, `(Task Origem,eq,${buRowId})~and(Origem,eq,${origem})`);
 
       if (existe.length > 0) {
-        await ndbUpdate(NDB.tables.tasks_edicao, existe[0]["Id"], campos);
-        await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
-        atualizadas++;
-      } else {
+        // Atualiza campos faltando sem sobrescrever campos já preenchidos pela Ana
+        const taskExistente = existe[0];
+        const update: Record<string, any> = {};
+        for (const [k, v] of Object.entries(campos)) {
+          if (v && !taskExistente[k]) update[k] = v;
+        }
+        if (Object.keys(update).length > 0) {
+          await ndbUpdate(NDB.tables.tasks_edicao, taskExistente["Id"], update);
+          atualizadas++;
+        }
+        // Só muda status da BU se ainda estiver Atribuído
+        if (row["Status"] === "👤 Atribuído") {
+          await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        }
+      } else if (row["Status"] === "👤 Atribuído") {
         await ndbCreate(NDB.tables.tasks_edicao, {
           Tarefa:       tarefa,
           Status:       "⬜ Em Standby",
