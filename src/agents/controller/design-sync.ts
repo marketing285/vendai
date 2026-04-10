@@ -245,11 +245,10 @@ const GESTOR_MAP: Record<string, string> = {
 async function syncAutoIniciadas(): Promise<{ criadas: number }> {
   let criadas = 0;
 
-  // Tasks sem Task Origem, com Gestor Responsável preenchido e em aprovação
-  const rows = await ndbList(
-    NDB.tables.tasks_design,
-    `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,0)~and(Task Origem,isblank,)`,
-  );
+  // Tasks sem Task Origem e em aprovação (Sincronizado=0 ou =1 sem Task Origem — ambos precisam ser criados na BU)
+  const pendentes0 = await ndbList(NDB.tables.tasks_design, `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,0)~and(Task Origem,isblank,)`);
+  const pendentes1 = await ndbList(NDB.tables.tasks_design, `(Status,eq,⏳ Em Aprovação)~and(Sincronizado,eq,1)~and(Task Origem,isblank,)`);
+  const rows = [...pendentes0, ...pendentes1];
 
   for (const row of rows) {
     const rowId  = row["Id"] as number;
