@@ -84,14 +84,18 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
         if (row["Status"] === "👤 Atribuído") {
           await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
         }
-      } else if (row["Status"] === "👤 Atribuído") {
+      } else {
+        // Cria tasks_edicao para qualquer task da Ana sem entrada existente
+        // (independente se está como "👤 Atribuído" ou já "🎬 Em Edição")
         await ndbCreate(NDB.tables.tasks_edicao, {
           Tarefa:       tarefa,
           Status:       "⬜ Em Standby",
           Sincronizado: false,
           ...campos,
         });
-        await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        if (row["Status"] === "👤 Atribuído") {
+          await ndbUpdate(buTable, buRowId, { Status: "🎬 Em Edição" });
+        }
         criadas++;
         log("info", `[video-archive] nova task criada de ${origem}: "${tarefa}"`);
       }
