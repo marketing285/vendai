@@ -11,6 +11,7 @@ import {
   WhatsAppWebhookPayload,
 } from "../../integrations/whatsapp";
 import { getSupabase } from "../../integrations/supabase";
+import { identificarGestor, handleGestorMessage } from "../gpia/whatsapp-handler";
 
 export const csRouter = Router();
 
@@ -28,6 +29,16 @@ csRouter.post("/whatsapp", async (req, res) => {
   if (!messageText.trim()) {
     res.json({ ok: true });
     return;
+  }
+
+  // Mensagens diretas (não grupo) de gestores/CEO → GPIA
+  if (!payload?.data?.isGroup) {
+    const gestor = identificarGestor(payload?.data?.sender ?? "");
+    if (gestor) {
+      res.json({ ok: true });
+      handleGestorMessage(payload.data.sender, messageText).catch(() => {});
+      return;
+    }
   }
 
   const groupId = extractGroupId(payload);
