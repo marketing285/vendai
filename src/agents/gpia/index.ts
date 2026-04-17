@@ -20,6 +20,7 @@ import { buildSnapshot, analyzeScenario, BU } from "./analyzer";
 import { notifyGestor, notifyArmando, escalateToArmando } from "./notify";
 import { saveMemory } from "./memory";
 import { log } from "../controller/logger";
+import { sendTextMessage } from "../../integrations/whatsapp";
 
 const SCAN_INTERVAL_MS   = 30 * 60 * 1000; // 30 min
 const BUS: BU[]          = ["BU1", "BU2"];
@@ -185,6 +186,33 @@ gpiaRouter.post("/relatorio/:bu", async (req, res) => {
     await notifyGestor(bu, relatorio);
     await notifyArmando(`📋 *Relatório Semanal — ${bu}*\n\n${relatorio}`);
     res.json({ ok: true, bu, preview: relatorio.slice(0, 200) });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// Envia mensagem de teste para um destinatário
+gpiaRouter.post("/ping", async (req, res) => {
+  const { para = "armando", mensagem } = req.body as { para?: string; mensagem?: string };
+
+  const ALVOS: Record<string, string> = {
+    armando: process.env.GPIA_PHONE_ARMANDO ?? "5511994053632",
+    bu1:     process.env.GPIA_PHONE_BU1     ?? "5511995320721",
+    bu2:     process.env.GPIA_PHONE_BU2     ?? "5514991949319",
+    ...(process.env.GPIA_PHONE_BRUNO ? { bruno: process.env.GPIA_PHONE_BRUNO } : {}),
+  };
+
+  const phone = ALVOS[para.toLowerCase()];
+  if (!phone) {
+    res.status(400).json({ error: `Destinatário inválido. Use: ${Object.keys(ALVOS).join(", ")}` });
+    return;
+  }
+
+  const texto = mensagem ?? `👋 *Olá! Aqui é o MAX.*\n\nEstou online e pronto para receber suas atualizações.\n\nMe mande decisões, mudanças de prazo ou transcrições de reunião — vou processar tudo automaticamente.\n\n_Teste enviado em ${new Date().toLocaleString("pt-BR")}_`;
+
+  try {
+    await sendTextMessage(phone, texto);
+    res.json({ ok: true, para, phone });
   } catch (err: any) {
     res.status(500).json({ error: err?.message });
   }
