@@ -53,6 +53,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
       const prazo      = row["Prazo de Entrega"];
       const briefing   = row["Briefing Completo"];
       const linkEnt    = row["Link de entrega"];
+      const obs        = row["Observações"];
       const responsavelNome = row["Responsável"];
 
       const campos: Record<string, any> = {
@@ -63,6 +64,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
       if (prazo)           campos["Prazo de Entrega"]   = prazo;
       if (briefing)        campos["Briefing Completo"]  = briefing;
       if (linkEnt)         campos["Link de Entrega"]    = linkEnt;
+      if (obs)             campos["Observações"]        = obs;
       if (responsavelNome) campos["Responsável"]        = responsavelNome;
 
       const existe = await ndbList(NDB.tables.tasks_edicao, `(Task Origem,eq,${buRowId})~and(Origem,eq,${origem})`);
