@@ -1,9 +1,8 @@
-// Integração com Evolution API (WhatsApp)
-// Docs: https://doc.evolution-api.com
+// Integração com uazapiGO (WhatsApp)
+// Docs: https://docs.uazapi.com
 
-const BASE_URL = process.env.EVOLUTION_API_URL ?? "http://localhost:8080";
-const API_KEY = process.env.EVOLUTION_API_KEY ?? "";
-const INSTANCE = process.env.EVOLUTION_INSTANCE_NAME ?? "grupo-venda";
+const BASE_URL  = process.env.UAZAPI_URL   ?? "";
+const TOKEN     = process.env.UAZAPI_TOKEN ?? "";
 
 async function request(path: string, body: object): Promise<any> {
   try {
@@ -11,7 +10,7 @@ async function request(path: string, body: object): Promise<any> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: API_KEY,
+        "token": TOKEN,
       },
       body: JSON.stringify(body),
     });
@@ -22,50 +21,46 @@ async function request(path: string, body: object): Promise<any> {
   }
 }
 
-export async function sendTextMessage(groupId: string, text: string): Promise<void> {
-  if (!API_KEY) {
-    console.log(`[whatsapp] Mock — mensagem para ${groupId}:\n${text}\n`);
+export async function sendTextMessage(number: string, text: string): Promise<void> {
+  if (!TOKEN) {
+    console.log(`[whatsapp] Mock — mensagem para ${number}:\n${text}\n`);
     return;
   }
 
-  await request(`/message/sendText/${INSTANCE}`, {
-    number: groupId,
-    textMessage: { text },
-  });
+  // uazapiGO: aceita número puro (5511999999999) ou @s.whatsapp.net / @g.us
+  const clean = number.replace(/@s\.whatsapp\.net$/, "").replace(/@g\.us$/, "");
+  const to    = number.includes("@g.us") ? number : clean;
+
+  await request("/send/text", { number: to, text });
 }
 
-// Payload normalizado que o webhook da Evolution API envia
+// Payload que o webhook da uazapiGO envia para o event "messages"
 export interface WhatsAppWebhookPayload {
+  event:    string;   // "messages", "connection", etc.
+  instance: string;   // token da instância
   data: {
-    key: { remoteJid: string; fromMe: boolean };
-    pushName: string;
-    message: {
-      conversation?: string;
-      extendedTextMessage?: { text: string };
-      audioMessage?: { url: string };
-      imageMessage?: { url: string; caption?: string };
-      documentMessage?: { url: string; fileName?: string };
-    };
-    messageType: string;
+    id?:           string;
+    messageid?:    string;
+    chatid:        string;   // "5511999999999@s.whatsapp.net" ou "@g.us"
+    sender:        string;
+    senderName?:   string;
+    isGroup:       boolean;
+    fromMe:        boolean;
+    messageType?:  string;
+    text?:         string;   // texto principal da mensagem
+    fileURL?:      string;
+    wasSentByApi?: boolean;
   };
-  instance: string;
 }
 
 export function extractMessageText(payload: WhatsAppWebhookPayload): string {
-  const msg = payload.data.message;
-  return (
-    msg.conversation ??
-    msg.extendedTextMessage?.text ??
-    msg.imageMessage?.caption ??
-    msg.documentMessage?.fileName ??
-    ""
-  );
+  return payload.data.text ?? "";
 }
 
 export function extractGroupId(payload: WhatsAppWebhookPayload): string {
-  return payload.data.key.remoteJid;
+  return payload.data.chatid;
 }
 
 export function extractSenderName(payload: WhatsAppWebhookPayload): string {
-  return payload.data.pushName ?? "Desconhecido";
+  return payload.data.senderName ?? "Desconhecido";
 }

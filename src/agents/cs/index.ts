@@ -14,12 +14,12 @@ import { getSupabase } from "../../integrations/supabase";
 
 export const csRouter = Router();
 
-// ─── Webhook principal da Evolution API ──────────────────────
+// ─── Webhook principal do uazapiGO ───────────────────────────
 csRouter.post("/whatsapp", async (req, res) => {
   const payload = req.body as WhatsAppWebhookPayload;
 
   // Ignora mensagens enviadas pelo próprio bot
-  if (payload?.data?.key?.fromMe) {
+  if (payload?.data?.fromMe) {
     res.json({ ok: true });
     return;
   }
@@ -32,7 +32,7 @@ csRouter.post("/whatsapp", async (req, res) => {
 
   const groupId = extractGroupId(payload);
   const senderName = extractSenderName(payload);
-  const groupName = groupId; // Evolution API pode fornecer o nome do grupo
+  const groupName = groupId;
 
   const start = Date.now();
 
@@ -181,15 +181,19 @@ csRouter.post("/test", async (req, res) => {
     return;
   }
 
-  // Monta payload fake no formato da Evolution API
+  // Monta payload fake no formato do uazapiGO
   const fakePayload: WhatsAppWebhookPayload = {
-    data: {
-      key: { remoteJid: "test-group-001@g.us", fromMe: false },
-      pushName: sender,
-      message: { conversation: message },
-      messageType: "conversation",
-    },
+    event:    "messages",
     instance: "test",
+    data: {
+      chatid:      "test-group-001@g.us",
+      sender:      "5511000000000",
+      senderName:  sender,
+      isGroup:     true,
+      fromMe:      false,
+      messageType: "conversation",
+      text:        message,
+    },
   };
 
   req.body = fakePayload;
