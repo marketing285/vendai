@@ -54,13 +54,13 @@ export interface WhatsAppWebhookPayload {
 }
 
 export function extractMessageText(payload: WhatsAppWebhookPayload): string {
-  return payload.data.text ?? "";
+  return payload?.data?.text ?? "";
 }
 
 export function extractGroupId(payload: WhatsAppWebhookPayload): string {
-  return payload.data.chatid;
+  return payload?.data?.chatid ?? "";
 }
 
 export function extractSenderName(payload: WhatsAppWebhookPayload): string {
-  return payload.data.senderName ?? "Desconhecido";
+  return payload?.data?.senderName ?? "Desconhecido";
 }
