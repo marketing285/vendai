@@ -22,7 +22,7 @@ import { saveMemory } from "./memory";
 import { log } from "../controller/logger";
 import { sendTextMessage } from "../../integrations/whatsapp";
 
-const SCAN_INTERVAL_MS   = 30 * 60 * 1000; // 30 min
+const SCAN_INTERVAL_MS   = 60 * 60 * 1000; // 1h
 const BUS: BU[]          = ["BU1", "BU2"];
 
 // ─── Ciclo de alertas ─────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ export function startGPIA(): void {
   // Agendamentos fixos
   agendarBriefingDiario();
 
-  log("info", "[gpia] iniciado — scan a cada 30min, briefing às 08h, relatório sexta 17h");
+  log("info", "[gpia] iniciado — scan a cada 1h, briefing às 08h, relatório sexta 17h");
 }
 
 // ─── Router HTTP (para testes e webhooks futuros) ─────────────────────────────

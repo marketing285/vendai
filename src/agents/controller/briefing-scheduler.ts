@@ -10,8 +10,10 @@ import { buildContext } from "./context-builder";
 import { buildSystemPrompt } from "./prompt";
 import { log } from "./logger";
 
-const INTERVALO_MS  = 30 * 60 * 1000; // gera a cada 30 min
-const MAX_AGE_MS    = 29 * 60 * 1000; // cache válido por 29 min (serve ao dashboard sem recalcular)
+const INTERVALO_MS  = 2 * 60 * 60 * 1000;        // gera a cada 2h
+const MAX_AGE_MS    = (2 * 60 * 60 - 60) * 1000; // cache válido por 1h59min
+const HORA_INICIO   = 7;   // horário comercial — início
+const HORA_FIM      = 20;  // horário comercial — fim
 
 interface Briefing {
   score: number;
@@ -140,6 +142,11 @@ export async function getBriefing(): Promise<Briefing> {
   }
 }
 
+function emHorarioComercial(): boolean {
+  const hora = new Date().getHours();
+  return hora >= HORA_INICIO && hora < HORA_FIM;
+}
+
 /** Inicia o scheduler que gera briefings em background. */
 export function startBriefingScheduler(): void {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -148,16 +155,18 @@ export function startBriefingScheduler(): void {
     return;
   }
 
-  // Primeira geração após 30s do boot (aguarda contexto carregar)
+  // Primeira geração após 30s do boot, só se em horário comercial
   setTimeout(async () => {
+    if (!emHorarioComercial()) return;
     try { await getBriefing(); }
     catch (e: any) { log("error", "[briefing] erro na geração inicial", e?.message); }
   }, 30_000);
 
   setInterval(async () => {
+    if (!emHorarioComercial()) return;
     try { await getBriefing(); }
     catch (e: any) { log("error", "[briefing] erro no ciclo", e?.message); }
   }, INTERVALO_MS);
 
-  log("info", `[briefing] scheduler iniciado — intervalo: ${INTERVALO_MS / 60_000} min`);
+  log("info", `[briefing] scheduler iniciado — a cada 2h das ${HORA_INICIO}h às ${HORA_FIM}h`);
 }
