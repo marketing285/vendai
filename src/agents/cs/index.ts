@@ -8,6 +8,7 @@ import {
   extractMessageText,
   extractGroupId,
   extractSenderName,
+  extractSenderPhone,
   WhatsAppWebhookPayload,
 } from "../../integrations/whatsapp";
 import { getSupabase } from "../../integrations/supabase";
@@ -19,19 +20,8 @@ export const csRouter = Router();
 csRouter.post("/whatsapp", async (req, res) => {
   const payload = req.body as WhatsAppWebhookPayload;
 
-  // Log estrutural — mostra chaves e valores curtos do payload uazapiGO
-  const body = req.body as any;
-  console.log("[webhook] chaves raiz:", Object.keys(body));
-  if (body.message) console.log("[webhook] message:", JSON.stringify(body.message));
-  if (body.msg)     console.log("[webhook] msg:", JSON.stringify(body.msg));
-  if (body.chat)    console.log("[webhook] chat keys:", Object.keys(body.chat));
-  if (body.contact) console.log("[webhook] contact:", JSON.stringify(body.contact));
-  console.log("[webhook] EventType:", body.EventType, "| BaseUrl:", body.BaseUrl);
-
   // Ignora mensagens enviadas pelo próprio bot
-  // uazapiGO pode enviar fromMe como boolean ou string "true"/"false"
-  const fromMe = payload?.data?.fromMe === true || (payload?.data?.fromMe as any) === "true";
-  if (fromMe) {
+  if (payload?.message?.fromMe || payload?.message?.wasSentByApi) {
     res.json({ ok: true });
     return;
   }
@@ -42,17 +32,15 @@ csRouter.post("/whatsapp", async (req, res) => {
     return;
   }
 
-  // Mensagens diretas (não grupo) de gestores/CEO → GPIA
-  // uazapiGO pode enviar isGroup como boolean ou string
-  const isGroup = payload?.data?.isGroup === true || (payload?.data?.isGroup as any) === "true";
-  if (!isGroup) {
-    const sender = payload?.data?.sender ?? "";
-    console.log(`[webhook] mensagem direta de: "${sender}" | isGroup: ${payload?.data?.isGroup}`);
-    const gestor = identificarGestor(sender);
-    console.log(`[webhook] gestor identificado: ${gestor ? gestor.nome : "NÃO ENCONTRADO"}`);
+  // Mensagens diretas de gestores/CEO → GPIA
+  if (!payload?.message?.isGroup) {
+    const phone = extractSenderPhone(payload);
+    console.log(`[webhook] mensagem direta de: ${phone}`);
+    const gestor = identificarGestor(phone);
+    console.log(`[webhook] gestor: ${gestor ? gestor.nome : "não cadastrado"}`);
     if (gestor) {
       res.json({ ok: true });
-      handleGestorMessage(sender, messageText).catch((err) => {
+      handleGestorMessage(phone, messageText).catch((err) => {
         console.error("[webhook] erro no handleGestorMessage:", err?.message ?? err);
       });
       return;
@@ -210,18 +198,19 @@ csRouter.post("/test", async (req, res) => {
     return;
   }
 
-  // Monta payload fake no formato do uazapiGO
+  // Monta payload fake no formato real do uazapiGO
   const fakePayload: WhatsAppWebhookPayload = {
-    event:    "messages",
-    instance: "test",
-    data: {
-      chatid:      "test-group-001@g.us",
-      sender:      "5511000000000",
-      senderName:  sender,
-      isGroup:     true,
-      fromMe:      false,
-      messageType: "conversation",
-      text:        message,
+    EventType:    "messages",
+    instanceName: "test",
+    owner:        "0000000000000",
+    message: {
+      chatid:    "test-group-001@g.us",
+      sender:    "000000000000@lid",
+      sender_pn: "5511000000000@s.whatsapp.net",
+      senderName: sender,
+      isGroup:   true,
+      fromMe:    false,
+      text:      message,
     },
   };
 

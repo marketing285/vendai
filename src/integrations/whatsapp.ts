@@ -34,33 +34,48 @@ export async function sendTextMessage(number: string, text: string): Promise<voi
   await request("/send/text", { number: to, text });
 }
 
-// Payload que o webhook da uazapiGO envia para o event "messages"
+// Payload real que o webhook da uazapiGO envia (EventType: "messages")
 export interface WhatsAppWebhookPayload {
-  event:    string;   // "messages", "connection", etc.
-  instance: string;   // token da instância
-  data: {
-    id?:           string;
-    messageid?:    string;
-    chatid:        string;   // "5511999999999@s.whatsapp.net" ou "@g.us"
-    sender:        string;
-    senderName?:   string;
-    isGroup:       boolean;
-    fromMe:        boolean;
-    messageType?:  string;
-    text?:         string;   // texto principal da mensagem
-    fileURL?:      string;
+  EventType:    string;        // "messages"
+  instanceName: string;
+  owner:        string;
+  token?:       string;
+  message: {
+    chatid:      string;       // "5514991222345@s.whatsapp.net" ou "@g.us"
+    sender:      string;       // LID interno — não usar para identificar número
+    sender_pn:   string;       // número real: "5514991222345@s.whatsapp.net"
+    senderName?: string;
+    isGroup:     boolean;
+    fromMe:      boolean;
+    text?:       string;
+    content?:    string;       // fallback — mesmo valor que text
+    messageType?: string;
+    type?:       string;
     wasSentByApi?: boolean;
+    mediaType?:  string;
+  };
+  chat?: {
+    wa_isGroup?: boolean;
+    wa_chatid?:  string;
+    phone?:      string;
+    name?:       string;
   };
 }
 
 export function extractMessageText(payload: WhatsAppWebhookPayload): string {
-  return payload?.data?.text ?? "";
+  return payload?.message?.text ?? payload?.message?.content ?? "";
 }
 
 export function extractGroupId(payload: WhatsAppWebhookPayload): string {
-  return payload?.data?.chatid ?? "";
+  return payload?.message?.chatid ?? "";
 }
 
 export function extractSenderName(payload: WhatsAppWebhookPayload): string {
-  return payload?.data?.senderName ?? "Desconhecido";
+  return payload?.message?.senderName ?? "Desconhecido";
+}
+
+/** Retorna o número de telefone limpo do remetente (ex: "5514991222345") */
+export function extractSenderPhone(payload: WhatsAppWebhookPayload): string {
+  const pn = payload?.message?.sender_pn ?? payload?.message?.chatid ?? "";
+  return pn.replace(/@s\.whatsapp\.net$/, "").replace(/@g\.us$/, "");
 }
