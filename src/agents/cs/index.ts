@@ -19,8 +19,20 @@ export const csRouter = Router();
 csRouter.post("/whatsapp", async (req, res) => {
   const payload = req.body as WhatsAppWebhookPayload;
 
+  // Log bruto para debug
+  console.log("[webhook] payload recebido:", JSON.stringify({
+    event:    payload?.event,
+    fromMe:   payload?.data?.fromMe,
+    isGroup:  payload?.data?.isGroup,
+    sender:   payload?.data?.sender,
+    chatid:   payload?.data?.chatid,
+    text:     payload?.data?.text?.slice(0, 50),
+  }));
+
   // Ignora mensagens enviadas pelo próprio bot
-  if (payload?.data?.fromMe) {
+  // uazapiGO pode enviar fromMe como boolean ou string "true"/"false"
+  const fromMe = payload?.data?.fromMe === true || (payload?.data?.fromMe as any) === "true";
+  if (fromMe) {
     res.json({ ok: true });
     return;
   }
@@ -32,7 +44,9 @@ csRouter.post("/whatsapp", async (req, res) => {
   }
 
   // Mensagens diretas (não grupo) de gestores/CEO → GPIA
-  if (!payload?.data?.isGroup) {
+  // uazapiGO pode enviar isGroup como boolean ou string
+  const isGroup = payload?.data?.isGroup === true || (payload?.data?.isGroup as any) === "true";
+  if (!isGroup) {
     const sender = payload?.data?.sender ?? "";
     console.log(`[webhook] mensagem direta de: "${sender}" | isGroup: ${payload?.data?.isGroup}`);
     const gestor = identificarGestor(sender);
