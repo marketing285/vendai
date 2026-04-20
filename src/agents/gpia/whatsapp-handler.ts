@@ -31,7 +31,6 @@ export interface Gestor {
 
 const GESTORES: Record<string, Gestor> = {
   [process.env.GPIA_PHONE_BU1     ?? "5511995320721"]: { nome: "Christian", bu: "BU1", role: "gestor" },
-  [process.env.GPIA_PHONE_BU2     ?? "5514991949319"]: { nome: "Júnior",    bu: "BU2", role: "gestor" },
   [process.env.GPIA_PHONE_ARMANDO ?? "5511994053632"]: { nome: "Armando",   bu: null,  role: "cmo"    },
   ...(process.env.GPIA_PHONE_BRUNO ? {
     [process.env.GPIA_PHONE_BRUNO]: { nome: "Bruno", bu: null, role: "ceo" },

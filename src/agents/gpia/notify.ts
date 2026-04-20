@@ -9,12 +9,16 @@ import { BU } from "./analyzer";
 // Números configurados via env com fallback hardcoded (formato: 5511999999999)
 const PHONES = {
   BU1:     process.env.GPIA_PHONE_BU1     ?? "5511995320721",  // Christian
-  BU2:     process.env.GPIA_PHONE_BU2     ?? "5514991949319",  // Júnior
   ARMANDO: process.env.GPIA_PHONE_ARMANDO ?? "5511994053632",  // Armando
 };
 
 export async function notifyGestor(bu: BU, message: string): Promise<void> {
-  const phone = PHONES[bu];
+  const phone = (PHONES as Record<string, string>)[bu]
+    ?? (bu === "BU2" ? process.env.GPIA_PHONE_BU2 : undefined);
+  if (!phone) {
+    console.log(`[gpia/notify] ${bu} sem gestor configurado — notificação ignorada`);
+    return;
+  }
   console.log(`[gpia/notify] → ${bu} gestor (${phone}): ${message.slice(0, 60)}...`);
   await sendTextMessage(phone, message);
 }
