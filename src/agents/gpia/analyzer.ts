@@ -91,8 +91,8 @@ Gere o BRIEFING MATINAL. Será lido no WhatsApp — o formato abaixo é obrigat�
 
 REGRAS DE FORMATAÇÃO (siga exatamente):
 - O título de cada seção fica SOZINHO na sua linha
+- Antes do título, UMA linha em branco extra (para respirar)
 - Depois do título, UMA linha em branco, depois o conteúdo
-- Entre seções, UMA linha em branco
 - Frases curtas — máx 1 linha por item
 - Sem asteriscos, sem negrito, sem markdown
 - Máximo 300 palavras
@@ -123,7 +123,8 @@ Você é o co-piloto estratégico de ${snapshot.gestor} do Grupo Venda.
 Analise o cenário e identifique PROBLEMAS URGENTES. Será lido no WhatsApp.
 
 REGRAS DE FORMATAÇÃO (siga exatamente):
-- Título da seção sozinho na linha, linha em branco, depois os itens
+- Antes do título, UMA linha em branco extra (para respirar)
+- O título fica sozinho na sua linha, depois UMA linha em branco, depois os itens
 - Cada problema em 1 linha com •
 - Linha ↳ Ação: imediatamente abaixo de cada problema
 - Sem asteriscos, sem negrito, sem markdown
@@ -146,8 +147,8 @@ Você é o co-piloto estratégico de ${snapshot.gestor} do Grupo Venda.
 Gere o RELATÓRIO SEMANAL da ${snapshot.bu}. Será lido no WhatsApp — formato obrigatório abaixo.
 
 REGRAS DE FORMATAÇÃO (siga exatamente):
-- Título de cada seção sozinho na linha, linha em branco, depois o conteúdo
-- Entre seções, UMA linha em branco
+- Antes de cada título, UMA linha em branco extra (para respirar)
+- O título fica sozinho na sua linha, depois UMA linha em branco, depois o conteúdo
 - Listas com • e 1 item por linha
 - Sem asteriscos, sem negrito, sem markdown
 - Máximo 400 palavras
@@ -182,8 +183,8 @@ Você é o assistente executivo de Bruno, CEO do Grupo Venda.
 Gere o RELATÓRIO EXECUTIVO consolidando as duas BUs. Será lido no WhatsApp — formato obrigatório abaixo.
 
 REGRAS DE FORMATAÇÃO (siga exatamente):
-- Título de cada seção sozinho na linha, linha em branco, depois o conteúdo
-- Entre seções, UMA linha em branco
+- Antes de cada título, UMA linha em branco extra (para respirar)
+- O título fica sozinho na sua linha, depois UMA linha em branco, depois o conteúdo
 - Zero jargão operacional — só números e fatos
 - Sem asteriscos, sem negrito, sem markdown
 - Máximo 150 palavras
