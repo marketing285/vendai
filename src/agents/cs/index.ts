@@ -33,10 +33,15 @@ csRouter.post("/whatsapp", async (req, res) => {
 
   // Mensagens diretas (não grupo) de gestores/CEO → GPIA
   if (!payload?.data?.isGroup) {
-    const gestor = identificarGestor(payload?.data?.sender ?? "");
+    const sender = payload?.data?.sender ?? "";
+    console.log(`[webhook] mensagem direta de: "${sender}" | isGroup: ${payload?.data?.isGroup}`);
+    const gestor = identificarGestor(sender);
+    console.log(`[webhook] gestor identificado: ${gestor ? gestor.nome : "NÃO ENCONTRADO"}`);
     if (gestor) {
       res.json({ ok: true });
-      handleGestorMessage(payload.data.sender, messageText).catch(() => {});
+      handleGestorMessage(sender, messageText).catch((err) => {
+        console.error("[webhook] erro no handleGestorMessage:", err?.message ?? err);
+      });
       return;
     }
   }
