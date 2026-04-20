@@ -57,6 +57,7 @@ async function generateBriefing(): Promise<Briefing> {
     dmCurrent ? `Design (Bruna): ${dmCurrent.delivered} artes entregues de ${dmCurrent.totalPlanned} total | ${dmCurrent.inApproval} artes em aprovação | ${dmCurrent.withRevision} revisões | ${dmCurrent.uniqueDeliveredTasks} tasks entregues de ${dmCurrent.uniqueTasks} total | média ${dmCurrent.avgDailyProduction} artes/dia útil` : "",
     emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered} vídeos entregues de ${emCurrent.totalPlanned} total | ${emCurrent.withRevision} precisaram de alteração` : "",
     `Clientes ativos: ${ctx.clients.filter(c => c.status === "Ativo").length}`,
+    ctx.gpiaMemories ? `\nDECISÕES E CONTEXTO RECENTES (enviados pelos gestores via WhatsApp):\n${ctx.gpiaMemories}` : "",
   ].filter(Boolean).join("\n");
 
   const response = await anthropic.messages.create({

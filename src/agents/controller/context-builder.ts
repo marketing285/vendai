@@ -128,6 +128,8 @@ export interface OperationalContext {
   edicaoProductions: NocoProdSummary[];
   edicaoMetrics: DesignMonthMetrics[];
   tasks: NocoTaskSummary[];
+  // Memória do GPIA — decisões e contexto enviados pelos gestores via WhatsApp
+  gpiaMemories: string;
 }
 
 // ─────────────────────────────────────────────
@@ -452,6 +454,35 @@ function computeDesignMetricsFromTasks(
 }
 
 // ─────────────────────────────────────────────
+//  Supabase — memória do GPIA (decisões via WhatsApp)
+// ─────────────────────────────────────────────
+async function fetchGpiaMemories(): Promise<string> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || url === "https://xxxx.supabase.co") return "";
+
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const db = createClient(url, key);
+    const { data } = await db
+      .from("gpia_memory")
+      .select("bu, tipo, conteudo, cliente, criado_em")
+      .order("criado_em", { ascending: false })
+      .limit(15);
+
+    if (!data || data.length === 0) return "";
+
+    return data.map((m: any) => {
+      const cliente = m.cliente ? ` [${m.cliente}]` : "";
+      const data_str = m.criado_em ? new Date(m.criado_em).toLocaleDateString("pt-BR") : "";
+      return `• [${(m.tipo ?? "").toUpperCase()}]${cliente} ${m.bu ?? ""} ${data_str}: ${m.conteudo}`;
+    }).join("\n");
+  } catch {
+    return "";
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Cache de contexto (TTL: 30s)
 // ─────────────────────────────────────────────
 let contextCache: { data: OperationalContext; expiresAt: number } | null = null;
@@ -471,15 +502,17 @@ export async function buildContext(): Promise<OperationalContext> {
     base = getMockContext();
   }
 
-  // Todos os dados NocoDB em paralelo (fonte de verdade)
-  const [clients, designData, edicaoData, tasks, rawDesignTasks] = await Promise.all([
+  // Todos os dados em paralelo (fonte de verdade)
+  const [clients, designData, edicaoData, tasks, rawDesignTasks, gpiaMemories] = await Promise.all([
     fetchClientesNocoDB(),
     fetchProducoesDesignNocoDB(),
     fetchProducoesEdicaoNocoDB(),
     fetchTasksNocoDB(),
     ndbList(NDB.tables.tasks_design, undefined, 500),
+    fetchGpiaMemories(),
   ]);
   base.clients           = clients;
+  base.gpiaMemories      = gpiaMemories;
   base.designProductions = designData.productions;
   // Métricas: open tasks (tasks_design) + entregues (deposito_design) com Quantidade real
   base.designMetrics     = computeDesignMetricsFromTasks(rawDesignTasks, designData.productions.map(p => ({
@@ -671,7 +704,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
       };
     });
 
-  return { tasksByArea, criticalSLA, awaitingApproval, blocked, hotLeads, wipByArea, alerts: [], clients, designProductions, designMetrics, edicaoProductions: [], edicaoMetrics: [], tasks: [] };
+  return { tasksByArea, criticalSLA, awaitingApproval, blocked, hotLeads, wipByArea, alerts: [], clients, designProductions, designMetrics, edicaoProductions: [], edicaoMetrics: [], tasks: [], gpiaMemories: "" };
 }
 
 // ─────────────────────────────────────────────
@@ -730,5 +763,6 @@ function getMockContext(): OperationalContext {
     edicaoProductions: [],
     edicaoMetrics: [],
     tasks: [],
+    gpiaMemories: "",
   };
 }
