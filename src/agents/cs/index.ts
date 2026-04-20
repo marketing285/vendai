@@ -20,7 +20,7 @@ csRouter.post("/whatsapp", async (req, res) => {
   const payload = req.body as WhatsAppWebhookPayload;
 
   // Log bruto completo para debug — mostra estrutura real do uazapiGO
-  console.log("[webhook] body completo:", JSON.stringify(req.body, null, 2).slice(0, 1000));
+  console.log("[webhook] body completo:", JSON.stringify(req.body, null, 2).slice(0, 5000));
 
   // Ignora mensagens enviadas pelo próprio bot
   // uazapiGO pode enviar fromMe como boolean ou string "true"/"false"
