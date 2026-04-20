@@ -14,7 +14,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { NDB, ndbList, ndbUpdate, extrairNome } from "../controller/nocodb-tool";
+import { NDB, ndbList, ndbUpdate } from "../controller/nocodb-tool";
 import { sendTextMessage } from "../../integrations/whatsapp";
 import { saveMemory, MemoryType } from "./memory";
 import { log } from "../controller/logger";
@@ -193,7 +193,12 @@ export async function handleGestorMessage(phone: string, mensagem: string): Prom
       messages: [{ role: "user", content: buildPrompt(gestor, mensagem, isAta) }],
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "{}";
+    let text = response.content[0].type === "text" ? response.content[0].text.trim() : "{}";
+    // Remove markdown code block se o Claude retornar ```json ... ```
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    // Extrai apenas o objeto JSON caso venha com texto antes/depois
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    text = jsonMatch ? jsonMatch[0] : "{}";
     resposta = JSON.parse(text) as RespostaIA;
   } catch (err: any) {
     log("error", `[gpia/wpp] erro ao chamar Claude: ${err?.message}`);
