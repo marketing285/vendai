@@ -20,7 +20,7 @@ import { log } from "../controller/logger";
 import { sendTextMessage } from "../../integrations/whatsapp";
 
 const SCAN_INTERVAL_MS   = 60 * 60 * 1000; // 1h
-const BUS: BU[]          = ["BU1", "BU2"];
+const BUS: BU[]          = ["BU1", "BU2", "BU3"];
 
 // ─── Ciclo de alertas ─────────────────────────────────────────────────────────
 async function scanAlertas(): Promise<void> {
@@ -160,8 +160,8 @@ export const gpiaRouter = Router();
 // Força briefing imediato (teste)
 gpiaRouter.post("/briefing/:bu", async (req, res) => {
   const bu = req.params.bu.toUpperCase() as BU;
-  if (!["BU1", "BU2"].includes(bu)) {
-    res.status(400).json({ error: "BU inválida. Use BU1 ou BU2." });
+  if (!["BU1", "BU2", "BU3"].includes(bu)) {
+    res.status(400).json({ error: "BU inválida. Use BU1, BU2 ou BU3." });
     return;
   }
   try {
@@ -187,8 +187,8 @@ gpiaRouter.post("/scan", async (_req, res) => {
 // Força relatório semanal (teste)
 gpiaRouter.post("/relatorio/:bu", async (req, res) => {
   const bu = req.params.bu.toUpperCase() as BU;
-  if (!["BU1", "BU2"].includes(bu)) {
-    res.status(400).json({ error: "BU inválida. Use BU1 ou BU2." });
+  if (!["BU1", "BU2", "BU3"].includes(bu)) {
+    res.status(400).json({ error: "BU inválida. Use BU1, BU2 ou BU3." });
     return;
   }
   try {
@@ -209,7 +209,8 @@ gpiaRouter.post("/ping", async (req, res) => {
   const ALVOS: Record<string, string> = {
     armando: process.env.GPIA_PHONE_ARMANDO ?? "5511994053632",
     bu1:     process.env.GPIA_PHONE_BU1     ?? "5511995320721",
-    bu2:     process.env.GPIA_PHONE_BU2     ?? "5514991949319",
+    ...(process.env.GPIA_PHONE_BU2  ? { bu2:   process.env.GPIA_PHONE_BU2  } : {}),
+    ...(process.env.GPIA_PHONE_BU3  ? { bu3:   process.env.GPIA_PHONE_BU3  } : {}),
     ...(process.env.GPIA_PHONE_BRUNO ? { bruno: process.env.GPIA_PHONE_BRUNO } : {}),
   };
 

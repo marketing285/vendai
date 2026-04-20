@@ -18,7 +18,7 @@ import { NDB, ndbList, ndbUpdate } from "../controller/nocodb-tool";
 import { sendTextMessage } from "../../integrations/whatsapp";
 import { saveMemory, MemoryType } from "./memory";
 import { log } from "../controller/logger";
-import { BU } from "./analyzer";
+import type { BU } from "./analyzer";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -31,7 +31,8 @@ export interface Gestor {
 
 const GESTORES: Record<string, Gestor> = {
   [process.env.GPIA_PHONE_BU1     ?? "5511995320721"]: { nome: "Christian", bu: "BU1", role: "gestor" },
-  [process.env.GPIA_PHONE_ARMANDO ?? "5511994053632"]: { nome: "Armando",   bu: null,  role: "cmo"    },
+  [process.env.GPIA_PHONE_ARMANDO ?? "5511994053632"]: { nome: "Armando",   bu: "BU2", role: "cmo"    },
+  [process.env.GPIA_PHONE_BU3     ?? "5514991534843"]: { nome: "Bruna",     bu: "BU3", role: "gestor" },
   ...(process.env.GPIA_PHONE_BRUNO ? {
     [process.env.GPIA_PHONE_BRUNO]: { nome: "Bruno", bu: null, role: "ceo" },
   } : {}),
@@ -48,7 +49,7 @@ interface Acao {
   tipo:      "status" | "observacao" | "prazo" | "memoria" | "ignorar";
   tarefa?:   string;   // nome (parcial) da task para busca
   cliente?:  string;
-  bu?:       "BU1" | "BU2";
+  bu?:       "BU1" | "BU2" | "BU3";
   status?:   string;   // novo status
   obs?:      string;   // texto de observação
   prazo?:    string;   // YYYY-MM-DD
@@ -107,10 +108,11 @@ Regras:
 }
 
 // ─── Busca task por palavras-chave na BU correta ──────────────────────────────
-async function buscarTask(tarefa: string, bu: "BU1" | "BU2" | null | undefined): Promise<{ id: number; table: string } | null> {
+async function buscarTask(tarefa: string, bu: "BU1" | "BU2" | "BU3" | null | undefined): Promise<{ id: number; table: string } | null> {
   const tables = bu === "BU1" ? [NDB.tables.tasks_bu1]
                : bu === "BU2" ? [NDB.tables.tasks_bu2]
-               : [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2];
+               : bu === "BU3" ? [NDB.tables.tasks_bu3]
+               : [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3];
 
   for (const table of tables) {
     const rows = await ndbList(table, `(Tarefa,like,%${tarefa}%)`, 5);

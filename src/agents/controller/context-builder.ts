@@ -324,6 +324,7 @@ async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
     const tableMap: Array<[string, string]> = [
       [NDB.tables.tasks_bu1,    "BU1"],
       [NDB.tables.tasks_bu2,    "BU2"],
+      [NDB.tables.tasks_bu3,    "BU3"],
       [NDB.tables.tasks_design, "Design"],
       [NDB.tables.tasks_edicao, "Edição"],
     ];

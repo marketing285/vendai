@@ -10,7 +10,7 @@ export type MemoryType = "decisao" | "problema" | "padrao" | "feedback" | "alert
 
 export interface GPIAMemory {
   id?: string;
-  bu: "BU1" | "BU2";
+  bu: "BU1" | "BU2" | "BU3";
   tipo: MemoryType;
   conteudo: string;
   cliente?: string;
@@ -37,7 +37,7 @@ export async function saveMemory(mem: GPIAMemory): Promise<void> {
 
 /** Busca as últimas N memórias de uma BU (opcionalmente filtradas por tipo/cliente) */
 export async function getMemories(params: {
-  bu: "BU1" | "BU2";
+  bu: "BU1" | "BU2" | "BU3";
   tipo?: MemoryType;
   cliente?: string;
   limit?: number;
@@ -65,7 +65,7 @@ export async function getMemories(params: {
 }
 
 /** Retorna um resumo textual das memórias para injetar no prompt do Claude */
-export async function buildMemoryContext(bu: "BU1" | "BU2"): Promise<string> {
+export async function buildMemoryContext(bu: "BU1" | "BU2" | "BU3"): Promise<string> {
   const memories = await getMemories({ bu, limit: 20 });
   if (memories.length === 0) return "Nenhuma memória registrada ainda.";
 

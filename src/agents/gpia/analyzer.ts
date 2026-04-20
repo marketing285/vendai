@@ -10,11 +10,12 @@ import { buildMemoryContext } from "./memory";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export type BU = "BU1" | "BU2";
+export type BU = "BU1" | "BU2" | "BU3";
 
 const BU_CONFIG = {
   BU1: { gestor: "Christian Castilhoni", table: NDB.tables.tasks_bu1, clientes: NDB.tables.clientes_bu1 },
-  BU2: { gestor: "Júnior Monte",         table: NDB.tables.tasks_bu2, clientes: NDB.tables.clientes_bu2 },
+  BU2: { gestor: "Armando Cavazana",     table: NDB.tables.tasks_bu2, clientes: NDB.tables.clientes_bu2 },
+  BU3: { gestor: "Bruna Benevides",      table: NDB.tables.tasks_bu3, clientes: NDB.tables.clientes_bu3 },
 };
 
 export interface BUSnapshot {
@@ -32,8 +33,8 @@ export async function buildSnapshot(bu: BU): Promise<BUSnapshot> {
 
   const [tasks, tasksDesign, tasksEdicao, memories] = await Promise.all([
     ndbList(cfg.table, ""),
-    ndbList(NDB.tables.tasks_design,  bu === "BU1" ? "(Origem,eq,BU1)" : "(Origem,eq,BU2)"),
-    ndbList(NDB.tables.tasks_edicao,  bu === "BU1" ? "(Origem,eq,BU1)" : "(Origem,eq,BU2)"),
+    ndbList(NDB.tables.tasks_design,  `(Origem,eq,${bu})`),
+    ndbList(NDB.tables.tasks_edicao,  `(Origem,eq,${bu})`),
     buildMemoryContext(bu),
   ]);
 
