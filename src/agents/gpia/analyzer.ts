@@ -50,7 +50,7 @@ function formatTasks(tasks: any[]): string {
   }).join("\n");
 }
 
-function buildPrompt(snapshot: BUSnapshot, tipo: "briefing" | "alerta" | "semanal"): string {
+function buildPrompt(snapshot: BUSnapshot, tipo: "briefing" | "alerta" | "semanal" | "executivo"): string {
   const hoje = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
   const tasksAberta   = snapshot.tasks.filter(t => !["✅ Entregue","📦 Arquivado"].includes(t["Status"]));
   const tasksAtrasadas = tasksAberta.filter(t => {
@@ -143,6 +143,28 @@ Estrutura:
 
 Máximo 400 palavras.
 `,
+    executivo: `
+Você é o assistente executivo de Bruno, CEO do Grupo Venda.
+
+Gere um RELATÓRIO EXECUTIVO PONTUAL consolidando as duas BUs. Seja extremamente conciso e estratégico — Bruno não precisa de detalhes operacionais, apenas do que importa para decisão.
+
+Estrutura obrigatória:
+📊 *EXECUTIVO — GRUPO VENDA*
+
+🔢 *NÚMEROS DA SEMANA*
+(entregas totais, clientes ativos, SLA médio — só números)
+
+🟢 *O QUE ESTÁ FUNCIONANDO*
+(máx 2 linhas)
+
+🔴 *O QUE PRECISA DE ATENÇÃO*
+(máx 2 pontos críticos com impacto financeiro/de retenção)
+
+⚡ *AÇÃO RECOMENDADA*
+(1 decisão estratégica que Bruno deve tomar agora)
+
+Máximo 150 palavras. Zero jargão operacional. Fale como CFO falaria para CEO.
+`,
   };
 
   return instrucoes[tipo] + "\n\nDADOS OPERACIONAIS:\n" + contexto;
@@ -151,7 +173,7 @@ Máximo 400 palavras.
 /** Gera análise usando Claude Sonnet */
 export async function analyzeScenario(
   snapshot: BUSnapshot,
-  tipo: "briefing" | "alerta" | "semanal",
+  tipo: "briefing" | "alerta" | "semanal" | "executivo",
 ): Promise<string> {
   const prompt = buildPrompt(snapshot, tipo);
 

@@ -1,23 +1,20 @@
 /**
  * GPIA — Co-piloto Estratégico de Gestão por BU
  *
- * Ciclos:
- *   08h todo dia   → briefing matinal para cada gestor
- *   a cada 30 min  → scan de alertas urgentes
- *   sexta 17h      → relatório semanal para gestor + Armando
+ * Níveis de acesso:
+ *   CEO (Bruno)      → relatório executivo pontual (sexta 17h) + escaladas críticas
+ *   Diretoria (Armando) → relatório semanal completo + escaladas críticas
+ *   Gestores         → briefing matinal (08h) + alertas a cada 1h
  *
- * Skills:
- *   - Análise de cenário completo da BU
- *   - Sugestão de prioridades e ações do dia
- *   - Detecção de problemas e SLA em risco
- *   - Sugestão de melhorias de processo
- *   - Escalada para Armando quando necessário
- *   - Memória persistente de decisões e padrões
+ * Ciclos:
+ *   08h todo dia     → briefing matinal para cada gestor
+ *   a cada 1h        → scan de alertas urgentes
+ *   sexta 17h        → relatório semanal (gestores + Armando) + executivo (Bruno)
  */
 
 import { Router } from "express";
 import { buildSnapshot, analyzeScenario, BU } from "./analyzer";
-import { notifyGestor, notifyArmando, escalateToArmando } from "./notify";
+import { notifyGestor, notifyArmando, notifyBruno, escalateToArmando } from "./notify";
 import { saveMemory } from "./memory";
 import { log } from "../controller/logger";
 import { sendTextMessage } from "../../integrations/whatsapp";
@@ -43,10 +40,11 @@ async function scanAlertas(): Promise<void> {
 
       if (critico) {
         await escalateToArmando(bu, snapshot.gestor, analise);
+        await notifyBruno(`🔴 *ALERTA CRÍTICO — ${bu}*\n\n${analise.slice(0, 600)}\n\n_Gestor: ${snapshot.gestor}_`);
         await saveMemory({
           bu,
           tipo:     "alerta",
-          conteudo: `Escalada para Armando: ${analise.slice(0, 200)}`,
+          conteudo: `Escalada para Armando e Bruno: ${analise.slice(0, 200)}`,
         });
       }
     } catch (err: any) {
@@ -77,6 +75,7 @@ async function enviarBriefingMatinal(): Promise<void> {
 
 // ─── Relatório semanal ────────────────────────────────────────────────────────
 async function enviarRelatorioSemanal(): Promise<void> {
+  // Gestores + Armando — relatório completo por BU
   for (const bu of BUS) {
     try {
       log("info", `[gpia] gerando relatório semanal — ${bu}`);
@@ -88,6 +87,18 @@ async function enviarRelatorioSemanal(): Promise<void> {
     } catch (err: any) {
       log("error", `[gpia] erro no relatório semanal ${bu}: ${err?.message}`);
     }
+  }
+
+  // Bruno (CEO) — relatório executivo consolidado das duas BUs
+  try {
+    log("info", "[gpia] gerando relatório executivo para Bruno");
+    // Usa snapshot da BU1 como base (tem acesso às duas BUs no prompt executivo)
+    const snapshot   = await buildSnapshot("BU1");
+    const executivo  = await analyzeScenario(snapshot, "executivo");
+    await notifyBruno(executivo);
+    log("info", "[gpia] relatório executivo enviado ao CEO");
+  } catch (err: any) {
+    log("error", `[gpia] erro no relatório executivo: ${err?.message}`);
   }
 }
 

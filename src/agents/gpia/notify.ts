@@ -25,6 +25,13 @@ export async function notifyArmando(message: string): Promise<void> {
   await sendTextMessage(phone, message);
 }
 
+export async function notifyBruno(message: string): Promise<void> {
+  const phone = process.env.GPIA_PHONE_BRUNO;
+  if (!phone) return;
+  console.log(`[gpia/notify] → Bruno CEO (${phone}): ${message.slice(0, 60)}...`);
+  await sendTextMessage(phone, message);
+}
+
 /** Escala um problema para Armando com contexto da BU */
 export async function escalateToArmando(bu: BU, gestor: string, problema: string): Promise<void> {
   const msg = `🔴 *ESCALADA — ${bu}*\n\nGestor: ${gestor}\n\n${problema}\n\n_Enviado automaticamente pelo GPIA_`;
