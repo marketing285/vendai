@@ -41,7 +41,7 @@ async function generateBriefing(): Promise<Briefing> {
   const atencao   = abertas.filter(t => t.sla?.includes("Atenção"));
   const aprovacao = abertas.filter(t => t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna"));
 
-  const areaStats = ["BU1","BU2","Design","Edição"].map(area => {
+  const areaStats = ["BU1","BU2","BU3","Design","Edição"].map(area => {
     const at   = abertas.filter(t => t.area === area);
     const late = at.filter(t => t.sla?.includes("Atrasado")).length;
     const warn = at.filter(t => t.sla?.includes("Atenção")).length;
@@ -80,6 +80,7 @@ Retorne SOMENTE um JSON válido, sem markdown, sem explicações, no formato exa
   "areas": [
     { "name": "BU1",    "score": <0-100>, "note": <string curta com diagnóstico da área> },
     { "name": "BU2",    "score": <0-100>, "note": <string curta> },
+    { "name": "BU3",    "score": <0-100>, "note": <string curta> },
     { "name": "Design", "score": <0-100>, "note": <string curta> },
     { "name": "Edição", "score": <0-100>, "note": <string curta> }
   ],

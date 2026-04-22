@@ -57,6 +57,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
   const bancos = [
     { id: NDB.tables.tasks_bu1, origem: "BU1" },
     { id: NDB.tables.tasks_bu2, origem: "BU2" },
+    { id: NDB.tables.tasks_bu3, origem: "BU3" },
   ];
 
   for (const { id: buTable, origem } of bancos) {
@@ -138,7 +139,7 @@ async function syncParaAprovacao(): Promise<{ enviadas: number }> {
     if (!taskOrigemId) continue;
 
     const buRowId = Number(taskOrigemId);
-    const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
+    const buTable = buTableFromOrigem(origem);
     try {
       await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
       log("info", `[design-sync] "${tarefa}" enviada para aprovação do gestor`);
@@ -174,7 +175,7 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
     if (!taskOrigemId) continue;
 
     const buRowId = Number(taskOrigemId);
-    const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
+    const buTable = buTableFromOrigem(origem);
 
     // Busca o status atual da BU
     const buRows = await ndbList(buTable, `(Id,eq,${buRowId})`);
@@ -225,20 +226,30 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
   return { aprovadas, revisoes };
 }
 
+// Origem → tabela NocoDB
+function buTableFromOrigem(origem: string): string {
+  if (origem === "BU1") return NDB.tables.tasks_bu1;
+  if (origem === "BU2") return NDB.tables.tasks_bu2;
+  return NDB.tables.tasks_bu3;
+}
+
 // Gestor selecionado pela Bruna → BU e Origem internos
 const GESTOR_PARA_BU: Record<string, string> = {
-  "Christian":    NDB.tables.tasks_bu1,
-  "Júnior Monte": NDB.tables.tasks_bu2,
+  "Christian":          NDB.tables.tasks_bu1,
+  "Armando Cavazana":   NDB.tables.tasks_bu2,
+  "Bruna Benevides":    NDB.tables.tasks_bu3,
 };
 const GESTOR_PARA_ORIGEM: Record<string, string> = {
-  "Christian":    "BU1",
-  "Júnior Monte": "BU2",
+  "Christian":          "BU1",
+  "Armando Cavazana":   "BU2",
+  "Bruna Benevides":    "BU3",
 };
 
 // Origem interna → nome do gestor para o Depósito
 const GESTOR_MAP: Record<string, string> = {
   BU1: "Christian (Gestor)",
-  BU2: "Júnior Monte (Gestor)",
+  BU2: "Armando Cavazana (Gestor)",
+  BU3: "Bruna Benevides (Gestora)",
 };
 
 // ─── 0. Tasks criadas pela Bruna (sem Task Origem) → cria task na BU ──────────
@@ -364,7 +375,7 @@ export function startDesignSync(): void {
     try {
       log("info", "[design-sync] iniciando ciclo...");
       const m = await autoAtribuirPorResponsavel(
-        [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2], [NOME_BRUNA],
+        [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3], [NOME_BRUNA],
       );
       if (m > 0) log("info", `[design-sync] ${m} task(s) auto-atribuídas à Bruna por menção`);
       const a = await syncAtribuidos();
@@ -375,8 +386,8 @@ export function startDesignSync(): void {
       log("info", `[design-sync] Em Aprovação: ${p.enviadas} enviadas ao gestor`);
       const d = await syncDecisaoGestor();
       log("info", `[design-sync] Decisões: ${d.aprovadas} aprovadas, ${d.revisoes} em revisão`);
-      await atualizarSLA([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_design]);
-      await atualizarRelatorios([NDB.tables.clientes_bu1, NDB.tables.clientes_bu2]);
+      await atualizarSLA([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3, NDB.tables.tasks_design]);
+      await atualizarRelatorios([NDB.tables.clientes_bu1, NDB.tables.clientes_bu2, NDB.tables.clientes_bu3]);
     } catch (err: any) {
       log("error", `[design-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }

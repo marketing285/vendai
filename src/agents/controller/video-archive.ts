@@ -25,8 +25,15 @@ const NOME_ANA     = process.env.ANA_NOME ?? "Ana Laura";
 
 const GESTOR_PARA_RESP: Record<string, string> = {
   BU1: "Christian (Gestor)",
-  BU2: "Júnior Monte (Gestor)",
+  BU2: "Armando Cavazana (Gestor)",
+  BU3: "Bruna Benevides (Gestora)",
 };
+
+function buTableFromOrigem(origem: string): string {
+  if (origem === "BU1") return NDB.tables.tasks_bu1;
+  if (origem === "BU2") return NDB.tables.tasks_bu2;
+  return NDB.tables.tasks_bu3;
+}
 
 // ─── 1. BU "👤 Atribuído" (Ana) → Tasks Edição "⬜ Em Standby" ───────────────
 async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number }> {
@@ -35,6 +42,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
   const bancos = [
     { id: NDB.tables.tasks_bu1, origem: "BU1" },
     { id: NDB.tables.tasks_bu2, origem: "BU2" },
+    { id: NDB.tables.tasks_bu3, origem: "BU3" },
   ];
 
   for (const { id: buTable, origem } of bancos) {
@@ -124,7 +132,7 @@ async function syncParaAprovacao(): Promise<{ enviadas: number }> {
 
     if (taskOrigemId) {
       const buRowId = Number(taskOrigemId);
-      const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
+      const buTable = buTableFromOrigem(origem);
       try {
         await ndbUpdate(buTable, buRowId, { Status: "🔎 Revisão Interna" });
         log("info", `[video-archive] "${tarefa}" → gestor notificado "🔎 Revisão Interna"`);
@@ -158,7 +166,7 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
     if (!taskOrigemId) continue;
 
     const buRowId = Number(taskOrigemId);
-    const buTable = origem === "BU1" ? NDB.tables.tasks_bu1 : NDB.tables.tasks_bu2;
+    const buTable = buTableFromOrigem(origem);
 
     const buRows = await ndbList(buTable, `(Id,eq,${buRowId})`);
     if (buRows.length === 0) continue;
@@ -256,7 +264,7 @@ export function startVideoArchive(): void {
   async function runCycle() {
     try {
       const m = await autoAtribuirPorResponsavel(
-        [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2], [NOME_ANA],
+        [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3], [NOME_ANA],
       );
       if (m > 0) log("info", `[video-archive] ${m} task(s) auto-atribuídas à Ana Laura por menção`);
       const a = await syncAtribuidos();
