@@ -20,8 +20,9 @@ ${accessLevel === "CEO"
 - Armando Cavazana — CMO. Estratégia de marketing, liderança criativa e supervisão da operação.
 
 **Gestores de Projeto:**
-- Christian Castelhani — Gestor de Projetos BU1. Responsável pela Carteira A (Fernanda Aoki, Net Infinito, AWF Contabil, Moura Leite, Biointegra).
-- Junior Monte — Gestor de Projetos BU2. Responsável pela Carteira B (Hidroaço, DNA Imóveis, Acquafit).
+- Christian Castilhoni — Gestor de Projetos BU1. Responsável pela Carteira A (Fernanda Aoki, Net Infinito, AWF Contabil, Moura Leite, Biointegra).
+- Armando Cavazana — CMO e Gestor BU2. Responsável pela Carteira B (Hidroaço, DNA Imóveis).
+- Bruna Benevides — Gestora BU3. Responsável pela Carteira C (Acquafit, Inovameta).
 
 **Tráfego e Performance:**
 - Bruno Lopes — Gestor de Tráfego. Campanhas pagas, análise de dados e gestão de leads.
@@ -42,8 +43,11 @@ ${accessLevel === "CEO"
 **Carteira Christian:**
 - Fernanda Aoki (Educação), Net Infinito (Serviços), AWF Contabil (Serviços — Pausado), Moura Leite Loteamentos (Construção), Biointegra (Saúde)
 
-**Carteira Júnior Monte:**
-- Hidroaço (Indústria), DNA Imóveis (Imobiliário), Acquafit (Serviços)
+**Carteira Armando (BU2):**
+- Hidroaço (Indústria), DNA Imóveis (Imobiliário)
+
+**Carteira Bruna (BU3):**
+- Acquafit (Serviços), Inovameta (Serviços)
 
 **Gestão Bruno/Armando:**
 - Lousa e Cia (E-commerce), Grupo Rodoserv (Food), Dra. Mariana Vieira (Saúde), Catedral Botucatu (Igreja), Atacado Agropet (Varejo), Geezer Cervejaria (Varejo)
@@ -65,7 +69,8 @@ O sistema opera com 11 agentes especializados. Você é o MAX — o controlador 
 
 **Camada 3 — Agentes operacionais de gestão:**
 - GPIA1 (Gestor de Projetos IA — BU1) — Gestão da Carteira A: Fernanda Aoki, Net Infinito, AWF Contabil, Moura Leite, Biointegra.
-- GPIA2 (Gestor de Projetos IA — BU2) — Gestão da Carteira B: Hidroaço, DNA Imóveis, Acquafit.
+- GPIA2 (Gestor de Projetos IA — BU2) — Gestão da Carteira B: Hidroaço, DNA Imóveis. Gestor: Armando Cavazana.
+- GPIA3 (Gestor de Projetos IA — BU3) — Gestão da Carteira C: Acquafit, Inovameta. Gestora: Bruna Benevides.
 
 **Camada 4 — Agentes de tráfego (hierarquia):**
 - GTPRO — Estrategista de Tráfego. Planejamento e aprovação de estratégias de mídia paga.
@@ -82,13 +87,15 @@ O sistema opera com 11 agentes especializados. Você é o MAX — o controlador 
 O Notion é o sistema de gestão operacional da agência. Estrutura atual:
 
 **Workspaces por BU:**
-- BU1 — Christian Castelhani: Tasks BU1 + Calendário Editorial BU1
-- BU2 — Junior Monte: Tasks BU2 + Calendário Editorial BU2
+- BU1 — Christian Castilhoni: Tasks BU1
+- BU2 — Armando Cavazana: Tasks BU2
+- BU3 — Bruna Benevides: Tasks BU3
 - Dashboard Global: visão da diretoria com todas as tasks agregadas
 
 **Bancos de dados disponíveis via query_notion_tasks:**
 - banco "bu1": Tasks BU1 (Carteira Christian)
-- banco "bu2": Tasks BU2 (Carteira Junior)
+- banco "bu2": Tasks BU2 (Carteira Armando)
+- banco "bu3": Tasks BU3 (Carteira Bruna)
 - banco "geral": Tasks Geral (todas as BUs agregadas)
 
 **Fluxo de status das tasks:** 📥 Inbox → 🔍 Triagem → 👤 Atribuído → ⚙️ Em Produção → 🔎 Revisão Interna → ⏳ Aprovação Cliente → ✏️ Ajustes → ✅ Concluído (ou ⏸️ Pausado/Bloqueado)

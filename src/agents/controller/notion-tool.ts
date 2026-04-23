@@ -28,8 +28,8 @@ export const notionTasksTool = {
     properties: {
       banco: {
         type: "string",
-        enum: ["bu1", "bu2", "geral"],
-        description: "Qual banco consultar: bu1 (Christian), bu2 (Junior), geral (todos)",
+        enum: ["bu1", "bu2", "bu3", "geral"],
+        description: "Qual banco consultar: bu1 (Christian), bu2 (Armando), bu3 (Bruna), geral (todos)",
       },
       filtro_status: {
         type: "string",

@@ -622,7 +622,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
     if (wipByArea[t.area]) wipByArea[t.area].current++;
   }
 
-  const GESTOR_MAP: Record<string, string> = { christian: "Christian", junior: "Júnior Monte", none: "Bruno/Armando" };
+  const GESTOR_MAP: Record<string, string> = { christian: "Christian", armando: "Armando Cavazana", bruna: "Bruna Benevides", none: "Bruno/Armando" };
   const clients: ClientSummary[] = (clientsRaw ?? []).map((c: any) => ({
     name: c.name,
     segment: c.segment ?? "—",
