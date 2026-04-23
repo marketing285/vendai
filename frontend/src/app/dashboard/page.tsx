@@ -143,8 +143,9 @@ export default function Dashboard() {
 
   const dm        = ctx?.designMetrics ?? [];
   const em        = ctx?.edicaoMetrics ?? [];
-  const dmCurrent = [...dm].sort((a,b) => b.month.localeCompare(a.month))[0];
-  const emCurrent = [...em].sort((a,b) => b.month.localeCompare(a.month))[0];
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const dmCurrent = [...dm].filter(m => m.month <= thisMonth).sort((a,b) => b.month.localeCompare(a.month))[0];
+  const emCurrent = [...em].filter(m => m.month <= thisMonth).sort((a,b) => b.month.localeCompare(a.month))[0];
 
   const areas     = ["Todas","BU1","BU2","BU3","Design","Edição"];
   const tasksVis  = activeArea === "Todas" ? abertas : abertas.filter(t => t.area === activeArea);

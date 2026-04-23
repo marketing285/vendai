@@ -48,8 +48,9 @@ async function generateBriefing(): Promise<Briefing> {
     return { area, total: at.length, late, warn };
   });
 
-  const dmCurrent = [...(ctx.designMetrics ?? [])].sort((a, b) => b.month.localeCompare(a.month))[0];
-  const emCurrent = [...(ctx.edicaoMetrics  ?? [])].sort((a, b) => b.month.localeCompare(a.month))[0];
+  const thisMonth = new Date().toISOString().slice(0, 7); // "2026-04"
+  const dmCurrent = [...(ctx.designMetrics ?? [])].filter(m => m.month <= thisMonth).sort((a, b) => b.month.localeCompare(a.month))[0];
+  const emCurrent = [...(ctx.edicaoMetrics  ?? [])].filter(m => m.month <= thisMonth).sort((a, b) => b.month.localeCompare(a.month))[0];
 
   const contextResume = [
     `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length}`,
