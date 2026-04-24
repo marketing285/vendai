@@ -41,11 +41,19 @@ async function generateBriefing(): Promise<Briefing> {
   const atencao   = abertas.filter(t => t.sla?.includes("Atenção"));
   const aprovacao = abertas.filter(t => t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna"));
 
+  // Aprovações com SLA detalhado para avaliação de severidade
+  const aprovacaoAtrasadas = aprovacao.filter(t => t.sla?.includes("Atrasado"));
+  const aprovacaoAtencao   = aprovacao.filter(t => t.sla?.includes("Atenção"));
+  const aprovacaoNoPrazo   = aprovacao.filter(t => !t.sla?.includes("Atrasado") && !t.sla?.includes("Atenção"));
+
   const areaStats = ["BU1","BU2","BU3","Design","Edição"].map(area => {
-    const at   = abertas.filter(t => t.area === area);
-    const late = at.filter(t => t.sla?.includes("Atrasado")).length;
-    const warn = at.filter(t => t.sla?.includes("Atenção")).length;
-    return { area, total: at.length, late, warn };
+    const at      = abertas.filter(t => t.area === area);
+    const late    = at.filter(t => t.sla?.includes("Atrasado")).length;
+    const warn    = at.filter(t => t.sla?.includes("Atenção")).length;
+    const aprLate = at.filter(t => (t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna")) && t.sla?.includes("Atrasado")).length;
+    const aprWarn = at.filter(t => (t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna")) && t.sla?.includes("Atenção")).length;
+    const aprOk   = at.filter(t => (t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna")) && !t.sla?.includes("Atrasado") && !t.sla?.includes("Atenção")).length;
+    return { area, total: at.length, late, warn, aprLate, aprWarn, aprOk };
   });
 
   const thisMonth = new Date().toISOString().slice(0, 7); // "2026-04"
@@ -53,8 +61,8 @@ async function generateBriefing(): Promise<Briefing> {
   const emCurrent = [...(ctx.edicaoMetrics  ?? [])].filter(m => m.month <= thisMonth).sort((a, b) => b.month.localeCompare(a.month))[0];
 
   const contextResume = [
-    `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length}`,
-    ...areaStats.map(s => `  ${s.area}: ${s.total} tasks abertas, ${s.late} atrasadas, ${s.warn} atenção`),
+    `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length} (${aprovacaoAtrasadas.length} atrasadas, ${aprovacaoAtencao.length} atenção, ${aprovacaoNoPrazo.length} no prazo)`,
+    ...areaStats.map(s => `  ${s.area}: ${s.total} tasks abertas, ${s.late} atrasadas, ${s.warn} atenção | em revisão/aprovação: ${s.aprLate} atrasadas, ${s.aprWarn} atenção, ${s.aprOk} no prazo`),
     dmCurrent ? `Design (Bruna): ${dmCurrent.delivered} artes entregues de ${dmCurrent.totalPlanned} total | ${dmCurrent.inApproval} artes em aprovação | ${dmCurrent.withRevision} revisões | ${dmCurrent.uniqueDeliveredTasks} tasks entregues de ${dmCurrent.uniqueTasks} total | média ${dmCurrent.avgDailyProduction} artes/dia útil` : "",
     emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered} vídeos entregues de ${emCurrent.totalPlanned} total | ${emCurrent.withRevision} precisaram de alteração` : "",
     `Clientes ativos: ${ctx.clients.filter(c => c.status === "Ativo").length}`,
@@ -97,7 +105,8 @@ Regras:
 - acoes: máximo 3, objetivas e acionáveis agora
 - summary: fale como COO, direto ao ponto, sem enrolação
 - IMPORTANTE: para Design, sempre use "artes" (não "tasks") — cada task pode conter múltiplas artes
-- Taxa de retrabalho (revisão) de até 30% em Design é considerada NORMAL e aceitável — NÃO penalize o score por isso, só aponte como gargalo se ultrapassar 30%`,
+- Taxa de retrabalho (revisão) de até 30% em Design é considerada NORMAL e aceitável — NÃO penalize o score por isso, só aponte como gargalo se ultrapassar 30%
+- Tarefas em "Revisão Interna" ou "Em Aprovação": avalie a severidade pelo Status SLA, não pelo volume. Se estiverem "no prazo" → sem penalidade no score. Se "Atenção" → gargalo de severidade "baixa". Se "Atrasado" → gargalo de severidade "alta"`,
     }],
   });
 
