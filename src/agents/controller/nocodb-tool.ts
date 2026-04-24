@@ -157,6 +157,46 @@ export async function atualizarRelatorios(tableIds: string[]): Promise<void> {
   }
 }
 
+// ─── Auto-arquivo — tasks "✅ Entregue" ou "Concluído" que não estão em fluxo ──
+// Não arquiva tasks que o design-sync ou video-archive ainda estão monitorando
+// (ou seja, tasks_design/tasks_edicao com Sincronizado=1 referenciando o ID da BU).
+export async function autoArquivarConcluidas(buTableIds: string[]): Promise<number> {
+  let arquivadas = 0;
+
+  // IDs de tasks BU que estão em fluxo ativo de design ou edição (aguardando decisão)
+  const designPendentes = await ndbList(NDB.tables.tasks_design, "(Sincronizado,eq,1)", 200);
+  const edicaoPendentes = await ndbList(NDB.tables.tasks_edicao, "(Sincronizado,eq,1)", 200);
+  const buIdsEmFluxo = new Set<number>();
+  for (const row of [...designPendentes, ...edicaoPendentes]) {
+    const orig = row["Task Origem"];
+    if (orig) buIdsEmFluxo.add(Number(orig));
+  }
+
+  for (const tid of buTableIds) {
+    const entregues  = await ndbList(tid, "(Status,eq,✅ Entregue)", 200);
+    const concluidas = await ndbList(tid, "(Status,eq,Concluído)", 200);
+
+    for (const row of [...entregues, ...concluidas]) {
+      const id = row["Id"] as number;
+      if (buIdsEmFluxo.has(id)) continue; // em fluxo — design/video sync vai tratar
+
+      try {
+        await ndbUpdate(tid, id, {
+          Status:             "📦 Arquivado",
+          "Status SLA":       null,
+          "Dias até o Prazo": null,
+        });
+        arquivadas++;
+      } catch (e: any) {
+        // ignora erros individuais
+      }
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+
+  return arquivadas;
+}
+
 // ─── Auth: obter token via email/senha (usado no setup) ───────────────────────
 export async function ndbGetToken(email: string, password: string): Promise<string> {
   const r = await fetch(`${NOCODB_BASE_URL}/api/v1/auth/user/signin`, {

@@ -17,7 +17,7 @@
  * Roda a cada 1 minuto.
  */
 
-import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, extrairNome, autoAtribuirPorResponsavel } from "./nocodb-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, extrairNome, autoAtribuirPorResponsavel, autoArquivarConcluidas } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
@@ -282,6 +282,9 @@ export function startVideoArchive(): void {
       const r = await arquivarTasks();
       if (r.arquivadas > 0)
         log("info", `[video-archive] ${r.arquivadas} task(s) arquivadas no Depósito Edição`);
+
+      const arch = await autoArquivarConcluidas([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3]);
+      if (arch > 0) log("info", `[video-archive] ${arch} task(s) arquivadas automaticamente (Entregue/Concluído)`);
     } catch (err: any) {
       log("error", `[video-archive] erro: ${err?.message ?? String(err)}`);
     }

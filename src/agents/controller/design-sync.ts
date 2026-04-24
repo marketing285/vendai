@@ -20,7 +20,7 @@
  *     BU volta para "🎨 Em Design"
  */
 
-import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA, atualizarRelatorios, extrairNome, autoAtribuirPorResponsavel } from "./nocodb-tool";
+import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA, atualizarRelatorios, extrairNome, autoAtribuirPorResponsavel, autoArquivarConcluidas } from "./nocodb-tool";
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
@@ -388,6 +388,8 @@ export function startDesignSync(): void {
       log("info", `[design-sync] Decisões: ${d.aprovadas} aprovadas, ${d.revisoes} em revisão`);
       await atualizarSLA([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3, NDB.tables.tasks_design]);
       await atualizarRelatorios([NDB.tables.clientes_bu1, NDB.tables.clientes_bu2, NDB.tables.clientes_bu3]);
+      const arch = await autoArquivarConcluidas([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3]);
+      if (arch > 0) log("info", `[design-sync] ${arch} task(s) arquivadas automaticamente (Entregue/Concluído)`);
     } catch (err: any) {
       log("error", `[design-sync] erro no ciclo: ${err?.message ?? String(err)}`);
     }
