@@ -96,7 +96,8 @@ Regras:
 - gargalos: máximo 4, só inclua se forem reais com base nos dados
 - acoes: máximo 3, objetivas e acionáveis agora
 - summary: fale como COO, direto ao ponto, sem enrolação
-- IMPORTANTE: para Design, sempre use "artes" (não "tasks") — cada task pode conter múltiplas artes`,
+- IMPORTANTE: para Design, sempre use "artes" (não "tasks") — cada task pode conter múltiplas artes
+- Taxa de retrabalho (revisão) de até 30% em Design é considerada NORMAL e aceitável — NÃO penalize o score por isso, só aponte como gargalo se ultrapassar 30%`,
     }],
   });
 
