@@ -24,7 +24,7 @@ import { NDB, ndbList, ndbCreate, ndbUpdate, ndbDelete, atualizarSLA, atualizarR
 import { log } from "./logger";
 
 const INTERVALO_MS = 1 * 60 * 1000;
-const NOME_BRUNA   = process.env.BRUNA_NOME ?? "Bruna";
+const NOME_BRUNA   = process.env.BRUNA_NOME ?? "Bruna Benevides";
 
 // BU "Formato" → Tasks Design "Tipo"
 const FORMATO_MAP: Record<string, string> = {
@@ -65,7 +65,7 @@ async function syncAtribuidos(): Promise<{ criadas: number; atualizadas: number 
 
     for (const row of rows) {
       const responsavel = extrairNome(row["Responsável"]);
-      if (!responsavel.toLowerCase().includes(NOME_BRUNA.toLowerCase())) {
+      if (responsavel.toLowerCase() !== NOME_BRUNA.toLowerCase()) {
         log("info", `[design-sync] task "${row["Tarefa"]}" ignorada — responsável: "${responsavel}"`);
         continue;
       }
