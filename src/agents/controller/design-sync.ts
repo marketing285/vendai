@@ -187,6 +187,11 @@ async function syncDecisaoGestor(): Promise<{ aprovadas: number; revisoes: numbe
       await _finalizarTask(row, buTable, buRowId);
       aprovadas++;
 
+    } else if (buStatus === "📦 Arquivado" || buStatus === "📦 Arquivo" || buStatus === "❌ Cancelado") {
+      // Task BU já arquivada/cancelada — encerra o monitoramento sem tocar na BU
+      await ndbUpdate(NDB.tables.tasks_design, rowId, { Sincronizado: false });
+      log("info", `[design-sync] "${tarefa}" encerrada (BU já arquivada)`);
+
     } else if (buStatus !== "🔎 Revisão Interna" && buStatus !== "🔄 Em Revisão") {
       // BU saiu de Revisão Interna sem decisão (ex: gestor voltou para Em Design)
       // e Bruna voltou a marcar Em Aprovação — re-notifica o gestor

@@ -111,7 +111,12 @@ export async function autoAtribuirPorResponsavel(
   return atribuidas;
 }
 
-// ─── SLA helper — atualiza Dias até o Prazo e Status SLA em todas as tasks abertas ──
+const STATUSES_FECHADOS = new Set([
+  "✅ Entregue", "✅ Concluído", "Concluído", "Cancelado",
+  "📦 Arquivado", "📦 Arquivo", "❌ Cancelado",
+]);
+
+// ─── SLA helper — atualiza Dias até o Prazo e Status SLA em tasks abertas ────
 export async function atualizarSLA(tableIds: string[]): Promise<void> {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -119,8 +124,9 @@ export async function atualizarSLA(tableIds: string[]): Promise<void> {
   for (const tid of tableIds) {
     const rows = await ndbList(tid, "(Prazo de Entrega,isnotblank,)", 200);
     for (const row of rows) {
-      const prazo = row["Prazo de Entrega"];
-      if (!prazo) continue;
+      const prazo  = row["Prazo de Entrega"];
+      const status = (row["Status"] as string) ?? "";
+      if (!prazo || STATUSES_FECHADOS.has(status)) continue;
 
       const diff = Math.ceil((new Date(prazo).getTime() - hoje.getTime()) / 86_400_000);
       const sla  = diff < 0 ? "🔴 Atrasado" : diff <= 2 ? "⚠️ Atenção" : "✅ No Prazo";
