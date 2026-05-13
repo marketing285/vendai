@@ -368,6 +368,67 @@ async function _finalizarTask(row: any, buTable: string, buRowId: number): Promi
   }
 }
 
+// ─── 5. Tasks concluídas direto na tasks_design → deposito + limpeza ─────────
+// Cobre o caso onde a Bruna marca "✅ Concluído" sem passar pelo fluxo de aprovação
+async function syncConcluidas(): Promise<{ movidas: number }> {
+  let movidas = 0;
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const rows = await ndbList(NDB.tables.tasks_design, "(Status,eq,✅ Concluído)", 200);
+
+  for (const row of rows) {
+    const rowId    = row["Id"] as number;
+    const tarefa   = row["Tarefa"] ?? "—";
+    const origem   = row["Origem"] as string | undefined;
+    const buRowId  = row["Task Origem"] ? Number(row["Task Origem"]) : null;
+    const dataEnt  = row["Data de Entrega"] ?? row["Prazo de Entrega"];
+    const gestor   = origem ? (GESTOR_MAP[origem] ?? "Christian (Gestor)") : "Bruna Benevides";
+
+    const prod: Record<string, any> = {
+      Tarefa:                  tarefa,
+      Status:                  "Entregue",
+      Data:                    dataEnt ?? hoje,
+      "Responsável Aprovação": gestor,
+    };
+    if (row["Cliente"])               prod["Cliente"]                = row["Cliente"];
+    if (row["Tipo"])                  prod["Tipo"]                   = row["Tipo"];
+    if (row["Urgência"])              prod["Urgência"]               = row["Urgência"];
+    if (row["Complexidade"])          prod["Complexidade"]           = row["Complexidade"];
+    if (dataEnt)                      prod["Data de Entrega"]        = dataEnt;
+    if (row["Precisou de Alteração?"]) prod["Precisou de Alteração?"] = row["Precisou de Alteração?"];
+    if (row["Nº de Alterações"])      prod["Nº de Alterações"]       = row["Nº de Alterações"];
+    if (row["Quantidade"])            prod["Quantidade"]             = row["Quantidade"];
+    if (row["Link de Entrega"])       prod["Link de Entrega"]        = row["Link de Entrega"];
+    if (row["Briefing"])              prod["Briefing"]               = row["Briefing"];
+
+    try {
+      await ndbCreate(NDB.tables.deposito_design, prod);
+    } catch (e: any) {
+      log("warn", `[design-sync] erro ao copiar "${tarefa}" para deposito: ${e?.message}`);
+      continue;
+    }
+
+    try {
+      await ndbDelete(NDB.tables.tasks_design, rowId);
+      movidas++;
+    } catch (e: any) {
+      log("warn", `[design-sync] erro ao deletar "${tarefa}" das tasks: ${e?.message}`);
+    }
+
+    // Arquiva task na BU de origem se houver
+    if (origem && buRowId) {
+      const buTable = buTableFromOrigem(origem);
+      try {
+        await ndbUpdate(buTable, buRowId, { Status: "📦 Arquivado", "Status SLA": null, "Dias até o Prazo": null });
+      } catch { /* ignora se BU já foi arquivada */ }
+    }
+
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  return { movidas };
+}
+
 // ─── Loop principal ───────────────────────────────────────────────────────────
 export function startDesignSync(): void {
   const token = process.env.NOCODB_TOKEN;
@@ -391,6 +452,8 @@ export function startDesignSync(): void {
       log("info", `[design-sync] Em Aprovação: ${p.enviadas} enviadas ao gestor`);
       const d = await syncDecisaoGestor();
       log("info", `[design-sync] Decisões: ${d.aprovadas} aprovadas, ${d.revisoes} em revisão`);
+      const c = await syncConcluidas();
+      if (c.movidas > 0) log("info", `[design-sync] ${c.movidas} task(s) concluídas movidas para o Depósito de Design`);
       await atualizarSLA([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3, NDB.tables.tasks_design]);
       await atualizarRelatorios([NDB.tables.clientes_bu1, NDB.tables.clientes_bu2, NDB.tables.clientes_bu3]);
       const arch = await autoArquivarConcluidas([NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3]);
