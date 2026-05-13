@@ -224,9 +224,15 @@ export default function Dashboard() {
             <BriefingCard briefing={briefing} loading={briefingLoading} onRefresh={loadBriefing} />
 
             {/* ── Board Cards — Unidades de Negócio ── */}
-            <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase",
-              color:"#2A3040", marginBottom:10 }}>Unidades de Negócio</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:16 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:"0.16em", textTransform:"uppercase",
+                color:"#4A9EFF", padding:"3px 10px", borderRadius:20,
+                background:"rgba(74,158,255,0.1)", border:"1px solid rgba(74,158,255,0.2)" }}>
+                Unidades de Negócio
+              </div>
+              <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.05)" }}/>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:24 }}>
               {(["BU1","BU2","BU3"] as AreaKey[]).map(area => {
                 const bTasks   = abertas.filter(t => t.area === area);
                 const total    = bTasks.length;
@@ -307,9 +313,15 @@ export default function Dashboard() {
             </div>
 
             {/* ── Board Cards — Produção ── */}
-            <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase",
-              color:"#2A3040", marginBottom:10 }}>Produção</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:16, marginBottom:16 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:"0.16em", textTransform:"uppercase",
+                color:"#A78BFA", padding:"3px 10px", borderRadius:20,
+                background:"rgba(167,139,250,0.1)", border:"1px solid rgba(167,139,250,0.2)" }}>
+                Produção
+              </div>
+              <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.05)" }}/>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:16, marginBottom:24 }}>
               {(["Design","Edição"] as AreaKey[]).map(area => {
                 const bTasks   = abertas.filter(t => t.area === area);
                 const total    = bTasks.length;
