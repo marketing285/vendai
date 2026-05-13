@@ -509,14 +509,16 @@ export async function buildContext(): Promise<OperationalContext> {
     fetchProducoesDesignNocoDB(),
     fetchProducoesEdicaoNocoDB(),
     fetchTasksNocoDB(),
-    ndbList(NDB.tables.tasks_design, "(Status,notin,✅ Concluído,✅ Entregue,📦 Arquivado,📦 Arquivo,Cancelado,❌ Cancelado)", 500),
+    ndbList(NDB.tables.tasks_design, undefined, 500),
     fetchGpiaMemories(),
   ]);
   base.clients           = clients;
   base.gpiaMemories      = gpiaMemories;
   base.designProductions = designData.productions;
   // Métricas: open tasks (tasks_design) + entregues (deposito_design) com Quantidade real
-  base.designMetrics     = computeDesignMetricsFromTasks(rawDesignTasks, designData.productions.map(p => ({
+  const DESIGN_FECHADOS = new Set(["✅ Concluído","✅ Entregue","📦 Arquivado","📦 Arquivo","Cancelado","❌ Cancelado"]);
+  const openDesignTasks = rawDesignTasks.filter(r => !DESIGN_FECHADOS.has(r["Status"] ?? ""));
+  base.designMetrics     = computeDesignMetricsFromTasks(openDesignTasks, designData.productions.map(p => ({
     "Data": p.date, "Quantidade": p.quantity, "Precisou de Alteração?": p.neededRevision,
   })));
   base.edicaoProductions = edicaoData.productions;
