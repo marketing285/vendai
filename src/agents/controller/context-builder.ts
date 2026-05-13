@@ -509,7 +509,7 @@ export async function buildContext(): Promise<OperationalContext> {
     fetchProducoesDesignNocoDB(),
     fetchProducoesEdicaoNocoDB(),
     fetchTasksNocoDB(),
-    ndbList(NDB.tables.tasks_design, undefined, 500),
+    ndbList(NDB.tables.tasks_design, "(Status,notin,✅ Concluído,✅ Entregue,📦 Arquivado,📦 Arquivo,Cancelado,❌ Cancelado)", 500),
     fetchGpiaMemories(),
   ]);
   base.clients           = clients;
