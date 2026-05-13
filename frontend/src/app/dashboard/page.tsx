@@ -223,9 +223,11 @@ export default function Dashboard() {
             {/* ── MAX Briefing ── */}
             <BriefingCard briefing={briefing} loading={briefingLoading} onRefresh={loadBriefing} />
 
-            {/* ── Board Cards ── */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:16, marginBottom:28 }}>
-              {(["BU1","BU2","BU3","Design","Edição"] as AreaKey[]).map(area => {
+            {/* ── Board Cards — Unidades de Negócio ── */}
+            <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase",
+              color:"#2A3040", marginBottom:10 }}>Unidades de Negócio</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:16 }}>
+              {(["BU1","BU2","BU3"] as AreaKey[]).map(area => {
                 const bTasks   = abertas.filter(t => t.area === area);
                 const total    = bTasks.length;
                 const late     = bTasks.filter(t => t.sla?.includes("Atrasado")).length;
@@ -292,6 +294,81 @@ export default function Dashboard() {
                       );
                     })}
 
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:12 }}>
+                      {late > 0 && <Badge color="#EF4444">{late} atrasada{late>1?"s":""}</Badge>}
+                      {warn > 0 && <Badge color="#F59E0B">{warn} atenção</Badge>}
+                      {apr  > 0 && <Badge color="#FBBF24">{apr} aprovação</Badge>}
+                      {late===0 && warn===0 && apr===0 && total>0 && <Badge color="#22C55E">no prazo</Badge>}
+                      {total===0 && <Badge color="#4A5060">sem tasks</Badge>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Board Cards — Produção ── */}
+            <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase",
+              color:"#2A3040", marginBottom:10 }}>Produção</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:16, marginBottom:16 }}>
+              {(["Design","Edição"] as AreaKey[]).map(area => {
+                const bTasks   = abertas.filter(t => t.area === area);
+                const total    = bTasks.length;
+                const late     = bTasks.filter(t => t.sla?.includes("Atrasado")).length;
+                const warn     = bTasks.filter(t => t.sla?.includes("Atenção")).length;
+                const apr      = bTasks.filter(t => t.status?.includes("Aprovação") || t.status?.includes("Revisão Interna")).length;
+                const allArea  = tasks.filter(t => t.area === area);
+                const fechadas = allArea.filter(t => CLOSED.includes(t.status)).length;
+                const totalAll = allArea.length;
+                const pctFech  = totalAll > 0 ? Math.round((fechadas / totalAll) * 100) : 0;
+                const statusCounts: Record<string, number> = {};
+                for (const t of bTasks) statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
+                const topStatuses = Object.entries(statusCounts).sort((a,b) => b[1]-a[1]).slice(0,4);
+                const { main, label, gestor } = BOARD[area];
+                return (
+                  <div key={area}
+                    onClick={() => setDrawer(area)}
+                    style={{ background:"#111318", border:"1px solid rgba(255,255,255,0.07)",
+                      borderRadius:18, padding:"20px", borderTop:`3px solid ${main}`,
+                      cursor:"pointer", transition:"border-color 0.15s, transform 0.12s",
+                      position:"relative" }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = main;
+                      (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.07)";
+                      (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                    }}
+                  >
+                    <div style={{ position:"absolute", top:14, right:16, fontSize:12,
+                      color:"#2A3040", letterSpacing:"0.06em" }}>VER DETALHES →</div>
+                    <div style={{ fontSize:13, fontWeight:700, letterSpacing:"0.12em",
+                      textTransform:"uppercase", color:main, marginBottom:4 }}>{label}</div>
+                    <div style={{ fontSize:14, color:"#4A5060", marginBottom:14 }}>{gestor}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
+                      <Ring pct={pctFech} color={main} size={70} />
+                      <div>
+                        <div style={{ fontSize:34, fontWeight:800, lineHeight:1, color:"#fff" }}>{total}</div>
+                        <div style={{ fontSize:13, color:"#4A5060", marginTop:3 }}>tasks abertas</div>
+                        <div style={{ fontSize:13, color:main, marginTop:2 }}>{pctFech}% concluídas</div>
+                      </div>
+                    </div>
+                    {topStatuses.map(([st, cnt]) => {
+                      const pct = total > 0 ? Math.round((cnt/total)*100) : 0;
+                      const c   = STATUS_COLOR[st] ?? "#6B7280";
+                      return (
+                        <div key={st} style={{ marginBottom:5 }}>
+                          <div style={{ display:"flex", justifyContent:"space-between",
+                            fontSize:12, color:"#6B7280", marginBottom:2 }}>
+                            <span style={{ maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{st}</span>
+                            <span style={{ color:c, fontWeight:600 }}>{cnt} · {pct}%</span>
+                          </div>
+                          <div style={{ height:2, background:"rgba(255,255,255,0.06)", borderRadius:2 }}>
+                            <div style={{ width:`${pct}%`, height:"100%", background:c, borderRadius:2 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                     <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:12 }}>
                       {late > 0 && <Badge color="#EF4444">{late} atrasada{late>1?"s":""}</Badge>}
                       {warn > 0 && <Badge color="#F59E0B">{warn} atenção</Badge>}
