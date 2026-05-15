@@ -167,12 +167,12 @@ gpiaRouter.post("/whatsapp", async (req, res) => {
   // Ignora mensagens enviadas pelo próprio bot
   if (payload?.message?.fromMe || payload?.message?.wasSentByApi) return;
 
-  const phone   = extractSenderPhone(payload);
-  const groupId = extractGroupId(payload);
-  const texto   = extractMessageText(payload);
+  const phone  = extractSenderPhone(payload);
+  const chatid = extractGroupId(payload);
+  const texto  = extractMessageText(payload);
 
-  // Ignora mensagens de grupo e mensagens vazias
-  if (groupId || !texto.trim()) return;
+  // Ignora mensagens de grupo (@g.us) e mensagens vazias
+  if (chatid.includes("@g.us") || payload?.message?.isGroup || !texto.trim()) return;
 
   // Verifica se é um gestor cadastrado
   const gestor = identificarGestor(phone);
