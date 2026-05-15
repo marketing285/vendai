@@ -63,12 +63,9 @@ const BOARD: Record<AreaKey, { main: string; bg: string; label: string; gestor: 
 
 const AGENTS = [
   { name:"MAX",              role:"Monitor Ativo de Operações",    active:true,  color:"#4A9EFF" },
+  { name:"GPIA",             role:"Controlador de atividades",     active:true,  color:"#2DD4A0" },
   { name:"design-sync",     role:"Sincronização Design (Bruna)",  active:true,  color:"#A78BFA" },
   { name:"video-archive",   role:"Sincronização Edição (Ana)",    active:true,  color:"#F59E0B" },
-  { name:"CS Supremo",      role:"Triagem e atendimento",         active:false, color:"#FF6B4A" },
-  { name:"Agente CMO",      role:"Suporte estratégico ao CMO",    active:false, color:"#2DD4A0" },
-  { name:"GPIA1",           role:"Gestão de projetos BU1",        active:false, color:"#4A9EFF" },
-  { name:"GPIA2",           role:"Gestão de projetos BU2",        active:false, color:"#2DD4A0" },
   { name:"GTPRO",           role:"Orquestrador de tráfego",       active:false, color:"#FBBF24" },
   { name:"Sênior PerNEW",   role:"Social media sênior",           active:false, color:"#FBBF24" },
   { name:"CrIA",            role:"Criativo e design IA",          active:false, color:"#FBBF24" },
