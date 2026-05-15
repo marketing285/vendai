@@ -15,6 +15,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { NDB, ndbList, ndbUpdate } from "../controller/nocodb-tool";
+import { buildContext } from "../controller/context-builder";
 import { sendTextMessage } from "../../integrations/whatsapp";
 import { saveMemory, MemoryType } from "./memory";
 import { log } from "../controller/logger";
@@ -62,58 +63,121 @@ interface RespostaIA {
   resposta: string;
 }
 
-// ─── Contexto operacional para o GPIA ────────────────────────────────────────
+// ─── Contexto operacional completo via NocoDB ─────────────────────────────────
 async function buildContextoGestor(gestor: Gestor): Promise<string> {
   try {
-    const tables = gestor.bu === "BU1" ? [NDB.tables.tasks_bu1]
-                 : gestor.bu === "BU2" ? [NDB.tables.tasks_bu2]
-                 : gestor.bu === "BU3" ? [NDB.tables.tasks_bu3]
-                 : [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3];
-
-    const FECHADOS = ["✅ Entregue","Concluído","📦 Arquivado","📦 Arquivo","❌ Cancelado"];
+    const ctx = await buildContext();
+    const FECHADOS = new Set(["✅ Entregue","Concluído","📦 Arquivado","📦 Arquivo","❌ Cancelado","Cancelado"]);
     const linhas: string[] = [];
 
-    for (const tid of tables) {
-      const rows = await ndbList(tid, "(Status,isnotblank,)", 100);
-      const abertas = rows.filter(r => !FECHADOS.includes(r["Status"] ?? ""));
-      for (const r of abertas) {
-        const sla = r["Status SLA"] ? ` [${r["Status SLA"]}]` : "";
-        linhas.push(`- ${r["Tarefa"] ?? "—"} | ${r["Cliente"] ?? "—"} | ${r["Status"] ?? "—"}${sla} | Resp: ${r["Responsável"] ?? "—"} | Prazo: ${r["Prazo de Entrega"] ?? "—"}`);
+    // ── Clientes ──────────────────────────────────────────────────────────────
+    const clientes = ctx.clients.filter(c => !gestor.bu || c.bu === gestor.bu || gestor.role === "ceo");
+    if (clientes.length > 0) {
+      linhas.push(`CLIENTES (${clientes.length}):`);
+      for (const c of clientes) {
+        const pacote = c.pacote && c.pacote !== "—" ? ` [${c.pacote}]` : "";
+        const canais = c.canaisAtivos && c.canaisAtivos !== "—" ? ` | ${c.canaisAtivos}` : "";
+        linhas.push(`  ${c.bu} | ${c.name} (${c.segment})${pacote} | ${c.status}${canais}`);
       }
+      linhas.push("");
     }
 
-    return linhas.length > 0
-      ? `TASKS ABERTAS DA ${gestor.bu ?? "AGÊNCIA"}:\n${linhas.join("\n")}`
-      : `Nenhuma task aberta encontrada para ${gestor.bu ?? "a agência"}.`;
-  } catch {
+    // ── Tasks abertas por área ────────────────────────────────────────────────
+    const todasAbertas = ctx.tasks.filter(t => !FECHADOS.has(t.status));
+    const areas = gestor.bu
+      ? [gestor.bu, "Design", "Edição"]
+      : ["BU1", "BU2", "BU3", "Design", "Edição"];
+
+    for (const area of areas) {
+      const tasks = todasAbertas.filter(t => t.area === area);
+      if (tasks.length === 0) continue;
+      const atrasadas = tasks.filter(t => t.sla?.includes("Atrasado")).length;
+      const atencao   = tasks.filter(t => t.sla?.includes("Atenção")).length;
+      linhas.push(`TASKS ${area} (${tasks.length} abertas${atrasadas > 0 ? ` | 🔴 ${atrasadas} atrasadas` : ""}${atencao > 0 ? ` | ⚠️ ${atencao} atenção` : ""}):`);
+      for (const t of tasks) {
+        const dias = t.daysLeft != null ? ` | ${t.daysLeft}d` : "";
+        const sla  = t.sla && t.sla !== "—" ? ` [${t.sla}]` : "";
+        linhas.push(`  - ${t.title} | ${t.client} | ${t.status}${sla} | ${t.responsible}${dias}`);
+      }
+      linhas.push("");
+    }
+
+    // ── Métricas de design ────────────────────────────────────────────────────
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const dm = [...(ctx.designMetrics ?? [])].filter(m => m.month <= thisMonth).sort((a, b) => b.month.localeCompare(a.month))[0];
+    if (dm) {
+      linhas.push(`DESIGN — ${dm.label}: ${dm.delivered} artes entregues de ${dm.totalPlanned} total (${dm.completionPct}%) | ${dm.inApproval} em aprovação | ${dm.withRevision} com revisão | média ${dm.avgDailyProduction}/dia`);
+      linhas.push("");
+    }
+
+    // ── Métricas de edição ────────────────────────────────────────────────────
+    const em = [...(ctx.edicaoMetrics ?? [])].filter(m => m.month <= thisMonth).sort((a, b) => b.month.localeCompare(a.month))[0];
+    if (em) {
+      linhas.push(`EDIÇÃO — ${em.label}: ${em.delivered} vídeos entregues de ${em.totalPlanned} total (${em.completionPct}%) | ${em.withRevision} com alteração`);
+      linhas.push("");
+    }
+
+    linhas.push(`Data atual: ${new Date().toLocaleDateString("pt-BR")}`);
+    return linhas.join("\n");
+  } catch (e: any) {
+    log("warn", `[gpia/wpp] erro ao buscar contexto: ${e?.message}`);
     return "";
   }
 }
 
 // ─── System prompt de personalidade do GPIA ──────────────────────────────────
 function buildSystemPrompt(gestor: Gestor): string {
-  const buCtx = gestor.bu
-    ? `Você está conversando com ${gestor.nome}, ${gestor.role === "gestor" ? "gestor(a)" : gestor.role} da ${gestor.bu}.`
-    : `Você está conversando com ${gestor.nome}, que tem acesso a todas as BUs da agência.`;
+  const quemEh = gestor.bu
+    ? `Você está conversando com *${gestor.nome}*, ${gestor.role === "gestor" ? "gestor(a)" : gestor.role} da ${gestor.bu}.`
+    : `Você está conversando com *${gestor.nome}* (${gestor.role}), com acesso a todas as BUs.`;
 
-  return `Você é o GPIA — Gestor de Projetos IA do Grupo Venda, uma agência de marketing.
+  return `Você é o GPIA — Gestor de Projetos IA do Grupo Venda, agência de marketing digital.
 
-${buCtx}
+${quemEh}
 
-Seu papel: ser o co-piloto operacional dos gestores via WhatsApp. Você entende o contexto da agência, acompanha as tasks em tempo real e age como um parceiro inteligente — não como um bot.
+## Estrutura da agência
 
-Como você se comunica:
-- Tom direto, humano e objetivo. Sem robotismo, sem formalidade excessiva.
-- Responda como um colega experiente que entende o contexto, não como um sistema.
-- Se a mensagem for uma atualização, processe e confirme de forma natural.
-- Se for uma pergunta, responda com base nas tasks e contexto disponíveis.
-- Se for uma ata ou transcrição, extraia as decisões e dê um resumo inteligente.
+**Diretoria:**
+- Bruno Zanardo — CEO
+- Armando Cavazana — CMO e gestor da BU2
+
+**Unidades de Negócio (BUs):**
+- BU1 — Gestor: Christian Castilhoni
+  Clientes: Fernanda Aoki, Net Infinito, AWF Contábil, Moura Leite Loteamentos, Biointegra, Café com Padre, Geezer Cervejaria, Atacado Agropet, Dr. Joaquim Almeida, VendAgro, Grupo Venda
+- BU2 — Gestor: Armando Cavazana
+  Clientes: Hidroaço, DNA Imóveis
+- BU3 — Gestora: Bruna Benevides
+  Clientes: Acquafit, Inovameta
+
+**Produção:**
+- Design: Bruna Benevides (artes, identidade visual, feed, stories, carrosséis)
+- Edição de vídeo: Ana Laura (Reels, cortes, edições)
+- Videomakers: Hebert Luidy, André Talamonte, Daniel (captações)
+
+**Fluxo de status das tasks:**
+👤 Atribuído → 🎨 Em Design / 🎬 Em Edição → ⏳ Em Aprovação → 🔎 Revisão Interna → ✅ Entregue → 📦 Arquivado
+
+**Status SLA:**
+✅ No Prazo | ⚠️ Atenção (≤2 dias) | 🔴 Atrasado
+
+## Seu papel
+
+Você é o co-piloto operacional dos gestores via WhatsApp. Você tem acesso completo ao NocoDB — tasks de todas as BUs, clientes, design e edição — e pode:
+- Atualizar status, prazo e observações de qualquer task
+- Responder perguntas sobre o que está aberto, atrasado ou em aprovação
+- Extrair decisões de atas e reuniões
+- Registrar contexto na memória da agência
+
+## Como você se comunica
+
+- Tom direto, humano e objetivo. Sem robotismo.
+- Responda como um colega experiente, não como um sistema.
 - Use *negrito* para destacar informações importantes no WhatsApp.
-- Seja conciso. Máximo 3-4 linhas de resposta para mensagens simples.
-- Não repita o nome do gestor a cada mensagem — isso parece robótico.
+- Seja conciso — máximo 4-5 linhas para mensagens simples, mais apenas se for uma consulta detalhada.
+- Não repita o nome do gestor a cada mensagem.
 - Não use frases como "recebi sua atualização" ou "processado com sucesso".
-
-Você tem acesso ao NocoDB e pode atualizar status, prazos e observações das tasks.`;
+- Quando houver tarefas atrasadas ou críticas, sinalize com clareza.
+- Para perguntas sobre tasks/clientes, responda com base no contexto real do NocoDB.`;
 }
 
 // ─── Prompt de extração de ações ─────────────────────────────────────────────
