@@ -58,53 +58,101 @@ interface Acao {
 }
 
 interface RespostaIA {
-  acoes:   Acao[];
-  resumo:  string;   // confirmação em linguagem natural
+  acoes:    Acao[];
+  resposta: string;
 }
 
-// ─── Prompt para o Claude ─────────────────────────────────────────────────────
-function buildPrompt(gestor: Gestor, mensagem: string, isAta: boolean): string {
-  const buCtx = gestor.bu ? `BU: ${gestor.bu}` : "Acesso: todas as BUs";
+// ─── Contexto operacional para o GPIA ────────────────────────────────────────
+async function buildContextoGestor(gestor: Gestor): Promise<string> {
+  try {
+    const tables = gestor.bu === "BU1" ? [NDB.tables.tasks_bu1]
+                 : gestor.bu === "BU2" ? [NDB.tables.tasks_bu2]
+                 : gestor.bu === "BU3" ? [NDB.tables.tasks_bu3]
+                 : [NDB.tables.tasks_bu1, NDB.tables.tasks_bu2, NDB.tables.tasks_bu3];
 
+    const FECHADOS = ["✅ Entregue","Concluído","📦 Arquivado","📦 Arquivo","❌ Cancelado"];
+    const linhas: string[] = [];
+
+    for (const tid of tables) {
+      const rows = await ndbList(tid, "(Status,isnotblank,)", 100);
+      const abertas = rows.filter(r => !FECHADOS.includes(r["Status"] ?? ""));
+      for (const r of abertas) {
+        const sla = r["Status SLA"] ? ` [${r["Status SLA"]}]` : "";
+        linhas.push(`- ${r["Tarefa"] ?? "—"} | ${r["Cliente"] ?? "—"} | ${r["Status"] ?? "—"}${sla} | Resp: ${r["Responsável"] ?? "—"} | Prazo: ${r["Prazo de Entrega"] ?? "—"}`);
+      }
+    }
+
+    return linhas.length > 0
+      ? `TASKS ABERTAS DA ${gestor.bu ?? "AGÊNCIA"}:\n${linhas.join("\n")}`
+      : `Nenhuma task aberta encontrada para ${gestor.bu ?? "a agência"}.`;
+  } catch {
+    return "";
+  }
+}
+
+// ─── System prompt de personalidade do GPIA ──────────────────────────────────
+function buildSystemPrompt(gestor: Gestor): string {
+  const buCtx = gestor.bu
+    ? `Você está conversando com ${gestor.nome}, ${gestor.role === "gestor" ? "gestor(a)" : gestor.role} da ${gestor.bu}.`
+    : `Você está conversando com ${gestor.nome}, que tem acesso a todas as BUs da agência.`;
+
+  return `Você é o GPIA — Gestor de Projetos IA do Grupo Venda, uma agência de marketing.
+
+${buCtx}
+
+Seu papel: ser o co-piloto operacional dos gestores via WhatsApp. Você entende o contexto da agência, acompanha as tasks em tempo real e age como um parceiro inteligente — não como um bot.
+
+Como você se comunica:
+- Tom direto, humano e objetivo. Sem robotismo, sem formalidade excessiva.
+- Responda como um colega experiente que entende o contexto, não como um sistema.
+- Se a mensagem for uma atualização, processe e confirme de forma natural.
+- Se for uma pergunta, responda com base nas tasks e contexto disponíveis.
+- Se for uma ata ou transcrição, extraia as decisões e dê um resumo inteligente.
+- Use *negrito* para destacar informações importantes no WhatsApp.
+- Seja conciso. Máximo 3-4 linhas de resposta para mensagens simples.
+- Não repita o nome do gestor a cada mensagem — isso parece robótico.
+- Não use frases como "recebi sua atualização" ou "processado com sucesso".
+
+Você tem acesso ao NocoDB e pode atualizar status, prazos e observações das tasks.`;
+}
+
+// ─── Prompt de extração de ações ─────────────────────────────────────────────
+function buildUserPrompt(gestor: Gestor, mensagem: string, contexto: string, isAta: boolean): string {
   const instrucao = isAta
-    ? `Você está analisando uma transcrição de reunião ou ata enviada por ${gestor.nome} (${gestor.role}, ${buCtx}).
-
-Extraia TODAS as decisões, acordos e informações relevantes que impactam tasks ou clientes.
-Para cada decisão/item, gere uma ação no array "acoes".`
-    : `Você está interpretando uma mensagem de atualização enviada por ${gestor.nome} (${gestor.role}, ${buCtx}).
-
-Interprete a intenção e gere as ações necessárias no NocoDB.`;
+    ? `O gestor enviou uma transcrição/ata. Extraia TODAS as decisões e ações operacionais.`
+    : `O gestor enviou a mensagem abaixo. Interprete a intenção e gere as ações necessárias.`;
 
   return `${instrucao}
 
-MENSAGEM:
+${contexto ? `${contexto}\n` : ""}
+MENSAGEM DE ${gestor.nome.toUpperCase()}:
 """
 ${mensagem}
 """
 
-Retorne SOMENTE um JSON válido neste formato (sem markdown, sem explicação):
+Retorne SOMENTE JSON válido (sem markdown):
 {
   "acoes": [
     {
       "tipo": "status"|"observacao"|"prazo"|"memoria"|"ignorar",
-      "tarefa": "nome parcial da task (se aplicável)",
-      "cliente": "nome do cliente (se aplicável)",
-      "bu": "BU1"|"BU2" (se aplicável),
-      "status": "novo status exato (ex: ✅ Entregue, 🔄 Em Revisão, ⏳ Pausado)",
+      "tarefa": "palavras-chave do nome da task",
+      "cliente": "nome do cliente",
+      "bu": "${gestor.bu ?? "BU1"}",
+      "status": "status exato (ex: ✅ Entregue, 🔄 Em Revisão, ⏸️ Pausado, 👤 Atribuído)",
       "obs": "texto da observação",
       "prazo": "YYYY-MM-DD",
-      "memoria": "contexto relevante para memória do GPIA",
+      "memoria": "contexto a salvar",
       "tipo_mem": "decisao"|"problema"|"padrao"|"feedback"
     }
   ],
-  "resumo": "confirmação amigável em português do que será feito (1-3 linhas)"
+  "resposta": "sua resposta conversacional para o gestor — natural, direta, sem robotismo. Se for consulta sem ação, responda com base no contexto das tasks. Se houver ações, confirme de forma humana o que foi feito."
 }
 
 Regras:
-- Use "ignorar" se a mensagem não tem ação operacional
-- Para mensagens sobre clientes/atrasos/negociações sem task específica → use tipo "memoria"
-- Para tasks, preencha "tarefa" com palavras-chave do nome da task
-- "bu" é obrigatório quando o gestor tem BU fixa; use a BU do gestor se não especificada`;
+- "ignorar" apenas se a mensagem for completamente sem sentido operacional
+- Para perguntas sobre tasks/clientes → tipo "ignorar" nas acoes mas preencha "resposta" com a informação
+- "bu" sempre ${gestor.bu ?? "conforme contexto"}
+- A "resposta" deve parecer que veio de um colega, não de um sistema`;
 }
 
 // ─── Busca task por palavras-chave na BU correta ──────────────────────────────
@@ -188,46 +236,42 @@ export async function handleGestorMessage(phone: string, mensagem: string): Prom
   let resposta: RespostaIA;
 
   try {
+    const contexto = await buildContextoGestor(gestor);
     const response = await anthropic.messages.create({
       model,
-      max_tokens: isAta ? 2000 : 800,
-      messages: [{ role: "user", content: buildPrompt(gestor, mensagem, isAta) }],
+      max_tokens: isAta ? 2000 : 1000,
+      system: buildSystemPrompt(gestor),
+      messages: [{ role: "user", content: buildUserPrompt(gestor, mensagem, contexto, isAta) }],
     });
 
     let text = response.content[0].type === "text" ? response.content[0].text.trim() : "{}";
-    // Remove markdown code block se o Claude retornar ```json ... ```
     text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-    // Extrai apenas o objeto JSON caso venha com texto antes/depois
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     text = jsonMatch ? jsonMatch[0] : "{}";
     resposta = JSON.parse(text) as RespostaIA;
   } catch (err: any) {
     log("error", `[gpia/wpp] erro ao chamar Claude: ${err?.message}`);
-    await sendTextMessage(phone, "⚠️ Não consegui processar sua mensagem. Tente novamente.");
+    await sendTextMessage(phone, "Não consegui processar sua mensagem agora. Tenta de novo?");
     return;
   }
 
-  // Aplica todas as ações
-  const resultados: string[] = [];
+  // Aplica todas as ações no NocoDB
+  const erros: string[] = [];
   for (const acao of resposta.acoes ?? []) {
     try {
-      const r = await aplicarAcao(acao);
-      if (r) resultados.push(r);
+      await aplicarAcao(acao);
       await new Promise(r => setTimeout(r, 200));
     } catch (err: any) {
       log("warn", `[gpia/wpp] erro ao aplicar ação: ${err?.message}`);
-      resultados.push(`⚠️ Erro: ${err?.message?.slice(0, 80)}`);
+      erros.push(err?.message?.slice(0, 80));
     }
   }
 
-  // Monta resposta
-  const confirmacao = [
-    `*MAX recebeu sua atualização, ${gestor.nome}* 👇`,
-    "",
-    resposta.resumo ?? "Processado.",
-    ...(resultados.length > 0 ? ["", ...resultados] : []),
-  ].join("\n");
+  // Resposta conversacional
+  const acoesReais = (resposta.acoes ?? []).filter(a => a.tipo !== "ignorar").length;
+  const texto = resposta.resposta?.trim() || "Ok, registrado.";
+  const sufixo = erros.length > 0 ? `\n\n⚠️ Alguns itens não foram atualizados: ${erros[0]}` : "";
 
-  await sendTextMessage(phone, confirmacao);
-  log("info", `[gpia/wpp] ${resultados.length} ação(ões) aplicada(s) para ${gestor.nome}`);
+  await sendTextMessage(phone, texto + sufixo);
+  log("info", `[gpia/wpp] ${acoesReais} ação(ões) aplicada(s) para ${gestor.nome}`);
 }
