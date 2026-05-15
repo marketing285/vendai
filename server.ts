@@ -36,6 +36,7 @@ app.use(express.static(path.join(ROOT, "frontend/out")));
 // Rotas dos agentes
 app.use("/api/controller", controllerRouter);
 app.use("/api/gpia", gpiaRouter);
+app.use("/webhook/gpia", gpiaRouter); // webhook WhatsApp dos gestores
 
 // Interface web
 app.get("/", (_req, res) => {

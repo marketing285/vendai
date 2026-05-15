@@ -17,7 +17,8 @@ import { buildSnapshot, analyzeScenario, BU } from "./analyzer";
 import { notifyGestor, notifyArmando, notifyBruno, escalateToArmando } from "./notify";
 import { saveMemory } from "./memory";
 import { log } from "../controller/logger";
-import { sendTextMessage } from "../../integrations/whatsapp";
+import { sendTextMessage, extractMessageText, extractSenderPhone, extractGroupId, WhatsAppWebhookPayload } from "../../integrations/whatsapp";
+import { identificarGestor, handleGestorMessage } from "./whatsapp-handler";
 
 const SCAN_INTERVAL_MS   = 60 * 60 * 1000; // 1h
 const BUS: BU[]          = ["BU1", "BU2", "BU3"];
@@ -154,8 +155,38 @@ export function startGPIA(): void {
   log("info", "[gpia] iniciado — scan a cada 1h, briefing às 08h, relatório sexta 17h");
 }
 
-// ─── Router HTTP (para testes e webhooks futuros) ─────────────────────────────
+// ─── Router HTTP ─────────────────────────────────────────────────────────────
 export const gpiaRouter = Router();
+
+// ─── Webhook WhatsApp — recebe mensagens dos gestores ────────────────────────
+gpiaRouter.post("/whatsapp", async (req, res) => {
+  res.json({ ok: true }); // responde imediatamente para o uazapiGO não retentar
+
+  const payload = req.body as WhatsAppWebhookPayload;
+
+  // Ignora mensagens enviadas pelo próprio bot
+  if (payload?.message?.fromMe || payload?.message?.wasSentByApi) return;
+
+  const phone   = extractSenderPhone(payload);
+  const groupId = extractGroupId(payload);
+  const texto   = extractMessageText(payload);
+
+  // Ignora mensagens de grupo e mensagens vazias
+  if (groupId || !texto.trim()) return;
+
+  // Verifica se é um gestor cadastrado
+  const gestor = identificarGestor(phone);
+  if (!gestor) {
+    log("info", `[gpia/wpp] mensagem ignorada — número não cadastrado: ${phone}`);
+    return;
+  }
+
+  try {
+    await handleGestorMessage(phone, texto);
+  } catch (err: any) {
+    log("error", `[gpia/wpp] erro ao processar mensagem de ${gestor.nome}: ${err?.message}`);
+  }
+});
 
 // Força briefing imediato (teste)
 gpiaRouter.post("/briefing/:bu", async (req, res) => {
