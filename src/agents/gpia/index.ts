@@ -164,15 +164,24 @@ gpiaRouter.post("/whatsapp", async (req, res) => {
 
   const payload = req.body as WhatsAppWebhookPayload;
 
+  // Log bruto para diagnóstico
+  log("info", `[gpia/wpp] payload recebido: EventType=${payload?.EventType} fromMe=${payload?.message?.fromMe} isGroup=${payload?.message?.isGroup} chatid=${payload?.message?.chatid} sender_pn=${payload?.message?.sender_pn} texto="${String(payload?.message?.text ?? payload?.message?.content ?? "").slice(0, 60)}"`);
+
   // Ignora mensagens enviadas pelo próprio bot
-  if (payload?.message?.fromMe || payload?.message?.wasSentByApi) return;
+  if (payload?.message?.fromMe || payload?.message?.wasSentByApi) {
+    log("info", "[gpia/wpp] ignorado — fromMe ou wasSentByApi");
+    return;
+  }
 
   const phone  = extractSenderPhone(payload);
   const chatid = extractGroupId(payload);
   const texto  = extractMessageText(payload);
 
   // Ignora mensagens de grupo (@g.us) e mensagens vazias
-  if (chatid.includes("@g.us") || payload?.message?.isGroup || !texto.trim()) return;
+  if (chatid.includes("@g.us") || payload?.message?.isGroup || !texto.trim()) {
+    log("info", `[gpia/wpp] ignorado — grupo ou texto vazio (chatid=${chatid})`);
+    return;
+  }
 
   // Verifica se é um gestor cadastrado
   const gestor = identificarGestor(phone);
@@ -181,11 +190,19 @@ gpiaRouter.post("/whatsapp", async (req, res) => {
     return;
   }
 
+  log("info", `[gpia/wpp] processando mensagem de ${gestor.nome} (${phone})`);
+
   try {
     await handleGestorMessage(phone, texto);
   } catch (err: any) {
     log("error", `[gpia/wpp] erro ao processar mensagem de ${gestor.nome}: ${err?.message}`);
   }
+});
+
+// Debug — retorna o payload bruto recebido (útil para diagnosticar estrutura do uazapiGO)
+gpiaRouter.post("/whatsapp/debug", (req, res) => {
+  log("info", `[gpia/wpp/debug] payload: ${JSON.stringify(req.body).slice(0, 500)}`);
+  res.json({ received: req.body });
 });
 
 // Força briefing imediato (teste)
