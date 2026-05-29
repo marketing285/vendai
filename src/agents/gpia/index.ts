@@ -18,7 +18,7 @@ import { notifyGestor, notifyArmando, notifyBruno, escalateToArmando } from "./n
 import { saveMemory } from "./memory";
 import { log } from "../controller/logger";
 import { sendTextMessage, extractMessageText, extractSenderPhone, extractGroupId, WhatsAppWebhookPayload } from "../../integrations/whatsapp";
-import { identificarGestor, handleGestorMessage } from "./whatsapp-handler";
+import { identificarGestor, handleGestorMessage, GESTORES_LIST } from "./whatsapp-handler";
 
 const SCAN_INTERVAL_MS   = 60 * 60 * 1000; // 1h
 const BUS: BU[]          = ["BU1", "BU2", "BU3"];
@@ -203,6 +203,30 @@ gpiaRouter.post("/whatsapp", async (req, res) => {
 gpiaRouter.post("/whatsapp/debug", (req, res) => {
   log("info", `[gpia/wpp/debug] payload: ${JSON.stringify(req.body).slice(0, 500)}`);
   res.json({ received: req.body });
+});
+
+// Simula mensagem de gestor — identifica o número e dispara handleGestorMessage
+// A resposta é enviada pelo WhatsApp normalmente (útil para testar o pipeline completo)
+gpiaRouter.post("/simular", async (req, res) => {
+  const { phone, mensagem } = req.body as { phone?: string; mensagem?: string };
+  if (!phone || !mensagem) {
+    res.status(400).json({ error: "Campos 'phone' e 'mensagem' obrigatórios." });
+    return;
+  }
+  const gestor = identificarGestor(phone);
+  if (!gestor) {
+    res.status(404).json({
+      error: `Número não cadastrado: ${phone}`,
+      cadastrados: GESTORES_LIST.map(g => ({ phone: g.phone, nome: g.gestor.nome })),
+    });
+    return;
+  }
+  try {
+    await handleGestorMessage(phone, mensagem);
+    res.json({ ok: true, gestor: gestor.nome, bu: gestor.bu, mensagem_enviada: mensagem });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
+  }
 });
 
 // Força briefing imediato (teste)

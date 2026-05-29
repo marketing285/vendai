@@ -63,7 +63,15 @@ export interface WhatsAppWebhookPayload {
 }
 
 export function extractMessageText(payload: WhatsAppWebhookPayload): string {
-  return payload?.message?.text ?? payload?.message?.content ?? "";
+  // Tenta todos os campos possíveis que o uazapiGO usa para texto
+  const msg = payload?.message as any;
+  return msg?.text
+    ?? msg?.content
+    ?? msg?.body
+    ?? msg?.caption
+    ?? msg?.conversation
+    ?? msg?.extendedTextMessage?.text
+    ?? "";
 }
 
 export function extractGroupId(payload: WhatsAppWebhookPayload): string {

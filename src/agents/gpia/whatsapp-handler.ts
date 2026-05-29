@@ -30,19 +30,48 @@ export interface Gestor {
   role:  "gestor" | "cmo" | "ceo";
 }
 
-const GESTORES: Record<string, Gestor> = {
-  [process.env.GPIA_PHONE_BU1     ?? "5511995320721"]: { nome: "Christian", bu: "BU1", role: "gestor" },
-  [process.env.GPIA_PHONE_ARMANDO ?? "5511994053632"]: { nome: "Armando",   bu: "BU2", role: "cmo"    },
-  [process.env.GPIA_PHONE_BU3     ?? "5514991534843"]: { nome: "Bruna",     bu: "BU3", role: "gestor" },
-  ...(process.env.GPIA_PHONE_BRUNO ? {
-    [process.env.GPIA_PHONE_BRUNO]: { nome: "Bruno", bu: null, role: "ceo" },
-  } : {}),
-};
+/** Remove todos os não-dígitos e sufixos WhatsApp */
+function limparPhone(raw: string): string {
+  return raw.replace(/@s\.whatsapp\.net$/, "").replace(/@g\.us$/, "").replace(/\D/g, "");
+}
 
-/** Retorna o Gestor correspondente ao número, ou null se desconhecido */
+/**
+ * Gera variantes do número para lidar com o 9° dígito brasileiro.
+ * Ex: "5511995320721" → ["5511995320721", "55119995320721"] (e vice-versa)
+ */
+function variantesPhone(num: string): string[] {
+  const variants = [num];
+  // Remove código do país (55) para verificar comprimento
+  if (num.startsWith("55") && num.length === 12) {
+    // 10 dígitos após 55 → adiciona 9 após DDD (posição 4)
+    variants.push(num.slice(0, 4) + "9" + num.slice(4));
+  } else if (num.startsWith("55") && num.length === 13) {
+    // 11 dígitos após 55 → remove o 9 após DDD
+    variants.push(num.slice(0, 4) + num.slice(5));
+  }
+  return variants;
+}
+
+export const GESTORES_LIST: { phone: string; gestor: Gestor }[] = [
+  { phone: limparPhone(process.env.GPIA_PHONE_BU1     ?? "5511995320721"), gestor: { nome: "Christian", bu: "BU1", role: "gestor" } },
+  { phone: limparPhone(process.env.GPIA_PHONE_ARMANDO ?? "5511994053632"), gestor: { nome: "Armando",   bu: "BU2", role: "cmo"    } },
+  { phone: limparPhone(process.env.GPIA_PHONE_BU3     ?? "5514991534843"), gestor: { nome: "Bruna",     bu: "BU3", role: "gestor" } },
+  ...(process.env.GPIA_PHONE_BRUNO
+    ? [{ phone: limparPhone(process.env.GPIA_PHONE_BRUNO), gestor: { nome: "Bruno", bu: null as BU | null, role: "ceo" as const } }]
+    : []),
+];
+
+/** Retorna o Gestor correspondente ao número, ou null se desconhecido.
+ *  Tenta variantes com/sem 9° dígito brasileiro. */
 export function identificarGestor(phone: string): Gestor | null {
-  const clean = phone.replace(/\D/g, "").replace(/@s\.whatsapp\.net$/, "");
-  return GESTORES[clean] ?? null;
+  const clean    = limparPhone(phone);
+  const variants = variantesPhone(clean);
+  for (const entry of GESTORES_LIST) {
+    if (variants.includes(entry.phone) || variantesPhone(entry.phone).includes(clean)) {
+      return entry.gestor;
+    }
+  }
+  return null;
 }
 
 // ─── Estrutura de ação retornada pelo Claude ──────────────────────────────────
