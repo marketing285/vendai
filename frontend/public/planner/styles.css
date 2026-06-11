@@ -58,14 +58,16 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  padding: 4px 0 8px;
 }
 
 .brand-logo {
-  height: 36px;
+  height: 42px;
   width: auto;
+  max-width: 100%;
   object-fit: contain;
   filter: brightness(0) invert(1);
+  display: block;
 }
 
 .brand strong,
