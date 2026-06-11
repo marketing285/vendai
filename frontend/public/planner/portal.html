@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aprovação de Conteúdo — Grupo Venda</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f2f7;
+      --surface: #ffffff;
+      --ink: #111827;
+      --muted: #667085;
+      --line: #e2e8f0;
+      --nav: #101828;
+      --teal: #0f9f8f;
+      --coral: #e15d4f;
+      --yellow: #f3b33d;
+      --green: #2b9e66;
+      --blue: #3164d4;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(16,24,40,0.08);
+    }
+
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    button { cursor: pointer; font: inherit; }
+    textarea { font: inherit; }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .portal-nav {
+      background: var(--nav);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .portal-logo {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+
+    .portal-nav-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .portal-nav-right strong {
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .portal-nav-right span {
+      color: #b8c0d2;
+      font-size: 12px;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .portal-hero {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 28px 24px 0;
+    }
+
+    .portal-hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .portal-hero-top h1 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .portal-hero-top p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .progress-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .progress-count {
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .progress-count strong {
+      color: var(--green);
+      font-size: 15px;
+    }
+
+    .progress-bar {
+      width: 140px;
+      height: 6px;
+      background: var(--line);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* ── Tabs ───────────────────────────────────────────────────── */
+    .portal-tabs {
+      display: flex;
+      gap: 0;
+      margin-top: 4px;
+    }
+
+    .tab-btn {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn.is-active {
+      color: var(--teal);
+      border-bottom-color: var(--teal);
+    }
+
+    .tab-btn:hover:not(.is-active) {
+      color: var(--ink);
+    }
+
+    /* ── Post list ──────────────────────────────────────────────── */
+    .portal-list {
+      max-width: 760px;
+      margin: 32px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Post card ──────────────────────────────────────────────── */
+    .portal-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+
+    .portal-card:hover {
+      box-shadow: 0 8px 32px rgba(16,24,40,0.12);
+    }
+
+    .portal-card.is-approved {
+      opacity: 0.75;
+    }
+
+    .card-art {
+      width: 100%;
+      height: 220px;
+      background: var(--art, linear-gradient(135deg, #111827, #0f9f8f));
+      position: relative;
+    }
+
+    .card-art-approved-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(43, 158, 102, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-art-approved-overlay svg {
+      width: 64px;
+      height: 64px;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+    }
+
+    .card-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-top h2 {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .card-meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Status badges ──────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+
+    .badge.pendente { background: #e8f0fe; color: var(--blue); }
+    .badge.aprovado { background: #e6f6ef; color: var(--green); }
+    .badge.ajuste   { background: #fef3f2; color: var(--coral); }
+
+    /* ── Caption / hashtags ─────────────────────────────────────── */
+    .card-caption p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #374151;
+    }
+
+    .card-tags {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--blue);
+    }
+
+    /* ── Slides strip ───────────────────────────────────────────── */
+    .slides-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+
+    .slide-chip {
+      flex-shrink: 0;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      min-width: 120px;
+    }
+
+    .slide-chip strong {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    /* ── Comments ───────────────────────────────────────────────── */
+    .card-comments {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .comment-thread-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .comment-item {
+      background: #f8fafc;
+      border-left: 3px solid var(--teal);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 12px;
+    }
+
+    .comment-item strong {
+      font-size: 12px;
+      color: var(--teal);
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .comment-item p {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .comment-item small {
+      font-size: 11px;
+      color: var(--muted);
+      display: block;
+      margin-top: 4px;
+    }
+
+    /* ── Comment input ──────────────────────────────────────────── */
+    .card-comment-input textarea {
+      width: 100%;
+      min-height: 68px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--ink);
+      background: #fafbfd;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+
+    .card-comment-input textarea:focus {
+      outline: none;
+      border-color: var(--teal);
+      background: #fff;
+    }
+
+    /* ── Action buttons ─────────────────────────────────────────── */
+    .card-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-approve {
+      flex: 1;
+      padding: 12px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-approve:hover { background: #238a59; }
+    .btn-approve:active { transform: scale(0.98); }
+
+    .btn-adjust {
+      flex: 1;
+      padding: 12px;
+      background: #fff;
+      color: var(--coral);
+      border: 1.5px solid var(--coral);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-adjust:hover { background: #fef3f2; }
+    .btn-adjust:active { transform: scale(0.98); }
+
+    .approved-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #e6f6ef;
+      color: var(--green);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .adjust-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fef3f2;
+      color: var(--coral);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* ── Empty state ────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 64px 16px;
+      color: var(--muted);
+    }
+
+    .empty-state svg {
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+
+    .empty-state h2 {
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+
+    /* ── Toast ──────────────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--ink);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 99px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 9999;
+      white-space: nowrap;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    .portal-footer {
+      text-align: center;
+      padding: 32px 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .portal-footer strong {
+      color: var(--ink);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .portal-nav { padding: 0 16px; }
+      .portal-hero { padding: 20px 16px 0; }
+      .tab-btn { padding: 10px 14px; font-size: 13px; }
+      .card-body { padding: 16px; }
+      .card-actions { flex-direction: column; }
+      .progress-bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="portal-nav">
+    <img class="portal-logo" src="./logo-grupo-venda.png" alt="Grupo Venda" />
+    <div class="portal-nav-right">
+      <strong id="nav-client-name">Carregando...</strong>
+      <span id="nav-period"></span>
+    </div>
+  </nav>
+
+  <div class="portal-hero">
+    <div class="portal-hero-top">
+      <div>
+        <h1 id="hero-title">Aprovação de Conteúdo</h1>
+        <p id="hero-subtitle"></p>
+      </div>
+      <div class="progress-summary">
+        <span class="progress-count"><strong id="approved-count">0</strong> / <span id="total-count">0</span> aprovados</span>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+    </div>
+    <div class="portal-tabs">
+      <button class="tab-btn is-active" data-filter="all">Todos</button>
+      <button class="tab-btn" data-filter="pending">Pendentes</button>
+      <button class="tab-btn" data-filter="approved">Aprovados</button>
+      <button class="tab-btn" data-filter="adjust">Ajustes</button>
+    </div>
+  </div>
+
+  <main class="portal-list" id="portal-list"></main>
+
+  <footer class="portal-footer">
+    Enviado por <strong>Grupo Venda</strong> · GV Planner · Aprovação privada
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function esc(v) {
+      return String(v)
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return "—";
+      return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit"}).format(new Date(iso+"T12:00:00"));
+    }
+
+    function now() {
+      return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date());
+    }
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 2800);
+    }
+
+    // ── Data ───────────────────────────────────────────────────────────────────
+    const defaultPosts = [
+      { id: 1, client: "Venda Prime", title: "Carrossel educativo: compra segura", date: "2026-06-10", time: "09:00", network: "Instagram", format: "Carrossel", status: "Enviado para aprovação", pillar: "Educativo", goal: "Gerar confiança", caption: "Comprar um imóvel premium exige método, análise e timing. Veja os critérios que protegem sua decisão e ajudam você a escolher com mais segurança.", art: "linear-gradient(135deg,#111827,#0f9f8f)", hashtags: "#imoveispremium #grupovenda #vendaprime", slides: [{title:"Capa",text:"Compra segura começa com critério."},{title:"Localização",text:"Avalie liquidez, mobilidade e potencial."},{title:"Planta",text:"Entenda se o imóvel acompanha seu momento."},{title:"Documentação",text:"Confira segurança jurídica antes de avançar."},{title:"CTA",text:"Fale com um consultor."}] },
+      { id: 2, client: "Clínica Essenza", title: "Reels: bastidores do protocolo", date: "2026-06-11", time: "14:30", network: "Instagram", format: "Reels", status: "Ajuste solicitado", pillar: "Bastidores", goal: "Humanizar", caption: "Por trás de cada protocolo existe avaliação, segurança e acompanhamento próximo.", art: "linear-gradient(135deg,#e15d4f,#f3b33d)" },
+      { id: 4, client: "Venda Prime", title: "Feed: imóvel destaque da semana", date: "2026-06-13", time: "18:00", network: "Instagram", format: "Feed", status: "Aprovado", pillar: "Comercial", goal: "Gerar lead", caption: "Uma cobertura pensada para quem busca vista, privacidade e localização estratégica.", art: "linear-gradient(135deg,#0f9f8f,#e15d4f)", hashtags: "#imoveispremium #vendaprime" },
+      { id: 5, client: "Venda Prime", title: "Story: enquete sobre bairros", date: "2026-06-14", time: "10:00", network: "Instagram", format: "Story", status: "Enviado para aprovação", pillar: "Institucional", goal: "Engajar", caption: "Qual bairro combina com seu próximo momento de vida?", art: "linear-gradient(135deg,#f3b33d,#111827)", hashtags: "#vendaprime #grupovenda" },
+      { id: 8, client: "Venda Prime", title: "Reels: autoridade do consultor", date: "2026-06-18", time: "13:00", network: "Instagram", format: "Reels", status: "Enviado para aprovação", pillar: "Autoridade", goal: "Construir confiança", caption: "O consultor ideal interpreta mercado, risco e oportunidade antes de sugerir um imóvel.", art: "linear-gradient(135deg,#3164d4,#f3b33d)", hashtags: "#grupovenda #imoveispremium" }
+    ];
+
+    function loadPosts() {
+      try { return JSON.parse(localStorage.getItem("gvPlannerPosts")) || defaultPosts; } catch { return defaultPosts; }
+    }
+
+    function savePosts(posts) {
+      localStorage.setItem("gvPlannerPosts", JSON.stringify(posts));
+    }
+
+    function loadComments() {
+      try { return JSON.parse(localStorage.getItem("gvPlannerComments")) || {}; } catch { return {}; }
+    }
+
+    function saveComments(all) {
+      localStorage.setItem("gvPlannerComments", JSON.stringify(all));
+    }
+
+    // ── URL params ─────────────────────────────────────────────────────────────
+    const params = new URLSearchParams(location.search);
+    const clientParam = params.get("client") || "Venda Prime";
+    const monthParam  = params.get("month")  || "Junho 2026";
+
+    document.getElementById("nav-client-name").textContent = clientParam;
+    document.getElementById("nav-period").textContent = monthParam;
+    document.getElementById("hero-title").textContent = "Aprovação de Conteúdo";
+    document.getElementById("hero-subtitle").textContent = `${clientParam} · ${monthParam}`;
+    document.title = `Aprovação de Conteúdo — ${clientParam}`;
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let activeFilter = "all";
+    let allPosts = loadPosts().filter(p => p.client === clientParam);
+
+    // ── Progress ───────────────────────────────────────────────────────────────
+    function updateProgress() {
+      const approved = allPosts.filter(p => p.status === "Aprovado").length;
+      const total = allPosts.length;
+      document.getElementById("approved-count").textContent = approved;
+      document.getElementById("total-count").textContent = total;
+      document.getElementById("progress-fill").style.width = total ? `${(approved/total)*100}%` : "0%";
+    }
+
+    // ── Filter ─────────────────────────────────────────────────────────────────
+    function filteredPosts() {
+      if (activeFilter === "pending")  return allPosts.filter(p => p.status === "Enviado para aprovação");
+      if (activeFilter === "approved") return allPosts.filter(p => p.status === "Aprovado");
+      if (activeFilter === "adjust")   return allPosts.filter(p => p.status === "Ajuste solicitado");
+      return allPosts;
+    }
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        activeFilter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+    function renderComments(postId) {
+      const all = loadComments();
+      const items = (all[postId] || []).filter(c => c.type !== "Interno");
+      if (!items.length) return "";
+      return `
+        <div class="card-comments">
+          <span class="comment-thread-label">Comentários</span>
+          ${items.map(c => `
+            <div class="comment-item">
+              <strong>${esc(c.author)}</strong>
+              <p>${esc(c.text)}</p>
+              <small>${c.date}</small>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderActions(post) {
+      if (post.status === "Aprovado") {
+        return `<div class="approved-banner">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#2b9e66"/><path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Aprovado por você
+        </div>`;
+      }
+      if (post.status === "Ajuste solicitado") {
+        return `
+          <div class="adjust-banner">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e15d4f"/><path d="M12 8v4m0 4h.01" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+            Ajuste solicitado — aguardando a equipe
+          </div>
+          <div class="card-comment-input">
+            <textarea id="cmt-${post.id}" placeholder="Adicionar mais detalhes ao ajuste..."></textarea>
+          </div>
+          <div class="card-actions">
+            <button class="btn-approve" onclick="approvePost(${post.id})">✓ Aprovar assim mesmo</button>
+            <button class="btn-adjust" onclick="sendAdjust(${post.id})">Reenviar ajuste</button>
+          </div>
+        `;
+      }
+      return `
+        <div class="card-comment-input">
+          <textarea id="cmt-${post.id}" placeholder="Alguma instrução ou observação? (opcional)"></textarea>
+        </div>
+        <div class="card-actions">
+          <button class="btn-approve" onclick="approvePost(${post.id})">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Aprovar
+          </button>
+          <button class="btn-adjust" onclick="sendAdjust(${post.id})">Solicitar ajuste</button>
+        </div>
+      `;
+    }
+
+    function renderSlides(post) {
+      if (post.format !== "Carrossel" || !post.slides?.length) return "";
+      return `
+        <div>
+          <span class="comment-thread-label">${post.slides.length} lâminas</span>
+          <div class="slides-strip" style="margin-top:8px">
+            ${post.slides.map((s,i) => `
+              <div class="slide-chip">
+                <strong>Lâmina ${i+1}</strong>
+                ${esc(s.title || "")} — ${esc(s.text || "")}
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      const list = document.getElementById("portal-list");
+      const posts = filteredPosts();
+
+      if (!posts.length) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" stroke="#667085" stroke-width="1.5" stroke-linecap="round"/><rect x="3" y="3" width="18" height="18" rx="4" stroke="#667085" stroke-width="1.5"/></svg>
+            <h2>Nenhum conteúdo aqui</h2>
+            <p>Tudo certo por esta aba.</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = posts.map(post => {
+        const isApproved = post.status === "Aprovado";
+        return `
+          <article class="portal-card ${isApproved ? "is-approved" : ""}">
+            <div class="card-art" style="--art:${post.art}">
+              ${isApproved ? `
+                <div class="card-art-approved-overlay">
+                  <svg width="64" height="64" fill="none" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="rgba(43,158,102,0.85)"/><path d="M20 33l9 9 16-17" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              ` : ""}
+            </div>
+            <div class="card-body">
+              <div class="card-top">
+                <div>
+                  <h2>${esc(post.title)}</h2>
+                  <p class="card-meta">📅 ${fmtDate(post.date)} às ${esc(post.time)} · ${esc(post.network)} · ${esc(post.format)}</p>
+                </div>
+                ${post.status === "Aprovado" ? `<span class="badge aprovado">✓ Aprovado</span>` :
+                  post.status === "Ajuste solicitado" ? `<span class="badge ajuste">Ajuste</span>` :
+                  `<span class="badge pendente">Aguardando</span>`}
+              </div>
+
+              <div class="card-caption">
+                <p>${esc(post.caption || "")}</p>
+                ${post.hashtags ? `<p class="card-tags">${esc(post.hashtags)}</p>` : ""}
+              </div>
+
+              ${renderSlides(post)}
+              ${renderComments(post.id)}
+              ${renderActions(post)}
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      updateProgress();
+    }
+
+    // ── Actions ────────────────────────────────────────────────────────────────
+    function approvePost(id) {
+      const posts = loadPosts();
+      const post = posts.find(p => p.id === id);
+      if (!post) return;
+
+      const cmtEl = document.getElementById(`cmt-${id}`);
+      const txt = cmtEl?.value.trim();
+      if (txt) {
+        const all = loadComments();
+        if (!all[id]) all[id] = [];
+        all[id].push({ author: "Cliente", text: txt, type: "Cliente", date: now() });
+        saveComments(all);
+      }
+
+      post.status = "Aprovado";
+      savePosts(posts);
+      allPosts = posts.filter(p => p.client === clientParam);
+      render();
+      toast("Conteúdo aprovado! A equipe foi notificada.");
+    }
+
+    function sendAdjust(id) {
+      const posts = loadPosts();
+      const post = posts.find(p => p.id === id);
+      if (!post) return;
+
+      const cmtEl = document.getElementById(`cmt-${id}`);
+      const txt = cmtEl?.value.trim();
+      if (!txt) { toast("Descreva o ajuste desejado antes de enviar."); cmtEl?.focus(); return; }
+
+      const all = loadComments();
+      if (!all[id]) all[id] = [];
+      all[id].push({ author: "Cliente", text: txt, type: "Cliente", date: now() });
+      saveComments(all);
+
+      post.status = "Ajuste solicitado";
+      savePosts(posts);
+      allPosts = posts.filter(p => p.client === clientParam);
+      render();
+      toast("Ajuste enviado! A equipe vai revisar em breve.");
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    if (!allPosts.length) {
+      document.getElementById("portal-list").innerHTML = `
+        <div class="empty-state">
+          <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" stroke="#667085" stroke-width="1.5" stroke-linecap="round"/><rect x="3" y="3" width="18" height="18" rx="4" stroke="#667085" stroke-width="1.5"/></svg>
+          <h2>Nenhum conteúdo encontrado</h2>
+          <p>Verifique o link enviado pela equipe ou aguarde os conteúdos serem cadastrados.</p>
+        </div>
+      `;
+      document.getElementById("approved-count").textContent = "0";
+      document.getElementById("total-count").textContent = "0";
+    } else {
+      render();
+    }
+  </script>
+</body>
+</html>

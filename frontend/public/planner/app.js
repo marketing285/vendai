@@ -566,12 +566,16 @@ document.querySelector("#new-post-btn").addEventListener("click", () => {
 });
 
 document.querySelector("#copy-share-btn").addEventListener("click", () => {
-  const link = "https://gvplanner.com.br/c/venda-prime/junho-2026";
+  const client = clientFilter.value === "all" ? posts[0]?.client || "Cliente" : clientFilter.value;
+  const month = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date());
+  const base = window.location.href.replace(/[^/]*$/, "");
+  const link = `${base}portal.html?client=${encodeURIComponent(client)}&month=${encodeURIComponent(month.charAt(0).toUpperCase() + month.slice(1))}`;
   navigator.clipboard?.writeText(link).catch(() => {});
-  document.querySelector("#copy-share-btn").textContent = "Link copiado";
+  document.querySelector("#copy-share-btn").textContent = "Link copiado!";
+  document.querySelector("#sharing .share-link input").value = link;
   setTimeout(() => {
     document.querySelector("#copy-share-btn").textContent = "Copiar link de aprovação";
-  }, 1800);
+  }, 2000);
 });
 
 document.querySelector("#sync-meta-btn")?.addEventListener("click", () => {
