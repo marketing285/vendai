@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GV Planner - Planejamento inteligente de conteúdo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="./logo-grupo-venda.png" alt="Grupo Venda" class="brand-logo" />
+          <div>
+            <strong>GV Planner</strong>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Navegação principal">
+          <button class="nav-item is-active" data-section="dashboard"><span>▦</span> Dashboard</button>
+          <button class="nav-item" data-section="clients"><span>◫</span> Clientes</button>
+          <button class="nav-item" data-section="builder"><span>✎</span> Construir Post</button>
+          <button class="nav-item" data-section="calendar"><span>□</span> Calendário</button>
+          <button class="nav-item" data-section="feed"><span>▩</span> Feed Preview</button>
+          <button class="nav-item" data-section="approval"><span>◎</span> Central de Aprovação</button>
+          <button class="nav-item" data-section="sharing"><span>◇</span> Portal do Cliente</button>
+          <button class="nav-item" data-section="strategy"><span>◌</span> Visão Estratégica</button>
+          <button class="nav-item" data-section="files"><span>▤</span> Biblioteca</button>
+          <button class="nav-item" data-section="reports"><span>▥</span> Relatórios</button>
+        </nav>
+
+        <div class="profile-card">
+          <small>Perfil atual</small>
+          <strong>Administrador</strong>
+          <span>Acesso total a clientes, aprovações e configurações.</span>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Planejamento inteligente de conteúdo</p>
+            <h1 id="page-title">Dashboard</h1>
+          </div>
+          <div class="topbar-actions">
+            <label class="search">
+              <span>⌕</span>
+              <input id="global-search" type="search" placeholder="Buscar cliente, post ou responsável" />
+            </label>
+            <button class="icon-button" title="Notificações">◐</button>
+            <button class="primary-button" id="new-post-btn">+ Novo post</button>
+          </div>
+        </header>
+
+        <section class="toolbar" aria-label="Filtros">
+          <select id="client-filter">
+            <option value="all">Todos os clientes</option>
+            <option value="Venda Prime">Venda Prime</option>
+            <option value="Clínica Essenza">Clínica Essenza</option>
+            <option value="Orbit Tech">Orbit Tech</option>
+          </select>
+          <select id="status-filter">
+            <option value="all">Todos os status</option>
+            <option value="Ideia">Ideia</option>
+            <option value="Em produção">Em produção</option>
+            <option value="Em revisão interna">Em revisão interna</option>
+            <option value="Enviado para aprovação">Enviado para aprovação</option>
+            <option value="Ajuste solicitado">Ajuste solicitado</option>
+            <option value="Aprovado">Aprovado</option>
+            <option value="Agendado">Agendado</option>
+            <option value="Publicado">Publicado</option>
+          </select>
+          <select id="network-filter">
+            <option value="all">Todas as redes</option>
+            <option value="Instagram">Instagram</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Facebook">Facebook</option>
+          </select>
+          <button class="ghost-button" id="clear-filters">Limpar filtros</button>
+        </section>
+
+        <section id="dashboard" class="view is-visible">
+          <div class="metric-grid">
+            <article class="metric-card"><span>Clientes ativos</span><strong>18</strong><small>+3 no trimestre</small></article>
+            <article class="metric-card"><span>Posts do mês</span><strong>142</strong><small>93 planejados</small></article>
+            <article class="metric-card warning"><span>Aguardando aprovação</span><strong>26</strong><small>Tempo médio: 2,4 dias</small></article>
+            <article class="metric-card success"><span>Aprovados</span><strong>74</strong><small>Taxa de aprovação: 82%</small></article>
+            <article class="metric-card"><span>Publicados</span><strong>51</strong><small>12 nesta semana</small></article>
+            <article class="metric-card danger"><span>Ajustes pendentes</span><strong>9</strong><small>3 vencem hoje</small></article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel chart-panel">
+              <div class="panel-head">
+                <h2>Gráfico mensal</h2>
+                <span>Junho 2026</span>
+              </div>
+              <div class="bar-chart" aria-label="Conteúdos planejados, publicados e aprovados">
+                <div style="--h: 82%"><span></span><b>Planejados</b></div>
+                <div style="--h: 48%"><span></span><b>Publicados</b></div>
+                <div style="--h: 66%"><span></span><b>Aprovados</b></div>
+                <div style="--h: 22%"><span></span><b>Ajustes</b></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Próximas publicações</h2>
+                <button class="text-button" data-section-jump="calendar">Ver calendário</button>
+              </div>
+              <div class="upcoming-list" id="upcoming-list"></div>
+            </article>
+
+            <article class="panel activity-panel">
+              <div class="panel-head">
+                <h2>Atividades recentes</h2>
+                <span>Atualizado agora</span>
+              </div>
+              <div class="activity-list">
+                <p><strong>Marina</strong> aprovou o Reels de lançamento da Venda Prime.</p>
+                <p><strong>Cliente Essenza</strong> solicitou ajuste na legenda institucional.</p>
+                <p><strong>João</strong> alterou a data do carrossel educativo para 14/06.</p>
+                <p><strong>Bianca</strong> enviou 4 artes para aprovação.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="clients" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Gestão de clientes</h2>
+              <p>Cadastro, canais sociais, responsáveis e dados estratégicos em um só lugar.</p>
+            </div>
+            <button class="primary-button">+ Cadastrar cliente</button>
+          </div>
+          <div class="client-grid">
+            <article class="client-card">
+              <div class="client-logo coral">VP</div>
+              <h3>Venda Prime</h3>
+              <p>Imobiliário premium</p>
+              <dl>
+                <div><dt>Responsável</dt><dd>Ana Costa</dd></div>
+                <div><dt>Status</dt><dd>Contrato ativo</dd></div>
+                <div><dt>Instagram</dt><dd>@vendaprime</dd></div>
+                <div><dt>Início</dt><dd>10/01/2026</dd></div>
+              </dl>
+            </article>
+            <article class="client-card">
+              <div class="client-logo teal">CE</div>
+              <h3>Clínica Essenza</h3>
+              <p>Saúde e estética</p>
+              <dl>
+                <div><dt>Responsável</dt><dd>Dr. Renato Alves</dd></div>
+                <div><dt>Status</dt><dd>Contrato ativo</dd></div>
+                <div><dt>Site</dt><dd>essenza.com.br</dd></div>
+                <div><dt>Início</dt><dd>04/03/2026</dd></div>
+              </dl>
+            </article>
+            <article class="client-card">
+              <div class="client-logo ink">OT</div>
+              <h3>Orbit Tech</h3>
+              <p>SaaS B2B</p>
+              <dl>
+                <div><dt>Responsável</dt><dd>Lucas Meyer</dd></div>
+                <div><dt>Status</dt><dd>Onboarding</dd></div>
+                <div><dt>LinkedIn</dt><dd>/company/orbit-tech</dd></div>
+                <div><dt>Início</dt><dd>28/05/2026</dd></div>
+              </dl>
+            </article>
+          </div>
+
+          <article class="panel strategy-profile">
+            <div class="panel-head">
+              <h2>Perfil estratégico do cliente</h2>
+              <span>Venda Prime</span>
+            </div>
+            <div class="strategy-grid">
+              <div><h3>Posicionamento</h3><p>Curadoria imobiliária premium para investidores e famílias em expansão.</p></div>
+              <div><h3>Público-alvo</h3><p>Empresários, investidores e compradores de alto padrão.</p></div>
+              <div><h3>Tom de voz</h3><p>Consultivo, seguro, elegante e direto.</p></div>
+              <div><h3>Objetivos</h3><p>Gerar autoridade, aumentar leads qualificados e sustentar percepção premium.</p></div>
+              <div><h3>Diferenciais</h3><p>Atendimento consultivo, carteira exclusiva e inteligência de mercado.</p></div>
+              <div><h3>Pilares</h3><p>Institucional, Educativo, Comercial, Bastidores e Autoridade.</p></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="builder" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Construir Post</h2>
+              <p>Ambiente do gestor para montar o conteúdo completo antes de enviar ao cliente.</p>
+            </div>
+            <div class="builder-actions">
+              <button class="ghost-button" id="save-draft-btn">Salvar rascunho</button>
+              <button class="primary-button" id="send-approval-btn">Enviar para aprovação</button>
+            </div>
+          </div>
+
+          <div class="builder-layout">
+            <form class="post-builder" id="post-builder-form">
+              <article class="panel">
+                <div class="panel-head">
+                  <h2>Informações gerais</h2>
+                  <span>Status inicial: Ideia</span>
+                </div>
+                <div class="form-grid">
+                  <label>Cliente
+                    <select id="builder-client">
+                      <option>Venda Prime</option>
+                      <option>Clínica Essenza</option>
+                      <option>Orbit Tech</option>
+                    </select>
+                  </label>
+                  <label>Nome interno
+                    <input id="builder-title" value="Carrossel educativo: compra segura" />
+                  </label>
+                  <label>Data
+                    <input id="builder-date" type="date" value="2026-06-20" />
+                  </label>
+                  <label>Horário
+                    <input id="builder-time" type="time" value="09:00" />
+                  </label>
+                  <label>Rede social
+                    <select id="builder-network">
+                      <option>Instagram</option>
+                      <option>LinkedIn</option>
+                      <option>TikTok</option>
+                      <option>Facebook</option>
+                    </select>
+                  </label>
+                  <label>Formato
+                    <select id="builder-format">
+                      <option>Feed</option>
+                      <option selected>Carrossel</option>
+                      <option>Reels</option>
+                      <option>Story</option>
+                      <option>LinkedIn</option>
+                      <option>TikTok</option>
+                      <option>Facebook</option>
+                      <option>Anúncio</option>
+                    </select>
+                  </label>
+                  <label class="carousel-only">Número de lâminas
+                    <input id="builder-slides-count" type="number" min="2" max="20" value="5" />
+                  </label>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <h2>Estratégia e produção</h2>
+                  <span>Briefing interno</span>
+                </div>
+                <div class="form-grid">
+                  <label>Tema
+                    <input id="builder-theme" value="Critérios para escolher imóvel premium" />
+                  </label>
+                  <label>Objetivo
+                    <input id="builder-goal" value="Gerar confiança e leads qualificados" />
+                  </label>
+                  <label>Pilar
+                    <select id="builder-pillar">
+                      <option>Institucional</option>
+                      <option selected>Educativo</option>
+                      <option>Comercial</option>
+                      <option>Bastidores</option>
+                      <option>Autoridade</option>
+                    </select>
+                  </label>
+                  <label>Categoria
+                    <select id="builder-category">
+                      <option>Hero</option>
+                      <option selected>Hub</option>
+                      <option>Help</option>
+                    </select>
+                  </label>
+                  <label>Designer responsável
+                    <input value="Bianca" />
+                  </label>
+                  <label>Redator responsável
+                    <input value="João" />
+                  </label>
+                  <label>Gestor responsável
+                    <input value="Marina" />
+                  </label>
+                  <label>Status
+                    <select id="builder-status">
+                      <option>Ideia</option>
+                      <option selected>Em produção</option>
+                      <option>Em revisão interna</option>
+                      <option>Enviado para aprovação</option>
+                    </select>
+                  </label>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <h2>Conteúdo</h2>
+                  <span>Texto e orientação visual</span>
+                </div>
+                <div class="form-stack">
+                  <label>Copy da arte
+                    <textarea id="builder-art-copy">Seu próximo imóvel precisa combinar localização, liquidez e qualidade de vida.</textarea>
+                  </label>
+                  <div class="carousel-content carousel-only">
+                    <div class="panel-head">
+                      <h2>Conteúdo por lâmina</h2>
+                      <span>Gerado pelo número de lâminas</span>
+                    </div>
+                    <div class="slides-list" id="slides-list"></div>
+                  </div>
+                  <label>Legenda
+                    <textarea id="builder-caption">Comprar um imóvel premium exige método, análise e timing. Veja os critérios que protegem sua decisão e ajudam você a escolher com mais segurança.</textarea>
+                  </label>
+                  <label>CTA
+                    <input id="builder-cta" value="Fale com um consultor" />
+                  </label>
+                  <label>Hashtags
+                    <input id="builder-hashtags" value="#imoveispremium #grupovenda #vendaprime" />
+                  </label>
+                  <label>Observações para o cliente
+                    <textarea>Conteúdo pensado para reforçar autoridade consultiva e gerar conversas qualificadas no direct.</textarea>
+                  </label>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <h2>Arquivos</h2>
+                  <span>JPG, PNG, MP4, PDF, PSD ou AI</span>
+                </div>
+                <label class="upload-zone">
+                  <input id="builder-file" type="file" accept=".jpg,.jpeg,.png,.mp4,.pdf,.psd,.ai" />
+                  <strong>Adicionar arte ou arquivo de produção</strong>
+                  <span>Arraste o arquivo no produto final ou selecione manualmente.</span>
+                </label>
+              </article>
+            </form>
+
+            <aside class="builder-preview">
+              <article class="panel sticky-preview">
+                <div class="panel-head">
+                  <h2>Prévia do post</h2>
+                  <span id="preview-status" class="status producao">Em produção</span>
+                </div>
+                <div class="carousel-viewer" id="carousel-viewer">
+                  <button class="slide-nav prev" type="button" id="prev-slide" title="Lâmina anterior">‹</button>
+                  <div class="preview-art" id="preview-art">
+                    <span id="preview-art-copy">Seu próximo imóvel precisa combinar localização, liquidez e qualidade de vida.</span>
+                  </div>
+                  <button class="slide-nav next" type="button" id="next-slide" title="Próxima lâmina">›</button>
+                </div>
+                <div class="preview-slides carousel-only" id="preview-slides"></div>
+                <div class="slide-detail carousel-only">
+                  <strong id="active-slide-title">Capa</strong>
+                  <p id="active-slide-text">Gancho principal do carrossel.</p>
+                </div>
+                <div class="preview-meta">
+                  <strong id="preview-title">Carrossel educativo: compra segura</strong>
+                  <span id="preview-client">Venda Prime</span>
+                  <span id="preview-schedule">20/06 às 09:00 · Instagram · Carrossel</span>
+                </div>
+                <p id="preview-caption">Comprar um imóvel premium exige método, análise e timing. Veja os critérios que protegem sua decisão e ajudam você a escolher com mais segurança.</p>
+                <p class="preview-tags" id="preview-tags">#imoveispremium #grupovenda #vendaprime</p>
+              </article>
+            </aside>
+          </div>
+        </section>
+
+        <section id="calendar" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Calendário editorial</h2>
+              <p>Gestores podem arrastar posts entre dias para realocar o calendário com rapidez.</p>
+            </div>
+            <div class="segmented">
+              <button class="is-selected">Mês</button>
+              <button>Semana</button>
+              <button>Lista</button>
+              <button>Kanban</button>
+            </div>
+          </div>
+          <div class="calendar-grid" id="calendar-grid"></div>
+          <div class="kanban-board" id="kanban-board"></div>
+        </section>
+
+        <section id="feed" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Feed Preview</h2>
+              <p>Simulação em 3 colunas do Instagram para organizar mês, próximos posts e publicados.</p>
+            </div>
+            <div class="segmented">
+              <button class="is-selected">Mês completo</button>
+              <button>Aprovados</button>
+              <button>Publicados</button>
+            </div>
+          </div>
+          <div class="feed-layout">
+            <div class="phone-frame">
+              <div class="phone-head">
+                <strong>@vendaprime</strong>
+                <span>Junho</span>
+              </div>
+              <div class="instagram-grid" id="instagram-grid"></div>
+            </div>
+            <article class="panel">
+              <h2>Ordem visual</h2>
+              <p class="panel-copy">Arraste no produto final para reorganizar a sequência. Neste protótipo, clique em qualquer arte para abrir a visualização completa do post.</p>
+              <div class="approval-summary">
+                <div><strong>12</strong><span>Posts no grid</span></div>
+                <div><strong>8</strong><span>Aprovados</span></div>
+                <div><strong>4</strong><span>Próximos</span></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="approval" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Central de Aprovação</h2>
+              <p>Experiência inspirada no Figma: arte ampliada, comentários pontuais e aprovação em um clique.</p>
+            </div>
+            <button class="primary-button">Enviar lote para cliente</button>
+          </div>
+          <div class="approval-workspace">
+            <div class="art-board" id="approval-art">
+              <span class="pin" style="left: 64%; top: 35%">1</span>
+              <span class="pin" style="left: 31%; top: 68%">2</span>
+              <div class="art-label">Venda Prime<br />Carrossel educativo</div>
+            </div>
+            <aside class="comment-panel">
+              <h3>Comentários</h3>
+              <div class="comment"><strong>Cliente</strong><p>Ajustar chamada para ficar mais objetiva no primeiro card.</p></div>
+              <div class="comment internal"><strong>Interno</strong><p>Designer: revisar contraste do CTA antes de reenviar.</p></div>
+              <button class="primary-button full">Aprovar conteúdo</button>
+              <button class="outline-button full">Solicitar ajuste</button>
+            </aside>
+          </div>
+        </section>
+
+        <section id="sharing" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Portal do Cliente</h2>
+              <p>Compartilhamento seguro para aprovação manual, sem conexão direta com contas Meta nesta fase.</p>
+            </div>
+            <button class="primary-button" id="copy-share-btn">Copiar link de aprovação</button>
+          </div>
+
+          <div class="sharing-layout">
+            <article class="panel share-card">
+              <div class="panel-head">
+                <h2>Link do cliente</h2>
+                <span class="status aprovado">Pronto para envio</span>
+              </div>
+              <label class="share-link">
+                <span>URL privada</span>
+                <input readonly value="https://gvplanner.com.br/c/venda-prime/junho-2026" />
+              </label>
+              <div class="approval-summary">
+                <div><strong>16</strong><span>Conteúdos enviados</span></div>
+                <div><strong>11</strong><span>Aprovados</span></div>
+                <div><strong>5</strong><span>Pendentes</span></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Permissões do cliente</h2>
+                <span>Visualização restrita</span>
+              </div>
+              <div class="permission-list">
+                <span>Visualizar calendário</span>
+                <span>Visualizar feed preview</span>
+                <span>Comentar conteúdos</span>
+                <span>Aprovar posts</span>
+                <span>Solicitar ajustes</span>
+                <span>Baixar arquivos liberados</span>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel approval-pipeline">
+            <div class="panel-head">
+              <h2>Fluxo manual do MVP</h2>
+              <span>Fase 1</span>
+            </div>
+            <div class="flow-grid">
+              <div><strong>1</strong><span>Gestor cadastra o post, sobe arte, legenda, CTA, hashtags e observações.</span></div>
+              <div><strong>2</strong><span>Conteúdo entra como enviado para aprovação no portal privado do cliente.</span></div>
+              <div><strong>3</strong><span>Cliente aprova, comenta ou solicita ajuste sem editar o conteúdo original.</span></div>
+              <div><strong>4</strong><span>Equipe publica manualmente nas redes e marca o post como publicado.</span></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Conteúdos aguardando cliente</h2>
+              <span>Venda Prime</span>
+            </div>
+            <div class="client-approval-list">
+              <button class="post-row" data-post-id="1">
+                <span class="thumb" style="--art:linear-gradient(135deg, #111827, #0f9f8f)"></span>
+                <span><strong>Carrossel educativo: compra segura</strong><span>Enviado hoje às 09:00</span></span>
+                <span class="status enviado">Aguardando</span>
+              </button>
+              <button class="post-row" data-post-id="4">
+                <span class="thumb" style="--art:linear-gradient(135deg, #0f9f8f, #e15d4f)"></span>
+                <span><strong>Feed: imóvel destaque da semana</strong><span>Aprovado pelo cliente</span></span>
+                <span class="status aprovado">Aprovado</span>
+              </button>
+              <button class="post-row" data-post-id="2">
+                <span class="thumb" style="--art:linear-gradient(135deg, #e15d4f, #f3b33d)"></span>
+                <span><strong>Reels: bastidores do protocolo</strong><span>Cliente pediu ajuste de legenda</span></span>
+                <span class="status ajuste">Ajuste</span>
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section id="strategy" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Visão Estratégica</h2>
+              <p>O mês inteiro em uma tela, com objetivo, pilar, rede social, status e equilíbrio editorial.</p>
+            </div>
+            <button class="ghost-button">Exportar visão</button>
+          </div>
+          <div class="strategy-layout">
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Equilíbrio editorial</h2>
+                <span>Venda Prime</span>
+              </div>
+              <div class="donut-row">
+                <div class="donut" aria-label="Distribuição de pilares"></div>
+                <div class="legend">
+                  <span><i class="lg-coral"></i> 40% Institucional</span>
+                  <span><i class="lg-teal"></i> 30% Educativo</span>
+                  <span><i class="lg-yellow"></i> 20% Comercial</span>
+                  <span><i class="lg-ink"></i> 10% Autoridade</span>
+                </div>
+              </div>
+            </article>
+            <article class="panel monthly-map" id="monthly-map"></article>
+          </div>
+        </section>
+
+        <section id="meta" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Integrações Meta</h2>
+              <p>Conexão do app administrador do Grupo Venda com os ativos dos clientes abaixo da BM.</p>
+            </div>
+            <button class="primary-button" id="sync-meta-btn">Sincronizar ativos</button>
+          </div>
+
+          <div class="meta-overview">
+            <article class="panel meta-status">
+              <div class="panel-head">
+                <h2>App Grupo Venda</h2>
+                <span class="status aprovado">Ativo e publicado</span>
+              </div>
+              <dl>
+                <div><dt>Business Manager</dt><dd>Grupo Venda BM</dd></div>
+                <div><dt>Tipo de acesso</dt><dd>System User</dd></div>
+                <div><dt>Permissões</dt><dd>Aprovadas</dd></div>
+                <div><dt>Última sincronização</dt><dd id="sync-time">09/06/2026 16:42</dd></div>
+              </dl>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <h2>Permissões disponíveis</h2>
+                <span>Graph API</span>
+              </div>
+              <div class="permission-list">
+                <span>business_management</span>
+                <span>pages_show_list</span>
+                <span>pages_read_engagement</span>
+                <span>instagram_basic</span>
+                <span>instagram_content_publish</span>
+                <span>instagram_manage_insights</span>
+                <span>ads_read</span>
+                <span>ads_management</span>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Ativos por cliente</h2>
+              <span>Clientes abaixo da BM Grupo Venda</span>
+            </div>
+            <div class="asset-table">
+              <div class="asset-row asset-head">
+                <span>Cliente</span>
+                <span>Página</span>
+                <span>Instagram</span>
+                <span>Conta de anúncio</span>
+                <span>Status</span>
+              </div>
+              <div class="asset-row">
+                <strong>Venda Prime</strong>
+                <span>Venda Prime Oficial</span>
+                <span>@vendaprime</span>
+                <span>act_9482...</span>
+                <span class="status aprovado">Sincronizado</span>
+              </div>
+              <div class="asset-row">
+                <strong>Clínica Essenza</strong>
+                <span>Clínica Essenza</span>
+                <span>@clinicaessenza</span>
+                <span>act_7210...</span>
+                <span class="status aprovado">Sincronizado</span>
+              </div>
+              <div class="asset-row">
+                <strong>Orbit Tech</strong>
+                <span>Orbit Tech Brasil</span>
+                <span>@orbittechbr</span>
+                <span>act_4319...</span>
+                <span class="status enviado">Revisar vínculo</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel integration-flow">
+            <h2>Fluxo técnico recomendado</h2>
+            <div class="flow-grid">
+              <div><strong>1</strong><span>GV Planner chama a Graph API usando token seguro do System User.</span></div>
+              <div><strong>2</strong><span>Backend lista páginas, contas Instagram e contas de anúncio da BM.</span></div>
+              <div><strong>3</strong><span>Administrador vincula cada ativo ao cliente correto dentro do GV Planner.</span></div>
+              <div><strong>4</strong><span>Posts aprovados podem virar publicação, agendamento ou relatório real da Meta.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="files" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Biblioteca de arquivos</h2>
+              <p>Pastas por cliente para logos, fotos, vídeos, artes, referências, briefings e documentos.</p>
+            </div>
+            <button class="primary-button">Upload</button>
+          </div>
+          <div class="folder-grid">
+            <article><strong>Logos</strong><span>12 arquivos</span></article>
+            <article><strong>Fotos</strong><span>84 arquivos</span></article>
+            <article><strong>Vídeos</strong><span>19 arquivos</span></article>
+            <article><strong>Artes</strong><span>46 arquivos</span></article>
+            <article><strong>Referências</strong><span>27 arquivos</span></article>
+            <article><strong>Briefings</strong><span>8 arquivos</span></article>
+            <article><strong>Documentos</strong><span>15 arquivos</span></article>
+          </div>
+        </section>
+
+        <section id="reports" class="view">
+          <div class="section-head">
+            <div>
+              <h2>Relatórios</h2>
+              <p>Indicadores de produção, aprovação, publicação e desempenho operacional.</p>
+            </div>
+            <div class="segmented">
+              <button class="is-selected">PDF</button>
+              <button>Excel</button>
+            </div>
+          </div>
+          <div class="report-grid">
+            <article class="panel"><h3>Conteúdos criados</h3><strong>142</strong><span>+18% vs. maio</span></article>
+            <article class="panel"><h3>Conteúdos aprovados</h3><strong>74</strong><span>82% de taxa</span></article>
+            <article class="panel"><h3>Conteúdos publicados</h3><strong>51</strong><span>96% no prazo</span></article>
+            <article class="panel"><h3>Tempo médio de aprovação</h3><strong>2,4 dias</strong><span>Meta: 2 dias</span></article>
+          </div>
+          <article class="panel network-report">
+            <h2>Conteúdos por rede social</h2>
+            <div class="horizontal-bars">
+              <div><span>Instagram</span><b style="width: 88%"></b><strong>88</strong></div>
+              <div><span>LinkedIn</span><b style="width: 42%"></b><strong>42</strong></div>
+              <div><span>TikTok</span><b style="width: 31%"></b><strong>31</strong></div>
+              <div><span>Facebook</span><b style="width: 24%"></b><strong>24</strong></div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="post-modal" class="post-modal">
+      <form method="dialog">
+        <button class="modal-close" title="Fechar">×</button>
+      </form>
+      <div class="modal-body">
+        <div class="modal-art" id="modal-art"></div>
+        <div class="modal-info">
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow" id="modal-client"></p>
+              <h2 id="modal-title"></h2>
+            </div>
+            <span id="modal-status" class="status enviado">Enviado para aprovação</span>
+          </div>
+
+          <div class="network-strip" aria-label="Redes sociais disponíveis">
+            <span class="network-chip is-active" data-network-name="Instagram"><i>IG</i>Instagram</span>
+            <span class="network-chip" data-network-name="LinkedIn"><i>IN</i>LinkedIn</span>
+            <span class="network-chip" data-network-name="TikTok"><i>TT</i>TikTok</span>
+            <span class="network-chip" data-network-name="Facebook"><i>FB</i>Facebook</span>
+          </div>
+
+          <div class="post-summary-grid">
+            <div>
+              <span>Data</span>
+              <strong id="modal-date">09/06</strong>
+            </div>
+            <div>
+              <span>Horário</span>
+              <strong id="modal-time">14:30</strong>
+            </div>
+            <div>
+              <span>Formato</span>
+              <strong id="modal-format">Reels</strong>
+            </div>
+            <div>
+              <span>Rede</span>
+              <strong id="modal-network">Instagram</strong>
+            </div>
+          </div>
+
+          <div class="post-content-block">
+            <span>Legenda</span>
+            <p id="modal-caption"></p>
+          </div>
+
+          <div class="post-content-grid">
+            <div>
+              <span>CTA</span>
+              <strong id="modal-cta">Falar com consultor</strong>
+            </div>
+            <div>
+              <span>Hashtags</span>
+              <strong id="modal-hashtags">#grupovenda #conteudoestrategico</strong>
+            </div>
+          </div>
+
+          <div class="post-content-grid">
+            <div>
+              <span>Pilar</span>
+              <strong id="modal-pillar">Educativo</strong>
+            </div>
+            <div>
+              <span>Objetivo</span>
+              <strong id="modal-goal">Gerar confiança</strong>
+            </div>
+          </div>
+
+          <div class="modal-carousel is-hidden" id="modal-carousel">
+            <div class="panel-head">
+              <h3>Lâminas do carrossel</h3>
+              <span id="modal-slide-count">0 lâminas</span>
+            </div>
+            <div class="modal-slide-strip" id="modal-slide-strip"></div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="primary-button" data-modal-action="Aprovado">Aprovar</button>
+            <button class="outline-button" data-modal-action="Ajuste solicitado">Solicitar ajuste</button>
+            <button class="ghost-button">Editar</button>
+            <button class="ghost-button">Duplicar</button>
+            <button class="danger-button">Excluir</button>
+          </div>
+          <h3>Comentários</h3>
+          <div class="comment"><strong>Cliente</strong><p>Gostei da direção. Só revisar o CTA final.</p></div>
+          <h3>Histórico</h3>
+          <ul class="history">
+            <li>João alterou a legenda - 09/06/2026 10:18</li>
+            <li>Maria enviou para aprovação - 09/06/2026 11:04</li>
+            <li>Cliente solicitou ajuste - 09/06/2026 14:32</li>
+          </ul>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
