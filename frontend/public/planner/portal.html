@@ -8,785 +8,888 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #f0f2f7;
+      --bg:      #f0f2f7;
       --surface: #ffffff;
-      --ink: #111827;
-      --muted: #667085;
-      --line: #e2e8f0;
-      --nav: #101828;
-      --teal: #0f9f8f;
-      --coral: #e15d4f;
-      --yellow: #f3b33d;
-      --green: #2b9e66;
-      --blue: #3164d4;
-      --radius: 12px;
-      --shadow: 0 4px 24px rgba(16,24,40,0.08);
+      --ink:     #111827;
+      --muted:   #667085;
+      --line:    #e2e8f0;
+      --nav:     #101828;
+      --teal:    #0f9f8f;
+      --coral:   #e15d4f;
+      --yellow:  #f3b33d;
+      --green:   #2b9e66;
+      --blue:    #3164d4;
+      --radius:  12px;
+      --shadow:  0 4px 24px rgba(16,24,40,.08);
     }
 
-    body {
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      min-height: 100vh;
-    }
+    *, button, textarea { font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--ink); min-height: 100vh; }
+    button { cursor: pointer; }
 
-    button { cursor: pointer; font: inherit; }
-    textarea { font: inherit; }
-
-    /* ── Header ─────────────────────────────────────────────────── */
-    .portal-nav {
+    /* ── Navbar ──────────────────────────────────────────────────── */
+    .nav {
       background: var(--nav);
-      padding: 0 24px;
       height: 64px;
+      padding: 0 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
-      z-index: 100;
+      z-index: 200;
     }
+    .nav-logo { height: 48px; filter: brightness(0) invert(1); }
+    .nav-right { text-align: right; }
+    .nav-right strong { color: #fff; font-size: 15px; display: block; }
+    .nav-right span   { color: #b8c0d2; font-size: 12px; }
 
-    .portal-logo {
-      height: 36px;
-      width: auto;
-      object-fit: contain;
-      filter: brightness(0) invert(1);
-    }
-
-    .portal-nav-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 2px;
-    }
-
-    .portal-nav-right strong {
-      color: #fff;
-      font-size: 15px;
-    }
-
-    .portal-nav-right span {
-      color: #b8c0d2;
-      font-size: 12px;
-    }
-
-    /* ── Hero ───────────────────────────────────────────────────── */
-    .portal-hero {
+    /* ── Hero / progress ─────────────────────────────────────────── */
+    .hero {
       background: var(--surface);
       border-bottom: 1px solid var(--line);
-      padding: 28px 24px 0;
+      padding: 24px 24px 0;
     }
-
-    .portal-hero-top {
+    .hero-top {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 20px;
       flex-wrap: wrap;
+      margin-bottom: 20px;
     }
+    .hero-top h1 { font-size: 20px; font-weight: 700; }
+    .hero-top p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .prog-wrap   { display: flex; align-items: center; gap: 10px; }
+    .prog-label  { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .prog-label strong { color: var(--green); font-size: 15px; }
+    .prog-bar    { width: 120px; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+    .prog-fill   { height: 100%; background: var(--green); border-radius: 99px; transition: width .4s; }
 
-    .portal-hero-top h1 {
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    .portal-hero-top p {
-      font-size: 14px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .progress-summary {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .progress-count {
-      font-size: 13px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .progress-count strong {
-      color: var(--green);
-      font-size: 15px;
-    }
-
-    .progress-bar {
-      width: 140px;
-      height: 6px;
-      background: var(--line);
-      border-radius: 99px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--green);
-      border-radius: 99px;
-      transition: width 0.4s ease;
-    }
-
-    /* ── Tabs ───────────────────────────────────────────────────── */
-    .portal-tabs {
+    /* ── View tabs ───────────────────────────────────────────────── */
+    .view-tabs {
       display: flex;
       gap: 0;
-      margin-top: 4px;
+      margin-bottom: -1px;
     }
-
-    .tab-btn {
-      padding: 12px 20px;
-      border: none;
-      background: none;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--muted);
+    .view-tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 13px 20px;
+      border: none; background: none;
+      font-size: 14px; font-weight: 500; color: var(--muted);
       border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
+      transition: color .15s, border-color .15s;
     }
+    .view-tab.is-active { color: var(--teal); border-bottom-color: var(--teal); }
+    .view-tab:hover:not(.is-active) { color: var(--ink); }
+    .view-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-    .tab-btn.is-active {
-      color: var(--teal);
-      border-bottom-color: var(--teal);
-    }
-
-    .tab-btn:hover:not(.is-active) {
-      color: var(--ink);
-    }
-
-    /* ── Post list ──────────────────────────────────────────────── */
-    .portal-list {
+    /* ── Status filter tabs ──────────────────────────────────────── */
+    .filter-tabs {
       max-width: 760px;
-      margin: 32px auto;
+      margin: 20px auto 0;
+      padding: 0 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 6px 14px; border: 1.5px solid var(--line);
+      border-radius: 99px; background: var(--surface);
+      font-size: 13px; font-weight: 500; color: var(--muted);
+      transition: all .15s;
+    }
+    .filter-btn.is-active { border-color: var(--teal); color: var(--teal); background: #f0faf9; }
+
+    /* ── Wrapper ─────────────────────────────────────────────────── */
+    .view-wrapper { display: none; }
+    .view-wrapper.is-visible { display: block; }
+
+    /* ════════════════════════════════════════════════════════════════
+       VIEW: CONTEÚDOS
+    ════════════════════════════════════════════════════════════════ */
+    .posts-list {
+      max-width: 760px;
+      margin: 24px auto;
       padding: 0 16px;
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
 
-    /* ── Post card ──────────────────────────────────────────────── */
-    .portal-card {
+    .post-card {
       background: var(--surface);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       overflow: hidden;
-      transition: box-shadow 0.2s;
     }
-
-    .portal-card:hover {
-      box-shadow: 0 8px 32px rgba(16,24,40,0.12);
-    }
-
-    .portal-card.is-approved {
-      opacity: 0.75;
-    }
+    .post-card.is-done { opacity: .72; }
 
     .card-art {
-      width: 100%;
-      height: 220px;
-      background: var(--art, linear-gradient(135deg, #111827, #0f9f8f));
-      position: relative;
+      width: 100%; height: 240px;
+      background: var(--art, linear-gradient(135deg,#111827,#0f9f8f));
+      background-size: cover; background-position: center;
+      position: relative; cursor: pointer;
+    }
+    .card-art-label {
+      position: absolute; bottom: 12px; left: 12px;
+      background: rgba(0,0,0,.55); color: #fff;
+      font-size: 11px; font-weight: 600; padding: 4px 10px;
+      border-radius: 99px; backdrop-filter: blur(4px);
+    }
+    .card-art-hint {
+      position: absolute; bottom: 12px; right: 12px;
+      background: rgba(255,255,255,.18); color: #fff;
+      font-size: 11px; padding: 4px 10px;
+      border-radius: 99px; backdrop-filter: blur(4px);
+      display: flex; align-items: center; gap: 4px;
+      opacity: 0; transition: opacity .2s;
+    }
+    .card-art:hover .card-art-hint { opacity: 1; }
+    .approved-overlay {
+      position: absolute; inset: 0;
+      background: rgba(43,158,102,.2);
+      display: flex; align-items: center; justify-content: center;
     }
 
-    .card-art-approved-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(43, 158, 102, 0.18);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .card-art-approved-overlay svg {
-      width: 64px;
-      height: 64px;
-      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
-    }
-
-    .card-body {
-      padding: 20px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+    .card-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
 
     .card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 12px;
     }
+    .card-top h2 { font-size: 16px; font-weight: 700; line-height: 1.35; }
+    .card-meta   { font-size: 13px; color: var(--muted); margin-top: 3px; }
 
-    .card-top h2 {
-      font-size: 16px;
-      font-weight: 700;
-      line-height: 1.3;
-    }
-
-    .card-meta {
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-
-    /* ── Status badges ──────────────────────────────────────────── */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 99px;
-      white-space: nowrap;
-    }
-
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
     .badge.pendente { background: #e8f0fe; color: var(--blue); }
     .badge.aprovado { background: #e6f6ef; color: var(--green); }
     .badge.ajuste   { background: #fef3f2; color: var(--coral); }
 
-    /* ── Caption / hashtags ─────────────────────────────────────── */
-    .card-caption p {
-      font-size: 14px;
-      line-height: 1.6;
-      color: #374151;
-    }
+    .card-caption p { font-size: 14px; line-height: 1.65; color: #374151; }
+    .card-tags { margin-top: 6px; font-size: 13px; color: var(--blue); }
 
-    .card-tags {
-      margin-top: 8px;
-      font-size: 13px;
-      color: var(--blue);
-    }
+    .slides-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+    .slide-chip { flex-shrink: 0; min-width: 130px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+    .slide-chip strong { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
 
-    /* ── Slides strip ───────────────────────────────────────────── */
-    .slides-strip {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scrollbar-width: thin;
-    }
+    .comments-section { display: flex; flex-direction: column; gap: 8px; }
+    .comments-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .comment-item { background: #f8fafc; border-left: 3px solid var(--teal); border-radius: 0 8px 8px 0; padding: 10px 12px; }
+    .comment-item strong { font-size: 12px; color: var(--teal); display: block; margin-bottom: 2px; }
+    .comment-item p { font-size: 13px; line-height: 1.5; }
+    .comment-item small { font-size: 11px; color: var(--muted); display: block; margin-top: 3px; }
 
-    .slide-chip {
-      flex-shrink: 0;
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 12px;
-      min-width: 120px;
-    }
+    .cmt-input { width: 100%; min-height: 68px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); background: #fafbfd; transition: border-color .15s; }
+    .cmt-input:focus { outline: none; border-color: var(--teal); background: #fff; }
 
-    .slide-chip strong {
-      display: block;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 2px;
-    }
-
-    /* ── Comments ───────────────────────────────────────────────── */
-    .card-comments {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .comment-thread-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .comment-item {
-      background: #f8fafc;
-      border-left: 3px solid var(--teal);
-      border-radius: 0 8px 8px 0;
-      padding: 10px 12px;
-    }
-
-    .comment-item strong {
-      font-size: 12px;
-      color: var(--teal);
-      display: block;
-      margin-bottom: 3px;
-    }
-
-    .comment-item p {
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .comment-item small {
-      font-size: 11px;
-      color: var(--muted);
-      display: block;
-      margin-top: 4px;
-    }
-
-    /* ── Comment input ──────────────────────────────────────────── */
-    .card-comment-input textarea {
-      width: 100%;
-      min-height: 68px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 13px;
-      color: var(--ink);
-      background: #fafbfd;
-      resize: vertical;
-      transition: border-color 0.15s;
-    }
-
-    .card-comment-input textarea:focus {
-      outline: none;
-      border-color: var(--teal);
-      background: #fff;
-    }
-
-    /* ── Action buttons ─────────────────────────────────────────── */
-    .card-actions {
-      display: flex;
-      gap: 10px;
-    }
-
+    .card-actions { display: flex; gap: 10px; }
     .btn-approve {
-      flex: 1;
-      padding: 12px;
-      background: var(--green);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: background 0.15s, transform 0.1s;
+      flex: 1; padding: 12px; background: var(--green); color: #fff; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: background .15s;
     }
-
-    .btn-approve:hover { background: #238a59; }
-    .btn-approve:active { transform: scale(0.98); }
-
+    .btn-approve:hover { background: #228a58; }
     .btn-adjust {
-      flex: 1;
-      padding: 12px;
-      background: #fff;
-      color: var(--coral);
-      border: 1.5px solid var(--coral);
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      transition: background 0.15s, transform 0.1s;
+      flex: 1; padding: 12px; background: #fff; color: var(--coral);
+      border: 1.5px solid var(--coral); border-radius: 8px; font-size: 14px; font-weight: 600;
+      transition: background .15s;
     }
-
     .btn-adjust:hover { background: #fef3f2; }
-    .btn-adjust:active { transform: scale(0.98); }
 
-    .approved-banner {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: #e6f6ef;
-      color: var(--green);
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 600;
+    .status-banner {
+      display: flex; align-items: center; gap: 8px;
+      border-radius: 8px; padding: 12px 16px;
+      font-size: 14px; font-weight: 600;
+    }
+    .status-banner.green { background: #e6f6ef; color: var(--green); }
+    .status-banner.red   { background: #fef3f2; color: var(--coral); }
+
+    /* ════════════════════════════════════════════════════════════════
+       VIEW: FEED (Instagram)
+    ════════════════════════════════════════════════════════════════ */
+    .feed-wrapper {
+      max-width: 720px;
+      margin: 28px auto;
+      padding: 0 16px;
+    }
+    .feed-phone {
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .feed-phone-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .feed-phone-bar strong { font-size: 15px; font-weight: 700; }
+    .feed-phone-bar span   { font-size: 13px; color: var(--muted); }
+    .feed-phone-stats {
+      display: flex; gap: 20px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .feed-phone-stats div { text-align: center; }
+    .feed-phone-stats strong { display: block; font-size: 16px; font-weight: 700; }
+    .feed-phone-stats span { font-size: 12px; color: var(--muted); }
+    .feed-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+    }
+    .feed-tile {
+      aspect-ratio: 1;
+      background: var(--art, linear-gradient(135deg,#111827,#0f9f8f));
+      background-size: cover; background-position: center;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      border: none;
+    }
+    .feed-tile-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 4px;
+      transition: background .2s;
+    }
+    .feed-tile:hover .feed-tile-overlay {
+      background: rgba(0,0,0,.42);
+    }
+    .feed-tile-overlay span {
+      color: #fff; font-size: 12px; font-weight: 600;
+      opacity: 0; transition: opacity .2s; text-align: center; padding: 0 8px;
+    }
+    .feed-tile:hover .feed-tile-overlay span { opacity: 1; }
+    .feed-tile-status {
+      position: absolute; top: 6px; right: 6px;
+      width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #fff;
+    }
+    .feed-tile-status.aprovado  { background: var(--green); }
+    .feed-tile-status.pendente  { background: var(--blue); }
+    .feed-tile-status.ajuste    { background: var(--coral); }
+
+    /* ════════════════════════════════════════════════════════════════
+       VIEW: CALENDÁRIO
+    ════════════════════════════════════════════════════════════════ */
+    .cal-wrapper {
+      max-width: 760px;
+      margin: 28px auto;
+      padding: 0 16px;
+    }
+    .cal-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .cal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .cal-header h2 { font-size: 17px; font-weight: 700; }
+    .cal-header span { font-size: 13px; color: var(--muted); }
+    .cal-weekdays {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+    .cal-weekdays span {
+      padding: 8px 4px; text-align: center;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+    }
+    .cal-cell {
+      min-height: 90px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 6px;
+    }
+    .cal-cell:nth-child(7n) { border-right: none; }
+    .cal-cell.empty { background: #fafbfd; }
+    .cal-day-num {
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      margin-bottom: 4px; display: block;
+    }
+    .cal-cell.today .cal-day-num {
+      color: #fff; background: var(--teal);
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    .cal-post-dot {
+      display: flex; align-items: center; gap: 4px;
+      background: var(--bg); border: 1px solid var(--line);
+      border-radius: 4px; padding: 3px 5px;
+      margin-bottom: 3px; cursor: pointer;
+      font-size: 10px; font-weight: 500;
+      overflow: hidden; white-space: nowrap;
+      text-overflow: ellipsis;
+      transition: background .15s;
+    }
+    .cal-post-dot:hover { background: #e8f7f5; border-color: var(--teal); }
+    .cal-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ════════════════════════════════════════════════════════════════
+       MODAL: Arte ampliada + comentário
+    ════════════════════════════════════════════════════════════════ */
+    .art-dialog {
+      border: none; border-radius: 16px; padding: 0;
+      width: min(820px, 96vw); max-height: 92vh;
+      overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.22);
+    }
+    .art-dialog::backdrop { background: rgba(10,15,25,.7); }
+    .art-dialog-inner {
+      display: grid; grid-template-columns: 1fr 340px;
+      max-height: 92vh;
+    }
+    .art-dialog-img {
+      background: var(--art, linear-gradient(135deg,#111827,#0f9f8f));
+      background-size: cover; background-position: center;
+      min-height: 460px;
+    }
+    .art-dialog-panel {
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      overflow-y: auto;
+    }
+    .art-dialog-head {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 8px;
+      padding: 20px 20px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .art-dialog-head h3 { font-size: 15px; font-weight: 700; line-height: 1.3; }
+    .art-dialog-head p  { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .art-close {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: none; background: var(--bg);
+      font-size: 16px; color: var(--muted); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .art-close:hover { background: var(--line); }
+    .art-dialog-comments {
+      flex: 1;
+      padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 8px;
+      overflow-y: auto;
+    }
+    .art-cmt-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .art-no-cmt { font-size: 13px; color: var(--muted); text-align: center; padding: 20px 0; }
+    .art-dialog-input {
+      border-top: 1px solid var(--line);
+      padding: 14px 20px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .art-dialog-input textarea {
+      width: 100%; min-height: 72px; resize: vertical;
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 10px 12px; font-size: 13px; color: var(--ink);
+      background: var(--bg); transition: border-color .15s;
+    }
+    .art-dialog-input textarea:focus { outline: none; border-color: var(--teal); background: #fff; }
+    .art-send-btn {
+      width: 100%; padding: 11px;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 600;
+      transition: background .15s;
+    }
+    .art-send-btn:hover { background: #0d8a7c; }
+
+    @media (max-width: 600px) {
+      .art-dialog-inner { grid-template-columns: 1fr; }
+      .art-dialog-img   { min-height: 220px; }
     }
 
-    .adjust-banner {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: #fef3f2;
-      color: var(--coral);
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 600;
-    }
+    /* ── Misc ────────────────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 56px 16px; color: var(--muted); }
+    .empty-state h2 { font-size: 17px; color: var(--ink); margin-bottom: 6px; }
+    .empty-state p  { font-size: 14px; }
 
-    /* ── Empty state ────────────────────────────────────────────── */
-    .empty-state {
-      text-align: center;
-      padding: 64px 16px;
-      color: var(--muted);
-    }
-
-    .empty-state svg {
-      margin-bottom: 16px;
-      opacity: 0.4;
-    }
-
-    .empty-state h2 {
-      font-size: 18px;
-      margin-bottom: 6px;
-      color: var(--ink);
-    }
-
-    /* ── Toast ──────────────────────────────────────────────────── */
     .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
+      position: fixed; bottom: 24px; left: 50%;
       transform: translateX(-50%) translateY(16px);
-      background: var(--ink);
-      color: #fff;
-      padding: 12px 24px;
-      border-radius: 99px;
-      font-size: 14px;
-      font-weight: 500;
-      opacity: 0;
-      transition: opacity 0.2s, transform 0.2s;
-      pointer-events: none;
-      z-index: 9999;
-      white-space: nowrap;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+      background: var(--ink); color: #fff;
+      padding: 12px 24px; border-radius: 99px;
+      font-size: 14px; font-weight: 500;
+      opacity: 0; transition: opacity .2s, transform .2s;
+      pointer-events: none; z-index: 9999; white-space: nowrap;
+      box-shadow: 0 4px 24px rgba(0,0,0,.25);
     }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    .portal-footer { text-align: center; padding: 32px 16px; font-size: 12px; color: var(--muted); }
+    .portal-footer strong { color: var(--ink); }
 
-    /* ── Footer ─────────────────────────────────────────────────── */
-    .portal-footer {
-      text-align: center;
-      padding: 32px 16px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .portal-footer strong {
-      color: var(--ink);
-    }
-
-    /* ── Responsive ─────────────────────────────────────────────── */
     @media (max-width: 480px) {
-      .portal-nav { padding: 0 16px; }
-      .portal-hero { padding: 20px 16px 0; }
-      .tab-btn { padding: 10px 14px; font-size: 13px; }
-      .card-body { padding: 16px; }
+      .nav { padding: 0 16px; }
+      .hero { padding: 18px 16px 0; }
+      .view-tab { padding: 10px 14px; font-size: 13px; }
       .card-actions { flex-direction: column; }
-      .progress-bar { display: none; }
+      .prog-bar { display: none; }
+      .cal-cell { min-height: 60px; }
     }
   </style>
 </head>
 <body>
 
-  <nav class="portal-nav">
-    <img class="portal-logo" src="./logo-grupo-venda.png" alt="Grupo Venda" />
-    <div class="portal-nav-right">
-      <strong id="nav-client-name">Carregando...</strong>
-      <span id="nav-period"></span>
-    </div>
-  </nav>
+<!-- Navbar -->
+<nav class="nav">
+  <img class="nav-logo" src="./logo-grupo-venda.png" alt="Grupo Venda" />
+  <div class="nav-right">
+    <strong id="nav-client"></strong>
+    <span id="nav-period"></span>
+  </div>
+</nav>
 
-  <div class="portal-hero">
-    <div class="portal-hero-top">
-      <div>
-        <h1 id="hero-title">Aprovação de Conteúdo</h1>
-        <p id="hero-subtitle"></p>
-      </div>
-      <div class="progress-summary">
-        <span class="progress-count"><strong id="approved-count">0</strong> / <span id="total-count">0</span> aprovados</span>
-        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-      </div>
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-top">
+    <div>
+      <h1>Aprovação de Conteúdo</h1>
+      <p id="hero-sub"></p>
     </div>
-    <div class="portal-tabs">
-      <button class="tab-btn is-active" data-filter="all">Todos</button>
-      <button class="tab-btn" data-filter="pending">Pendentes</button>
-      <button class="tab-btn" data-filter="approved">Aprovados</button>
-      <button class="tab-btn" data-filter="adjust">Ajustes</button>
+    <div class="prog-wrap">
+      <span class="prog-label"><strong id="prog-n">0</strong> / <span id="prog-t">0</span> aprovados</span>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
     </div>
   </div>
+  <div class="view-tabs">
+    <button class="view-tab is-active" data-view="posts">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="10" rx="1.5"/><rect x="14" y="17" width="7" height="4" rx="1"/></svg>
+      Conteúdos
+    </button>
+    <button class="view-tab" data-view="feed">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Feed Instagram
+    </button>
+    <button class="view-tab" data-view="calendar">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendário
+    </button>
+  </div>
+</div>
 
-  <main class="portal-list" id="portal-list"></main>
+<!-- Filter pills (only for posts view) -->
+<div class="filter-tabs" id="filter-tabs">
+  <button class="filter-btn is-active" data-f="all">Todos</button>
+  <button class="filter-btn" data-f="pending">Pendentes</button>
+  <button class="filter-btn" data-f="approved">Aprovados</button>
+  <button class="filter-btn" data-f="adjust">Ajustes</button>
+</div>
 
-  <footer class="portal-footer">
-    Enviado por <strong>Grupo Venda</strong> · GV Planner · Aprovação privada
-  </footer>
+<!-- VIEW: Conteúdos -->
+<div class="view-wrapper is-visible" id="view-posts">
+  <div class="posts-list" id="posts-list"></div>
+</div>
 
-  <div class="toast" id="toast"></div>
+<!-- VIEW: Feed -->
+<div class="view-wrapper" id="view-feed">
+  <div class="feed-wrapper">
+    <div class="feed-phone">
+      <div class="feed-phone-bar">
+        <strong id="feed-handle">@cliente</strong>
+        <span id="feed-month-label">Junho 2026</span>
+      </div>
+      <div class="feed-phone-stats">
+        <div><strong id="feed-total-count">0</strong><span>posts</span></div>
+        <div><strong id="feed-approved-count">0</strong><span>aprovados</span></div>
+        <div><strong id="feed-pending-count">0</strong><span>pendentes</span></div>
+      </div>
+      <div class="feed-grid" id="feed-grid"></div>
+    </div>
+  </div>
+</div>
 
-  <script>
-    // ── Helpers ────────────────────────────────────────────────────────────────
-    function esc(v) {
-      return String(v)
-        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-    }
+<!-- VIEW: Calendário -->
+<div class="view-wrapper" id="view-calendar">
+  <div class="cal-wrapper">
+    <div class="cal-card">
+      <div class="cal-header">
+        <h2 id="cal-month-title">Junho 2026</h2>
+        <span id="cal-summary"></span>
+      </div>
+      <div class="cal-weekdays">
+        <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span>
+        <span>Qui</span><span>Sex</span><span>Sáb</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+</div>
 
-    function fmtDate(iso) {
-      if (!iso) return "—";
-      return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit"}).format(new Date(iso+"T12:00:00"));
-    }
-
-    function now() {
-      return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date());
-    }
-
-    function toast(msg) {
-      const el = document.getElementById("toast");
-      el.textContent = msg;
-      el.classList.add("show");
-      setTimeout(() => el.classList.remove("show"), 2800);
-    }
-
-    // ── Data ───────────────────────────────────────────────────────────────────
-    const defaultPosts = [
-      { id: 1, client: "Venda Prime", title: "Carrossel educativo: compra segura", date: "2026-06-10", time: "09:00", network: "Instagram", format: "Carrossel", status: "Enviado para aprovação", pillar: "Educativo", goal: "Gerar confiança", caption: "Comprar um imóvel premium exige método, análise e timing. Veja os critérios que protegem sua decisão e ajudam você a escolher com mais segurança.", art: "linear-gradient(135deg,#111827,#0f9f8f)", hashtags: "#imoveispremium #grupovenda #vendaprime", slides: [{title:"Capa",text:"Compra segura começa com critério."},{title:"Localização",text:"Avalie liquidez, mobilidade e potencial."},{title:"Planta",text:"Entenda se o imóvel acompanha seu momento."},{title:"Documentação",text:"Confira segurança jurídica antes de avançar."},{title:"CTA",text:"Fale com um consultor."}] },
-      { id: 2, client: "Clínica Essenza", title: "Reels: bastidores do protocolo", date: "2026-06-11", time: "14:30", network: "Instagram", format: "Reels", status: "Ajuste solicitado", pillar: "Bastidores", goal: "Humanizar", caption: "Por trás de cada protocolo existe avaliação, segurança e acompanhamento próximo.", art: "linear-gradient(135deg,#e15d4f,#f3b33d)" },
-      { id: 4, client: "Venda Prime", title: "Feed: imóvel destaque da semana", date: "2026-06-13", time: "18:00", network: "Instagram", format: "Feed", status: "Aprovado", pillar: "Comercial", goal: "Gerar lead", caption: "Uma cobertura pensada para quem busca vista, privacidade e localização estratégica.", art: "linear-gradient(135deg,#0f9f8f,#e15d4f)", hashtags: "#imoveispremium #vendaprime" },
-      { id: 5, client: "Venda Prime", title: "Story: enquete sobre bairros", date: "2026-06-14", time: "10:00", network: "Instagram", format: "Story", status: "Enviado para aprovação", pillar: "Institucional", goal: "Engajar", caption: "Qual bairro combina com seu próximo momento de vida?", art: "linear-gradient(135deg,#f3b33d,#111827)", hashtags: "#vendaprime #grupovenda" },
-      { id: 8, client: "Venda Prime", title: "Reels: autoridade do consultor", date: "2026-06-18", time: "13:00", network: "Instagram", format: "Reels", status: "Enviado para aprovação", pillar: "Autoridade", goal: "Construir confiança", caption: "O consultor ideal interpreta mercado, risco e oportunidade antes de sugerir um imóvel.", art: "linear-gradient(135deg,#3164d4,#f3b33d)", hashtags: "#grupovenda #imoveispremium" }
-    ];
-
-    function loadPosts() {
-      try { return JSON.parse(localStorage.getItem("gvPlannerPosts")) || defaultPosts; } catch { return defaultPosts; }
-    }
-
-    function savePosts(posts) {
-      localStorage.setItem("gvPlannerPosts", JSON.stringify(posts));
-    }
-
-    function loadComments() {
-      try { return JSON.parse(localStorage.getItem("gvPlannerComments")) || {}; } catch { return {}; }
-    }
-
-    function saveComments(all) {
-      localStorage.setItem("gvPlannerComments", JSON.stringify(all));
-    }
-
-    // ── URL params ─────────────────────────────────────────────────────────────
-    const params = new URLSearchParams(location.search);
-    const clientParam = params.get("client") || "Venda Prime";
-    const monthParam  = params.get("month")  || "Junho 2026";
-
-    document.getElementById("nav-client-name").textContent = clientParam;
-    document.getElementById("nav-period").textContent = monthParam;
-    document.getElementById("hero-title").textContent = "Aprovação de Conteúdo";
-    document.getElementById("hero-subtitle").textContent = `${clientParam} · ${monthParam}`;
-    document.title = `Aprovação de Conteúdo — ${clientParam}`;
-
-    // ── State ──────────────────────────────────────────────────────────────────
-    let activeFilter = "all";
-    let allPosts = loadPosts().filter(p => p.client === clientParam);
-
-    // ── Progress ───────────────────────────────────────────────────────────────
-    function updateProgress() {
-      const approved = allPosts.filter(p => p.status === "Aprovado").length;
-      const total = allPosts.length;
-      document.getElementById("approved-count").textContent = approved;
-      document.getElementById("total-count").textContent = total;
-      document.getElementById("progress-fill").style.width = total ? `${(approved/total)*100}%` : "0%";
-    }
-
-    // ── Filter ─────────────────────────────────────────────────────────────────
-    function filteredPosts() {
-      if (activeFilter === "pending")  return allPosts.filter(p => p.status === "Enviado para aprovação");
-      if (activeFilter === "approved") return allPosts.filter(p => p.status === "Aprovado");
-      if (activeFilter === "adjust")   return allPosts.filter(p => p.status === "Ajuste solicitado");
-      return allPosts;
-    }
-
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("is-active"));
-        btn.classList.add("is-active");
-        activeFilter = btn.dataset.filter;
-        render();
-      });
-    });
-
-    // ── Render ─────────────────────────────────────────────────────────────────
-    function renderComments(postId) {
-      const all = loadComments();
-      const items = (all[postId] || []).filter(c => c.type !== "Interno");
-      if (!items.length) return "";
-      return `
-        <div class="card-comments">
-          <span class="comment-thread-label">Comentários</span>
-          ${items.map(c => `
-            <div class="comment-item">
-              <strong>${esc(c.author)}</strong>
-              <p>${esc(c.text)}</p>
-              <small>${c.date}</small>
-            </div>
-          `).join("")}
-        </div>
-      `;
-    }
-
-    function renderActions(post) {
-      if (post.status === "Aprovado") {
-        return `<div class="approved-banner">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#2b9e66"/><path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Aprovado por você
-        </div>`;
-      }
-      if (post.status === "Ajuste solicitado") {
-        return `
-          <div class="adjust-banner">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e15d4f"/><path d="M12 8v4m0 4h.01" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
-            Ajuste solicitado — aguardando a equipe
-          </div>
-          <div class="card-comment-input">
-            <textarea id="cmt-${post.id}" placeholder="Adicionar mais detalhes ao ajuste..."></textarea>
-          </div>
-          <div class="card-actions">
-            <button class="btn-approve" onclick="approvePost(${post.id})">✓ Aprovar assim mesmo</button>
-            <button class="btn-adjust" onclick="sendAdjust(${post.id})">Reenviar ajuste</button>
-          </div>
-        `;
-      }
-      return `
-        <div class="card-comment-input">
-          <textarea id="cmt-${post.id}" placeholder="Alguma instrução ou observação? (opcional)"></textarea>
-        </div>
-        <div class="card-actions">
-          <button class="btn-approve" onclick="approvePost(${post.id})">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Aprovar
-          </button>
-          <button class="btn-adjust" onclick="sendAdjust(${post.id})">Solicitar ajuste</button>
-        </div>
-      `;
-    }
-
-    function renderSlides(post) {
-      if (post.format !== "Carrossel" || !post.slides?.length) return "";
-      return `
+<!-- MODAL: Arte ampliada + comentário -->
+<dialog class="art-dialog" id="art-dialog">
+  <div class="art-dialog-inner">
+    <div class="art-dialog-img" id="art-dialog-img"></div>
+    <div class="art-dialog-panel">
+      <div class="art-dialog-head">
         <div>
-          <span class="comment-thread-label">${post.slides.length} lâminas</span>
-          <div class="slides-strip" style="margin-top:8px">
-            ${post.slides.map((s,i) => `
-              <div class="slide-chip">
-                <strong>Lâmina ${i+1}</strong>
-                ${esc(s.title || "")} — ${esc(s.text || "")}
-              </div>
-            `).join("")}
-          </div>
+          <h3 id="art-dialog-title"></h3>
+          <p id="art-dialog-meta"></p>
         </div>
-      `;
-    }
+        <form method="dialog"><button class="art-close" title="Fechar">✕</button></form>
+      </div>
+      <div class="art-dialog-comments" id="art-dialog-comments">
+        <span class="art-cmt-label">Comentários sobre esta arte</span>
+        <p class="art-no-cmt" id="art-no-cmt">Sem comentários ainda. Seja o primeiro.</p>
+      </div>
+      <div class="art-dialog-input">
+        <textarea id="art-cmt-text" placeholder="Clique em qualquer detalhe e deixe sua instrução de ajuste ou aprovação..."></textarea>
+        <button class="art-send-btn" id="art-send-btn">Enviar comentário</button>
+      </div>
+    </div>
+  </div>
+</dialog>
 
-    function render() {
-      const list = document.getElementById("portal-list");
-      const posts = filteredPosts();
+<footer class="portal-footer">
+  Enviado por <strong>Grupo Venda</strong> · GV Planner · Link privado de aprovação
+</footer>
 
-      if (!posts.length) {
-        list.innerHTML = `
-          <div class="empty-state">
-            <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" stroke="#667085" stroke-width="1.5" stroke-linecap="round"/><rect x="3" y="3" width="18" height="18" rx="4" stroke="#667085" stroke-width="1.5"/></svg>
-            <h2>Nenhum conteúdo aqui</h2>
-            <p>Tudo certo por esta aba.</p>
-          </div>
-        `;
-        return;
-      }
+<div class="toast" id="toast"></div>
 
-      list.innerHTML = posts.map(post => {
-        const isApproved = post.status === "Aprovado";
-        return `
-          <article class="portal-card ${isApproved ? "is-approved" : ""}">
-            <div class="card-art" style="--art:${post.art}">
-              ${isApproved ? `
-                <div class="card-art-approved-overlay">
-                  <svg width="64" height="64" fill="none" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="rgba(43,158,102,0.85)"/><path d="M20 33l9 9 16-17" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-              ` : ""}
-            </div>
-            <div class="card-body">
-              <div class="card-top">
-                <div>
-                  <h2>${esc(post.title)}</h2>
-                  <p class="card-meta">📅 ${fmtDate(post.date)} às ${esc(post.time)} · ${esc(post.network)} · ${esc(post.format)}</p>
-                </div>
-                ${post.status === "Aprovado" ? `<span class="badge aprovado">✓ Aprovado</span>` :
-                  post.status === "Ajuste solicitado" ? `<span class="badge ajuste">Ajuste</span>` :
-                  `<span class="badge pendente">Aguardando</span>`}
-              </div>
+<script>
+  // ── Utils ──────────────────────────────────────────────────────────────────
+  function esc(v) {
+    return String(v||"")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit"}).format(new Date(iso+"T12:00:00"));
+  }
+  function tsNow() {
+    return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date());
+  }
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg; el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 2800);
+  }
 
-              <div class="card-caption">
-                <p>${esc(post.caption || "")}</p>
-                ${post.hashtags ? `<p class="card-tags">${esc(post.hashtags)}</p>` : ""}
-              </div>
+  // ── URL params ─────────────────────────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  const CLIENT = params.get("client") || "Venda Prime";
+  const MONTH  = params.get("month")  || "Junho 2026";
 
-              ${renderSlides(post)}
-              ${renderComments(post.id)}
-              ${renderActions(post)}
-            </div>
-          </article>
-        `;
-      }).join("");
+  document.getElementById("nav-client").textContent  = CLIENT;
+  document.getElementById("nav-period").textContent  = MONTH;
+  document.getElementById("hero-sub").textContent    = `${CLIENT} · ${MONTH}`;
+  document.getElementById("feed-handle").textContent = `@${CLIENT.toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"")}`;
+  document.getElementById("feed-month-label").textContent = MONTH;
+  document.getElementById("cal-month-title").textContent  = MONTH;
+  document.title = `Aprovação — ${CLIENT}`;
 
-      updateProgress();
-    }
+  // ── Data ───────────────────────────────────────────────────────────────────
+  const IMGS = ["./img-01.jpg","./img-02.jpg","./img-03.jpg","./img-04.jpg","./img-05.jpg"];
+  const DEFAULT_POSTS = [
+    { id:1, client:"Venda Prime", title:"Carrossel: critérios de compra segura", date:"2026-06-10", time:"09:00", network:"Instagram", format:"Carrossel", status:"Enviado para aprovação", pillar:"Educativo", caption:"Comprar um imóvel premium exige método, análise e timing. Veja os critérios que protegem sua decisão.", hashtags:"#imoveispremium #grupovenda #vendaprime", art:`url(${IMGS[0]})`, slides:[{title:"Capa",text:"Compra segura começa com critério."},{title:"Localização",text:"Liquidez, mobilidade e valorização."},{title:"Planta",text:"O imóvel acompanha seu momento de vida."},{title:"Documentação",text:"Segurança jurídica antes de avançar."},{title:"CTA",text:"Fale com um consultor."}] },
+    { id:4, client:"Venda Prime", title:"Feed: imóvel destaque da semana",        date:"2026-06-13", time:"18:00", network:"Instagram", format:"Feed",      status:"Aprovado",                 pillar:"Comercial",    caption:"Uma cobertura pensada para quem busca vista, privacidade e localização estratégica.", hashtags:"#imoveispremium #vendaprime", art:`url(${IMGS[1]})` },
+    { id:5, client:"Venda Prime", title:"Story: enquete sobre bairros",            date:"2026-06-14", time:"10:00", network:"Instagram", format:"Story",     status:"Enviado para aprovação",   pillar:"Institucional",caption:"Qual bairro combina com seu próximo momento de vida?", hashtags:"#vendaprime #grupovenda", art:`url(${IMGS[2]})` },
+    { id:7, client:"Venda Prime", title:"Reels: bastidores da equipe",             date:"2026-06-16", time:"15:00", network:"Instagram", format:"Reels",     status:"Ajuste solicitado",        pillar:"Bastidores",   caption:"Por trás de cada negociação há uma equipe dedicada a entender o que você realmente precisa.", hashtags:"#vendaprime #equipe", art:`url(${IMGS[3]})` },
+    { id:8, client:"Venda Prime", title:"Reels: autoridade do consultor",          date:"2026-06-18", time:"13:00", network:"Instagram", format:"Reels",     status:"Enviado para aprovação",   pillar:"Autoridade",   caption:"O consultor ideal interpreta mercado, risco e oportunidade antes de sugerir um imóvel.", hashtags:"#grupovenda #imoveispremium", art:`url(${IMGS[4]})` }
+  ];
 
-    // ── Actions ────────────────────────────────────────────────────────────────
-    function approvePost(id) {
-      const posts = loadPosts();
-      const post = posts.find(p => p.id === id);
-      if (!post) return;
+  function loadPosts() {
+    try {
+      const stored = JSON.parse(localStorage.getItem("gvPlannerPosts"));
+      if (!stored) return DEFAULT_POSTS;
+      const mine = stored.filter(p => p.client === CLIENT);
+      // inject real images where art is a gradient
+      return mine.map((p, i) => ({
+        ...p,
+        art: p.art && p.art.startsWith("url(") ? p.art : `url(${IMGS[i % IMGS.length]})`
+      }));
+    } catch { return DEFAULT_POSTS; }
+  }
 
-      const cmtEl = document.getElementById(`cmt-${id}`);
-      const txt = cmtEl?.value.trim();
-      if (txt) {
-        const all = loadComments();
-        if (!all[id]) all[id] = [];
-        all[id].push({ author: "Cliente", text: txt, type: "Cliente", date: now() });
-        saveComments(all);
-      }
+  function savePosts(posts) {
+    try {
+      const all = JSON.parse(localStorage.getItem("gvPlannerPosts")) || DEFAULT_POSTS;
+      const others = all.filter(p => p.client !== CLIENT);
+      localStorage.setItem("gvPlannerPosts", JSON.stringify([...others, ...posts]));
+    } catch {}
+  }
 
-      post.status = "Aprovado";
-      savePosts(posts);
-      allPosts = posts.filter(p => p.client === clientParam);
-      render();
-      toast("Conteúdo aprovado! A equipe foi notificada.");
-    }
+  function loadComments() {
+    try { return JSON.parse(localStorage.getItem("gvPlannerComments")) || {}; } catch { return {}; }
+  }
+  function saveComments(all) {
+    localStorage.setItem("gvPlannerComments", JSON.stringify(all));
+  }
+  function addComment(postId, text, author = "Cliente") {
+    const all = loadComments();
+    if (!all[postId]) all[postId] = [];
+    all[postId].push({ author, text, type: "Cliente", date: tsNow() });
+    saveComments(all);
+  }
 
-    function sendAdjust(id) {
-      const posts = loadPosts();
-      const post = posts.find(p => p.id === id);
-      if (!post) return;
+  let allPosts = loadPosts();
+  let filterMode = "all";
 
-      const cmtEl = document.getElementById(`cmt-${id}`);
-      const txt = cmtEl?.value.trim();
-      if (!txt) { toast("Descreva o ajuste desejado antes de enviar."); cmtEl?.focus(); return; }
+  // ── Progress ───────────────────────────────────────────────────────────────
+  function updateProgress() {
+    const approved = allPosts.filter(p => p.status === "Aprovado").length;
+    const total    = allPosts.length;
+    document.getElementById("prog-n").textContent    = approved;
+    document.getElementById("prog-t").textContent    = total;
+    document.getElementById("prog-fill").style.width = total ? `${(approved/total)*100}%` : "0%";
+    document.getElementById("feed-total-count").textContent    = total;
+    document.getElementById("feed-approved-count").textContent = approved;
+    document.getElementById("feed-pending-count").textContent  = allPosts.filter(p => p.status !== "Aprovado").length;
+    document.getElementById("cal-summary").textContent         = `${approved} de ${total} aprovados`;
+  }
 
-      const all = loadComments();
-      if (!all[id]) all[id] = [];
-      all[id].push({ author: "Cliente", text: txt, type: "Cliente", date: now() });
-      saveComments(all);
+  // ── Filter ─────────────────────────────────────────────────────────────────
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      filterMode = btn.dataset.f;
+      renderPosts();
+    });
+  });
 
-      post.status = "Ajuste solicitado";
-      savePosts(posts);
-      allPosts = posts.filter(p => p.client === clientParam);
-      render();
-      toast("Ajuste enviado! A equipe vai revisar em breve.");
-    }
+  function filtered() {
+    if (filterMode === "pending")  return allPosts.filter(p => p.status === "Enviado para aprovação");
+    if (filterMode === "approved") return allPosts.filter(p => p.status === "Aprovado");
+    if (filterMode === "adjust")   return allPosts.filter(p => p.status === "Ajuste solicitado");
+    return allPosts;
+  }
 
-    // ── Init ───────────────────────────────────────────────────────────────────
-    if (!allPosts.length) {
-      document.getElementById("portal-list").innerHTML = `
-        <div class="empty-state">
-          <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" stroke="#667085" stroke-width="1.5" stroke-linecap="round"/><rect x="3" y="3" width="18" height="18" rx="4" stroke="#667085" stroke-width="1.5"/></svg>
-          <h2>Nenhum conteúdo encontrado</h2>
-          <p>Verifique o link enviado pela equipe ou aguarde os conteúdos serem cadastrados.</p>
+  // ── Render comments ────────────────────────────────────────────────────────
+  function renderComments(postId) {
+    const items = (loadComments()[postId] || []).filter(c => c.type !== "Interno");
+    if (!items.length) return "";
+    return `<div class="comments-section">
+      <span class="comments-label">Comentários</span>
+      ${items.map(c => `
+        <div class="comment-item">
+          <strong>${esc(c.author)}</strong>
+          <p>${esc(c.text)}</p>
+          <small>${c.date}</small>
         </div>
-      `;
-      document.getElementById("approved-count").textContent = "0";
-      document.getElementById("total-count").textContent = "0";
+      `).join("")}
+    </div>`;
+  }
+
+  // ── Render actions ─────────────────────────────────────────────────────────
+  function renderActions(post) {
+    if (post.status === "Aprovado") return `
+      <div class="status-banner green">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#2b9e66"/><path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Aprovado por você
+      </div>`;
+    if (post.status === "Ajuste solicitado") return `
+      <div class="status-banner red">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e15d4f"/><path d="M12 8v4m0 4h.01" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        Ajuste solicitado — a equipe está revisando
+      </div>
+      <textarea class="cmt-input" id="cmt-${post.id}" placeholder="Acrescentar mais detalhes ao ajuste..."></textarea>
+      <div class="card-actions">
+        <button class="btn-approve" onclick="approvePost(${post.id})">✓ Aprovar assim mesmo</button>
+        <button class="btn-adjust"  onclick="sendAdjust(${post.id})">Reenviar ajuste</button>
+      </div>`;
+    return `
+      <textarea class="cmt-input" id="cmt-${post.id}" placeholder="Alguma instrução ou observação? (opcional)"></textarea>
+      <div class="card-actions">
+        <button class="btn-approve" onclick="approvePost(${post.id})">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Aprovar
+        </button>
+        <button class="btn-adjust" onclick="sendAdjust(${post.id})">Solicitar ajuste</button>
+      </div>`;
+  }
+
+  // ── Render posts view ──────────────────────────────────────────────────────
+  function renderPosts() {
+    const list = document.getElementById("posts-list");
+    const posts = filtered();
+    if (!posts.length) {
+      list.innerHTML = `<div class="empty-state"><h2>Nenhum conteúdo aqui</h2><p>Tente outra aba.</p></div>`;
+      return;
+    }
+    list.innerHTML = posts.map(post => {
+      const slides = post.format === "Carrossel" && post.slides?.length
+        ? `<div><span class="comments-label">${post.slides.length} lâminas</span>
+            <div class="slides-strip" style="margin-top:6px">
+              ${post.slides.map((s,i) => `<div class="slide-chip"><strong>Lâmina ${i+1}</strong>${esc(s.title)} — ${esc(s.text)}</div>`).join("")}
+            </div></div>` : "";
+      return `
+        <article class="post-card ${post.status==="Aprovado"?"is-done":""}">
+          <div class="card-art" style="--art:${post.art};background-image:${post.art}" onclick="openArtDialog(${post.id})">
+            <span class="card-art-label">${esc(post.format)} · ${esc(post.network)}</span>
+            <span class="card-art-hint">
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" stroke-width="2"/></svg>
+              Clique para comentar
+            </span>
+            ${post.status==="Aprovado"?`<div class="approved-overlay"><svg width="64" height="64" fill="none" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="rgba(43,158,102,.8)"/><path d="M20 33l9 9 16-17" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`:""}
+          </div>
+          <div class="card-body">
+            <div class="card-top">
+              <div>
+                <h2>${esc(post.title)}</h2>
+                <p class="card-meta">📅 ${fmtDate(post.date)} às ${esc(post.time)} · ${esc(post.network)} · ${esc(post.format)}</p>
+              </div>
+              ${post.status==="Aprovado" ? `<span class="badge aprovado">✓ Aprovado</span>`
+                : post.status==="Ajuste solicitado" ? `<span class="badge ajuste">Ajuste</span>`
+                : `<span class="badge pendente">Aguardando</span>`}
+            </div>
+            <div class="card-caption">
+              <p>${esc(post.caption||"")}</p>
+              ${post.hashtags?`<p class="card-tags">${esc(post.hashtags)}</p>`:""}
+            </div>
+            ${slides}
+            ${renderComments(post.id)}
+            ${renderActions(post)}
+          </div>
+        </article>`;
+    }).join("");
+    updateProgress();
+  }
+
+  // ── Render feed view ───────────────────────────────────────────────────────
+  function renderFeed() {
+    const grid = document.getElementById("feed-grid");
+    const ordered = [...allPosts].sort((a,b) => new Date(a.date)-new Date(b.date));
+    grid.innerHTML = ordered.map(post => {
+      const sc = post.status==="Aprovado" ? "aprovado" : post.status==="Ajuste solicitado" ? "ajuste" : "pendente";
+      return `
+        <button class="feed-tile" style="--art:${post.art};background-image:${post.art}" onclick="openArtDialog(${post.id})">
+          <div class="feed-tile-overlay"><span>${esc(post.title)}</span></div>
+          <span class="feed-tile-status ${sc}"></span>
+        </button>`;
+    }).join("");
+  }
+
+  // ── Render calendar view ───────────────────────────────────────────────────
+  function renderCalendar() {
+    const grid = document.getElementById("cal-grid");
+    const monthMatch = MONTH.match(/(\w+)\s+(\d{4})/);
+    const months = {janeiro:0,fevereiro:1,março:2,abril:3,maio:4,junho:5,julho:6,agosto:7,setembro:8,outubro:9,novembro:10,dezembro:11};
+    const monthIdx = monthMatch ? (months[monthMatch[1].toLowerCase()] ?? 5) : 5;
+    const year = monthMatch ? parseInt(monthMatch[2]) : 2026;
+
+    const firstDay = new Date(year, monthIdx, 1).getDay();
+    const daysInMonth = new Date(year, monthIdx+1, 0).getDate();
+    const today = new Date();
+
+    const dotColors = { "Aprovado":"var(--green)", "Enviado para aprovação":"var(--blue)", "Ajuste solicitado":"var(--coral)", "Em produção":"var(--yellow)", "Ideia":"var(--muted)" };
+
+    let cells = "";
+    for (let i=0; i<firstDay; i++) cells += `<div class="cal-cell empty"></div>`;
+    for (let d=1; d<=daysInMonth; d++) {
+      const iso = `${year}-${String(monthIdx+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const dayPosts = allPosts.filter(p => p.date === iso);
+      const isToday = today.getDate()===d && today.getMonth()===monthIdx && today.getFullYear()===year;
+      cells += `<div class="cal-cell ${isToday?"today":""}">
+        <span class="cal-day-num">${d}</span>
+        ${dayPosts.map(p => `
+          <div class="cal-post-dot" onclick="openArtDialog(${p.id})" title="${esc(p.title)}">
+            <span class="cal-dot" style="background:${dotColors[p.status]||"var(--muted)"}"></span>
+            ${esc(p.title.slice(0,18))}${p.title.length>18?"…":""}
+          </div>`).join("")}
+      </div>`;
+    }
+    grid.innerHTML = cells;
+  }
+
+  // ── Art dialog ─────────────────────────────────────────────────────────────
+  let artDialogPostId = null;
+  const artDialog = document.getElementById("art-dialog");
+
+  function openArtDialog(postId) {
+    const post = allPosts.find(p => p.id === postId);
+    if (!post) return;
+    artDialogPostId = postId;
+    document.getElementById("art-dialog-img").style.backgroundImage = post.art;
+    document.getElementById("art-dialog-title").textContent = post.title;
+    document.getElementById("art-dialog-meta").textContent  = `${fmtDate(post.date)} · ${post.network} · ${post.format}`;
+    document.getElementById("art-cmt-text").value = "";
+    renderArtComments(postId);
+    artDialog.showModal();
+  }
+
+  function renderArtComments(postId) {
+    const items = (loadComments()[postId] || []).filter(c => c.type !== "Interno");
+    const container = document.getElementById("art-dialog-comments");
+    const noMsg = document.getElementById("art-no-cmt");
+    if (items.length) {
+      container.innerHTML = `<span class="art-cmt-label">Comentários sobre esta arte</span>`
+        + items.map(c => `<div class="comment-item"><strong>${esc(c.author)}</strong><p>${esc(c.text)}</p><small>${c.date}</small></div>`).join("");
     } else {
-      render();
+      container.innerHTML = `<span class="art-cmt-label">Comentários sobre esta arte</span><p class="art-no-cmt">Sem comentários ainda. Seja o primeiro.</p>`;
     }
-  </script>
+  }
+
+  document.getElementById("art-send-btn").addEventListener("click", () => {
+    const text = document.getElementById("art-cmt-text").value.trim();
+    if (!text) { toast("Escreva um comentário antes de enviar."); return; }
+    addComment(artDialogPostId, text);
+    document.getElementById("art-cmt-text").value = "";
+    renderArtComments(artDialogPostId);
+    renderPosts();
+    toast("Comentário enviado!");
+  });
+
+  // ── Post actions ───────────────────────────────────────────────────────────
+  function approvePost(id) {
+    const posts = loadPosts();
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    const txt = document.getElementById(`cmt-${id}`)?.value.trim();
+    if (txt) addComment(id, txt);
+    post.status = "Aprovado";
+    savePosts(posts);
+    allPosts = loadPosts();
+    renderPosts(); renderFeed(); renderCalendar();
+    toast("Conteúdo aprovado! A equipe foi notificada.");
+  }
+
+  function sendAdjust(id) {
+    const txt = document.getElementById(`cmt-${id}`)?.value.trim();
+    if (!txt) { toast("Descreva o ajuste antes de enviar."); document.getElementById(`cmt-${id}`)?.focus(); return; }
+    const posts = loadPosts();
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    addComment(id, txt);
+    post.status = "Ajuste solicitado";
+    savePosts(posts);
+    allPosts = loadPosts();
+    renderPosts(); renderFeed(); renderCalendar();
+    toast("Ajuste enviado! A equipe vai revisar em breve.");
+  }
+
+  // ── View switcher ──────────────────────────────────────────────────────────
+  document.querySelectorAll(".view-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("is-active"));
+      tab.classList.add("is-active");
+      const v = tab.dataset.view;
+      document.querySelectorAll(".view-wrapper").forEach(w => w.classList.remove("is-visible"));
+      document.getElementById(`view-${v}`).classList.add("is-visible");
+      document.getElementById("filter-tabs").style.display = v === "posts" ? "" : "none";
+    });
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  if (!allPosts.length) {
+    document.getElementById("posts-list").innerHTML = `<div class="empty-state"><h2>Nenhum conteúdo encontrado</h2><p>Aguarde a equipe cadastrar os conteúdos ou verifique o link.</p></div>`;
+  } else {
+    renderPosts();
+    renderFeed();
+    renderCalendar();
+  }
+</script>
 </body>
 </html>
