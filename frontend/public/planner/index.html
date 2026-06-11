@@ -436,8 +436,17 @@
             </div>
             <aside class="comment-panel">
               <h3>Comentários</h3>
-              <div class="comment"><strong>Cliente</strong><p>Ajustar chamada para ficar mais objetiva no primeiro card.</p></div>
-              <div class="comment internal"><strong>Interno</strong><p>Designer: revisar contraste do CTA antes de reenviar.</p></div>
+              <div id="approval-comments-list"></div>
+              <div class="comment-input-area">
+                <textarea id="approval-comment-text" placeholder="Escreva uma instrução de ajuste ou comentário..."></textarea>
+                <div class="comment-type-row">
+                  <select id="approval-comment-type">
+                    <option value="Interno">Interno (equipe)</option>
+                    <option value="Cliente">Cliente</option>
+                  </select>
+                  <button class="ghost-button" id="add-comment-btn">Enviar</button>
+                </div>
+              </div>
               <button class="primary-button full">Aprovar conteúdo</button>
               <button class="outline-button full">Solicitar ajuste</button>
             </aside>
@@ -667,8 +676,8 @@
               <p>Indicadores de produção, aprovação, publicação e desempenho operacional.</p>
             </div>
             <div class="segmented">
-              <button class="is-selected">PDF</button>
-              <button>Excel</button>
+              <button class="is-selected" id="report-pdf-btn">↓ Baixar PDF</button>
+              <button id="report-excel-btn">Excel</button>
             </div>
           </div>
           <div class="report-grid">
@@ -781,6 +790,77 @@
             <li>Maria enviou para aprovação - 09/06/2026 11:04</li>
             <li>Cliente solicitou ajuste - 09/06/2026 14:32</li>
           </ul>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Modal: Cadastrar cliente -->
+    <dialog id="client-modal" class="post-modal">
+      <form method="dialog">
+        <button class="modal-close" title="Fechar">×</button>
+      </form>
+      <div class="modal-body client-modal-body">
+        <h2>Cadastrar cliente</h2>
+        <div class="form-grid">
+          <label>Nome <span class="required">*</span><input id="cm-name" placeholder="Nome do cliente" /></label>
+          <label>Segmento<input id="cm-segment" placeholder="Ex: Saúde e estética" /></label>
+          <label>Responsável<input id="cm-owner" placeholder="Nome do responsável" /></label>
+          <label>Status
+            <select id="cm-status">
+              <option>Contrato ativo</option>
+              <option>Onboarding</option>
+              <option>Pausa</option>
+              <option>Encerrado</option>
+            </select>
+          </label>
+          <label>Instagram<input id="cm-instagram" placeholder="@usuario" /></label>
+          <label>LinkedIn<input id="cm-linkedin" placeholder="/company/nome" /></label>
+          <label>Site<input id="cm-site" placeholder="site.com.br" /></label>
+          <label>Data de início<input id="cm-start" type="date" /></label>
+        </div>
+        <div class="modal-actions">
+          <button class="primary-button" id="cm-save-btn">Cadastrar cliente</button>
+          <button class="ghost-button" id="cm-cancel-btn">Cancelar</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Modal: Portal do cliente -->
+    <dialog id="portal-modal" class="portal-dialog">
+      <div class="portal-shell">
+        <div class="portal-header">
+          <img src="./logo-grupo-venda.png" alt="Grupo Venda" class="portal-logo" />
+          <form method="dialog"><button class="modal-close" title="Fechar">×</button></form>
+        </div>
+        <div class="portal-body">
+          <div class="portal-art" id="portal-art"></div>
+          <div class="portal-info">
+            <p class="eyebrow" id="portal-client-name"></p>
+            <h2 id="portal-title"></h2>
+            <span id="portal-status" class="status"></span>
+            <div class="portal-meta">
+              <div><span>Data</span><strong id="portal-date"></strong></div>
+              <div><span>Formato</span><strong id="portal-format"></strong></div>
+              <div><span>Rede social</span><strong id="portal-network"></strong></div>
+            </div>
+            <div class="post-content-block">
+              <span>Legenda</span>
+              <p id="portal-caption"></p>
+            </div>
+            <p class="preview-tags" id="portal-tags"></p>
+            <div class="portal-section">
+              <h3>Comentários</h3>
+              <div id="portal-comments"></div>
+              <div class="comment-input-area">
+                <textarea id="portal-comment-text" placeholder="Escreva sua instrução de ajuste ou dúvida..."></textarea>
+                <button class="ghost-button full" id="portal-add-comment">Enviar comentário</button>
+              </div>
+            </div>
+            <div class="portal-actions">
+              <button class="primary-button" id="portal-approve-btn">Aprovar conteúdo</button>
+              <button class="outline-button" id="portal-adjust-btn">Solicitar ajuste</button>
+            </div>
+          </div>
         </div>
       </div>
     </dialog>

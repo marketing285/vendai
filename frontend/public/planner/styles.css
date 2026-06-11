@@ -1574,3 +1574,265 @@ dd {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ── Comment input area ──────────────────────────────────────────────── */
+.comment-input-area {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-input-area textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+
+.comment-input-area textarea:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: #fff;
+}
+
+.comment-type-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.comment-type-row select {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.comment .comment-date {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.no-comments {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.required {
+  color: var(--coral);
+}
+
+/* ── Client modal body ───────────────────────────────────────────────── */
+.client-modal-body {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.client-modal-body h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ── Portal dialog ───────────────────────────────────────────────────── */
+.portal-dialog {
+  border: none;
+  border-radius: 14px;
+  padding: 0;
+  width: min(780px, 96vw);
+  max-height: 92vh;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.portal-dialog::backdrop {
+  background: rgba(16, 24, 40, 0.6);
+}
+
+.portal-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 92vh;
+}
+
+.portal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.portal-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+.portal-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.portal-art {
+  background: var(--art, linear-gradient(135deg, #111827, #0f9f8f));
+  min-height: 400px;
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.portal-info {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.portal-info h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.portal-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.portal-meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.portal-meta span {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.portal-meta strong {
+  font-size: 13px;
+}
+
+.portal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portal-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.portal-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.portal-actions .primary-button {
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .portal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-art {
+    min-height: 200px;
+    position: static;
+  }
+}
+
+/* ── PDF / Print ─────────────────────────────────────────────────────── */
+@media print {
+  .sidebar,
+  .topbar,
+  .toolbar,
+  #dashboard,
+  #clients,
+  #builder,
+  #calendar,
+  #feed,
+  #approval,
+  #sharing,
+  #strategy,
+  #files,
+  #reports .segmented {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block !important;
+  }
+
+  .main {
+    padding: 0 !important;
+  }
+
+  .view {
+    display: none !important;
+  }
+
+  #reports {
+    display: block !important;
+    padding: 24px !important;
+  }
+
+  .report-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  .panel {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #d9dee8 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+}

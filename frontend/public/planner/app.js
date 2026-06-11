@@ -604,6 +604,7 @@ document.body.addEventListener("click", (event) => {
 
   const trigger = event.target.closest("[data-post-id]");
   if (!trigger) return;
+  if (trigger.closest("#sharing")) return; // portal handles its own clicks
   const post = posts.find((item) => item.id === Number(trigger.dataset.postId));
   if (post) openPost(post);
 });
@@ -683,17 +684,6 @@ document.body.addEventListener("click", (event) => {
 // ── Central de Aprovação: Aprovar / Solicitar ajuste ─────────────────────────
 let approvalPostIndex = 0;
 
-function renderApprovalBoard() {
-  const pending = posts.filter((p) => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
-  if (!pending.length) return;
-  approvalPostIndex = Math.max(0, Math.min(approvalPostIndex, pending.length - 1));
-  const post = pending[approvalPostIndex];
-  const board = document.querySelector("#approval-art");
-  if (board) board.style.setProperty("--art", post.art);
-  const label = document.querySelector(".art-label");
-  if (label) label.innerHTML = `${escapeHtml(post.client)}<br>${escapeHtml(post.title)}`;
-}
-
 document.querySelector("#approval").addEventListener("click", (event) => {
   const btn = event.target.closest("button");
   if (!btn) return;
@@ -718,8 +708,6 @@ document.querySelector("#approval").addEventListener("click", (event) => {
     showToast("Ajuste solicitado ao gestor.");
   }
 });
-
-renderApprovalBoard();
 
 // ── Calendar segmented toggle ─────────────────────────────────────────────────
 const calendarSegmented = document.querySelector("#calendar .segmented");
@@ -811,7 +799,7 @@ if (feedSegmented) {
 
 // ── Prototype-only buttons (toast feedback) ───────────────────────────────────
 document.querySelector("#clients .primary-button")?.addEventListener("click", () => {
-  showToast("Cadastro de clientes disponível em breve.");
+  document.querySelector("#client-modal").showModal();
 });
 
 document.querySelector("#approval .primary-button:not(.full)")?.addEventListener("click", () => {
@@ -832,10 +820,248 @@ document.querySelector("#files .primary-button")?.addEventListener("click", () =
   });
 });
 
-document.querySelector("#reports .segmented")?.addEventListener("click", (event) => {
-  const btn = event.target.closest("button");
-  if (!btn) return;
-  document.querySelector("#reports .segmented").querySelectorAll("button").forEach((b) => b.classList.remove("is-selected"));
-  btn.classList.add("is-selected");
-  showToast(`Exportação em ${btn.textContent.trim()} disponível em breve.`);
+document.querySelector("#report-pdf-btn")?.addEventListener("click", () => {
+  showSection("reports");
+  setTimeout(() => window.print(), 80);
+});
+
+document.querySelector("#report-excel-btn")?.addEventListener("click", () => {
+  document.querySelector("#report-excel-btn").classList.add("is-selected");
+  document.querySelector("#report-pdf-btn").classList.remove("is-selected");
+  showToast("Exportação Excel disponível em breve.");
+});
+
+// ── Clients persistence ────────────────────────────────────────────────────────
+const defaultClients = [
+  { id: 1, name: "Venda Prime", segment: "Imobiliário premium", owner: "Ana Costa", status: "Contrato ativo", instagram: "@vendaprime", linkedin: "", site: "", start: "2026-01-10", color: "coral" },
+  { id: 2, name: "Clínica Essenza", segment: "Saúde e estética", owner: "Dr. Renato Alves", status: "Contrato ativo", instagram: "@clinicaessenza", linkedin: "", site: "essenza.com.br", start: "2026-03-04", color: "teal" },
+  { id: 3, name: "Orbit Tech", segment: "SaaS B2B", owner: "Lucas Meyer", status: "Onboarding", instagram: "", linkedin: "/company/orbit-tech", site: "", start: "2026-05-28", color: "ink" }
+];
+
+const clientColorCycle = ["coral", "teal", "ink", "blue", "yellow"];
+
+let clients = (() => {
+  try { return JSON.parse(localStorage.getItem("gvPlannerClients")) || defaultClients; } catch { return defaultClients; }
+})();
+
+function saveClients() {
+  localStorage.setItem("gvPlannerClients", JSON.stringify(clients));
+}
+
+function renderClients() {
+  const grid = document.querySelector(".client-grid");
+  if (!grid) return;
+  grid.innerHTML = clients.map((c, i) => {
+    const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+    const color = c.color || clientColorCycle[i % clientColorCycle.length];
+    const rows = [
+      `<div><dt>Responsável</dt><dd>${escapeHtml(c.owner || "—")}</dd></div>`,
+      `<div><dt>Status</dt><dd>${escapeHtml(c.status)}</dd></div>`,
+      c.instagram ? `<div><dt>Instagram</dt><dd>${escapeHtml(c.instagram)}</dd></div>` : "",
+      c.linkedin ? `<div><dt>LinkedIn</dt><dd>${escapeHtml(c.linkedin)}</dd></div>` : "",
+      c.site ? `<div><dt>Site</dt><dd>${escapeHtml(c.site)}</dd></div>` : "",
+      `<div><dt>Início</dt><dd>${c.start ? formatDate(c.start) : "—"}</dd></div>`
+    ].filter(Boolean).join("");
+    return `
+      <article class="client-card">
+        <div class="client-logo ${color}">${initials}</div>
+        <h3>${escapeHtml(c.name)}</h3>
+        <p>${escapeHtml(c.segment || "")}</p>
+        <dl>${rows}</dl>
+      </article>
+    `;
+  }).join("");
+
+  const options = clients.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
+  document.querySelector("#client-filter").innerHTML = `<option value="all">Todos os clientes</option>${options}`;
+  document.querySelector("#builder-client").innerHTML = options;
+}
+
+renderClients();
+
+// ── Client modal ──────────────────────────────────────────────────────────────
+const clientModal = document.querySelector("#client-modal");
+
+document.querySelector("#cm-cancel-btn")?.addEventListener("click", () => clientModal.close());
+
+document.querySelector("#cm-save-btn")?.addEventListener("click", () => {
+  const name = document.querySelector("#cm-name").value.trim();
+  if (!name) { showToast("Nome do cliente é obrigatório."); return; }
+  const newClient = {
+    id: Date.now(),
+    name,
+    segment: document.querySelector("#cm-segment").value.trim(),
+    owner: document.querySelector("#cm-owner").value.trim(),
+    status: document.querySelector("#cm-status").value,
+    instagram: document.querySelector("#cm-instagram").value.trim(),
+    linkedin: document.querySelector("#cm-linkedin").value.trim(),
+    site: document.querySelector("#cm-site").value.trim(),
+    start: document.querySelector("#cm-start").value || new Date().toISOString().slice(0, 10),
+    color: clientColorCycle[clients.length % clientColorCycle.length]
+  };
+  clients.push(newClient);
+  saveClients();
+  renderClients();
+  clientModal.close();
+  document.querySelector("#cm-name").value = "";
+  document.querySelector("#cm-segment").value = "";
+  document.querySelector("#cm-owner").value = "";
+  document.querySelector("#cm-instagram").value = "";
+  document.querySelector("#cm-linkedin").value = "";
+  document.querySelector("#cm-site").value = "";
+  document.querySelector("#cm-start").value = "";
+  showToast(`Cliente "${name}" cadastrado com sucesso.`);
+});
+
+// ── Comments system ───────────────────────────────────────────────────────────
+function loadComments() {
+  try { return JSON.parse(localStorage.getItem("gvPlannerComments")) || {}; } catch { return {}; }
+}
+
+function saveComments(all) {
+  localStorage.setItem("gvPlannerComments", JSON.stringify(all));
+}
+
+function addComment(postId, author, text) {
+  const all = loadComments();
+  if (!all[postId]) all[postId] = [];
+  const type = author === "Interno (equipe)" ? "Interno" : "Cliente";
+  const now = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date());
+  all[postId].push({ author, text, type, date: now });
+  saveComments(all);
+}
+
+function renderApprovalComments(postId) {
+  const list = document.querySelector("#approval-comments-list");
+  if (!list) return;
+  const all = loadComments();
+  const items = all[postId] || [];
+  list.innerHTML = items.length
+    ? items.map((c) => `
+        <div class="comment ${c.type === "Interno" ? "internal" : ""}">
+          <strong>${escapeHtml(c.author)}</strong>
+          <p>${escapeHtml(c.text)}</p>
+          <small class="comment-date">${c.date}</small>
+        </div>
+      `).join("")
+    : '<p class="no-comments">Sem comentários ainda.</p>';
+}
+
+// Re-render approval board with comments
+function renderApprovalBoard() {
+  const pending = posts.filter((p) => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  const list = document.querySelector("#approval-comments-list");
+  if (!pending.length) {
+    if (list) list.innerHTML = '<p class="no-comments">Nenhum post aguardando aprovação.</p>';
+    return;
+  }
+  approvalPostIndex = Math.max(0, Math.min(approvalPostIndex, pending.length - 1));
+  const post = pending[approvalPostIndex];
+  const board = document.querySelector("#approval-art");
+  if (board) board.style.setProperty("--art", post.art);
+  const label = document.querySelector(".art-label");
+  if (label) label.innerHTML = `${escapeHtml(post.client)}<br>${escapeHtml(post.title)}`;
+  renderApprovalComments(post.id);
+}
+
+renderApprovalBoard();
+
+document.querySelector("#add-comment-btn")?.addEventListener("click", () => {
+  const pending = posts.filter((p) => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  if (!pending.length) { showToast("Nenhum post na fila de aprovação."); return; }
+  const post = pending[approvalPostIndex];
+  const text = document.querySelector("#approval-comment-text").value.trim();
+  if (!text) { showToast("Escreva um comentário antes de enviar."); return; }
+  const author = document.querySelector("#approval-comment-type").value;
+  addComment(post.id, author, text);
+  document.querySelector("#approval-comment-text").value = "";
+  renderApprovalComments(post.id);
+  showToast("Comentário adicionado.");
+});
+
+// ── Portal do cliente ─────────────────────────────────────────────────────────
+const portalModal = document.querySelector("#portal-modal");
+
+function openPortal(post) {
+  document.querySelector("#portal-art").style.setProperty("--art", post.art);
+  document.querySelector("#portal-client-name").textContent = post.client;
+  document.querySelector("#portal-title").textContent = post.title;
+  document.querySelector("#portal-status").textContent = post.status;
+  document.querySelector("#portal-status").className = `status ${statusClass[post.status] || "ideia"}`;
+  document.querySelector("#portal-date").textContent = formatDate(post.date);
+  document.querySelector("#portal-format").textContent = post.format;
+  document.querySelector("#portal-network").textContent = post.network;
+  document.querySelector("#portal-caption").textContent = post.caption || "";
+  document.querySelector("#portal-tags").textContent = post.hashtags || "#grupovenda";
+  portalModal.dataset.postId = post.id;
+
+  const all = loadComments();
+  const items = (all[post.id] || []).filter((c) => c.type !== "Interno");
+  document.querySelector("#portal-comments").innerHTML = items.length
+    ? items.map((c) => `
+        <div class="comment">
+          <strong>${escapeHtml(c.author)}</strong>
+          <p>${escapeHtml(c.text)}</p>
+          <small class="comment-date">${c.date}</small>
+        </div>
+      `).join("")
+    : '<p class="no-comments">Sem comentários ainda.</p>';
+
+  document.querySelector("#portal-comment-text").value = "";
+  portalModal.showModal();
+}
+
+document.querySelector("#sharing .client-approval-list")?.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-post-id]");
+  if (!row) return;
+  const post = posts.find((p) => p.id === Number(row.dataset.postId));
+  if (post) openPortal(post);
+});
+
+document.querySelector("#portal-add-comment")?.addEventListener("click", () => {
+  const postId = Number(portalModal.dataset.postId);
+  const text = document.querySelector("#portal-comment-text").value.trim();
+  if (!text) return;
+  addComment(postId, "Cliente", text);
+  document.querySelector("#portal-comment-text").value = "";
+  const all = loadComments();
+  const items = (all[postId] || []).filter((c) => c.type !== "Interno");
+  document.querySelector("#portal-comments").innerHTML = items.map((c) => `
+    <div class="comment">
+      <strong>${escapeHtml(c.author)}</strong>
+      <p>${escapeHtml(c.text)}</p>
+      <small class="comment-date">${c.date}</small>
+    </div>
+  `).join("");
+  renderApprovalComments(postId);
+  showToast("Comentário enviado.");
+});
+
+document.querySelector("#portal-approve-btn")?.addEventListener("click", () => {
+  const postId = Number(portalModal.dataset.postId);
+  const post = posts.find((p) => p.id === postId);
+  if (!post) return;
+  post.status = "Aprovado";
+  savePosts();
+  renderAll();
+  renderApprovalBoard();
+  portalModal.close();
+  showToast(`"${post.title}" aprovado pelo cliente.`);
+});
+
+document.querySelector("#portal-adjust-btn")?.addEventListener("click", () => {
+  const postId = Number(portalModal.dataset.postId);
+  const post = posts.find((p) => p.id === postId);
+  if (!post) return;
+  const text = document.querySelector("#portal-comment-text").value.trim();
+  if (text) {
+    addComment(postId, "Cliente", text);
+    document.querySelector("#portal-comment-text").value = "";
+  }
+  post.status = "Ajuste solicitado";
+  savePosts();
+  renderAll();
+  renderApprovalBoard();
+  portalModal.close();
+  showToast("Ajuste solicitado. A equipe será notificada.");
 });
