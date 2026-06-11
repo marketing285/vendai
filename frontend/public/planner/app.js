@@ -562,8 +562,7 @@ document.querySelector("#calendar-grid").addEventListener("drop", (event) => {
 });
 
 document.querySelector("#new-post-btn").addEventListener("click", () => {
-  showSection("calendar");
-  setTimeout(() => openPost(posts[0]), 120);
+  showSection("builder");
 });
 
 document.querySelector("#copy-share-btn").addEventListener("click", () => {
@@ -612,3 +611,231 @@ document.body.addEventListener("click", (event) => {
 renderAll();
 renderCarouselSlides();
 updateBuilderPreview();
+
+// ── Toast utility ─────────────────────────────────────────────────────────────
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.className = "gv-toast";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("is-visible"));
+  setTimeout(() => {
+    toast.classList.remove("is-visible");
+    setTimeout(() => toast.remove(), 300);
+  }, 2400);
+}
+
+// ── Fill builder from existing post (Editar) ──────────────────────────────────
+function fillBuilderFromPost(post) {
+  document.querySelector("#builder-client").value = post.client;
+  document.querySelector("#builder-title").value = post.title;
+  document.querySelector("#builder-date").value = post.date;
+  document.querySelector("#builder-time").value = post.time;
+  document.querySelector("#builder-network").value = post.network;
+  document.querySelector("#builder-format").value = post.format;
+  document.querySelector("#builder-status").value = post.status;
+  document.querySelector("#builder-pillar").value = post.pillar;
+  document.querySelector("#builder-goal").value = post.goal || "";
+  document.querySelector("#builder-caption").value = post.caption || "";
+  document.querySelector("#builder-art-copy").value = post.artCopy || "";
+  document.querySelector("#builder-hashtags").value = post.hashtags || "";
+  document.querySelector("#builder-cta").value = post.cta || "";
+  if (post.format === "Carrossel") {
+    document.querySelector("#builder-slides-count").value = (post.slides || []).length || 2;
+  }
+  renderCarouselSlides();
+  updateBuilderPreview();
+}
+
+// ── Modal: Editar, Duplicar, Excluir ─────────────────────────────────────────
+document.body.addEventListener("click", (event) => {
+  const btn = event.target.closest(".ghost-button, .danger-button");
+  if (!btn || !activeModalPostId) return;
+
+  const post = posts.find((p) => p.id === activeModalPostId);
+  if (!post) return;
+
+  if (btn.textContent.trim() === "Editar") {
+    modal.close();
+    fillBuilderFromPost(post);
+    showSection("builder");
+    return;
+  }
+
+  if (btn.textContent.trim() === "Duplicar") {
+    const copy = { ...post, id: Date.now(), title: `${post.title} (cópia)`, status: "Ideia" };
+    posts = [copy, ...posts];
+    savePosts();
+    renderAll();
+    showToast("Post duplicado com sucesso.");
+    return;
+  }
+
+  if (btn.classList.contains("danger-button")) {
+    posts = posts.filter((p) => p.id !== activeModalPostId);
+    savePosts();
+    renderAll();
+    modal.close();
+    showToast("Post excluído.");
+  }
+});
+
+// ── Central de Aprovação: Aprovar / Solicitar ajuste ─────────────────────────
+let approvalPostIndex = 0;
+
+function renderApprovalBoard() {
+  const pending = posts.filter((p) => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  if (!pending.length) return;
+  approvalPostIndex = Math.max(0, Math.min(approvalPostIndex, pending.length - 1));
+  const post = pending[approvalPostIndex];
+  const board = document.querySelector("#approval-art");
+  if (board) board.style.setProperty("--art", post.art);
+  const label = document.querySelector(".art-label");
+  if (label) label.innerHTML = `${escapeHtml(post.client)}<br>${escapeHtml(post.title)}`;
+}
+
+document.querySelector("#approval").addEventListener("click", (event) => {
+  const btn = event.target.closest("button");
+  if (!btn) return;
+
+  const pending = posts.filter((p) => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  if (!pending.length) return;
+  const post = pending[approvalPostIndex];
+
+  if (btn.textContent.trim() === "Aprovar conteúdo") {
+    post.status = "Aprovado";
+    savePosts();
+    renderAll();
+    renderApprovalBoard();
+    showToast(`"${post.title}" aprovado.`);
+    return;
+  }
+
+  if (btn.textContent.trim() === "Solicitar ajuste") {
+    post.status = "Ajuste solicitado";
+    savePosts();
+    renderAll();
+    showToast("Ajuste solicitado ao gestor.");
+  }
+});
+
+renderApprovalBoard();
+
+// ── Calendar segmented toggle ─────────────────────────────────────────────────
+const calendarSegmented = document.querySelector("#calendar .segmented");
+if (calendarSegmented) {
+  calendarSegmented.addEventListener("click", (event) => {
+    const btn = event.target.closest("button");
+    if (!btn) return;
+    calendarSegmented.querySelectorAll("button").forEach((b) => b.classList.remove("is-selected"));
+    btn.classList.add("is-selected");
+
+    const view = btn.textContent.trim();
+    const grid = document.querySelector("#calendar-grid");
+    const kanban = document.querySelector("#kanban-board");
+
+    if (view === "Kanban") {
+      grid.classList.add("is-hidden");
+      kanban.classList.remove("is-hidden");
+    } else if (view === "Lista") {
+      kanban.classList.add("is-hidden");
+      grid.classList.remove("is-hidden");
+      grid.innerHTML = activePosts().map((post) => `
+        <button class="list-row" data-post-id="${post.id}">
+          <span class="thumb" style="--art:${post.art}"></span>
+          <span class="list-date">${formatDate(post.date)}</span>
+          <span class="list-main"><strong>${escapeHtml(post.title)}</strong><span>${escapeHtml(post.client)}</span></span>
+          <span>${escapeHtml(post.network)} · ${escapeHtml(post.format)}</span>
+          ${statusPill(post.status)}
+        </button>
+      `).join("");
+    } else if (view === "Semana") {
+      kanban.classList.add("is-hidden");
+      grid.classList.remove("is-hidden");
+      const today = new Date();
+      const weekDays = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        return d;
+      });
+      grid.innerHTML = weekDays.map((date) => {
+        const dayStr = String(date.getDate()).padStart(2, "0");
+        const monthStr = String(date.getMonth() + 1).padStart(2, "0");
+        const isoDate = `${date.getFullYear()}-${monthStr}-${dayStr}`;
+        const dayPosts = activePosts().filter((p) => p.date === isoDate);
+        return `
+          <article class="day-card" data-day="${date.getDate()}">
+            <time>${dayStr}/${monthStr}</time>
+            ${dayPosts.map((post) => `
+              <button class="mini-post" draggable="true" data-post-id="${post.id}" style="--status-color:${statusColor[post.status]}">
+                <strong>${escapeHtml(post.client)}</strong><br>${escapeHtml(post.format)} · ${escapeHtml(post.network)}
+              </button>
+            `).join("")}
+          </article>
+        `;
+      }).join("");
+    } else {
+      kanban.classList.add("is-hidden");
+      grid.classList.remove("is-hidden");
+      renderCalendar();
+    }
+  });
+}
+
+// ── Feed segmented toggle ─────────────────────────────────────────────────────
+const feedSegmented = document.querySelector("#feed .segmented");
+if (feedSegmented) {
+  feedSegmented.addEventListener("click", (event) => {
+    const btn = event.target.closest("button");
+    if (!btn) return;
+    feedSegmented.querySelectorAll("button").forEach((b) => b.classList.remove("is-selected"));
+    btn.classList.add("is-selected");
+
+    const filter = btn.textContent.trim();
+    const feed = document.querySelector("#instagram-grid");
+    let filtered;
+    if (filter === "Aprovados") {
+      filtered = posts.filter((p) => p.status === "Aprovado");
+    } else if (filter === "Publicados") {
+      filtered = posts.filter((p) => p.status === "Publicado");
+    } else {
+      filtered = activePosts().concat(posts);
+    }
+    feed.innerHTML = filtered.slice(0, 12).map((post) => `
+      <button class="feed-tile" data-post-id="${post.id}" style="--art:${post.art}">
+        ${escapeHtml(post.pillar)}
+      </button>
+    `).join("");
+  });
+}
+
+// ── Prototype-only buttons (toast feedback) ───────────────────────────────────
+document.querySelector("#clients .primary-button")?.addEventListener("click", () => {
+  showToast("Cadastro de clientes disponível em breve.");
+});
+
+document.querySelector("#approval .primary-button:not(.full)")?.addEventListener("click", () => {
+  showToast("Lote enviado para o cliente.");
+});
+
+document.querySelector("#strategy .ghost-button")?.addEventListener("click", () => {
+  showToast("Exportação disponível em breve.");
+});
+
+document.querySelector("#files .primary-button")?.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.click();
+  input.addEventListener("change", () => {
+    if (input.files.length) showToast(`${input.files.length} arquivo(s) selecionado(s).`);
+  });
+});
+
+document.querySelector("#reports .segmented")?.addEventListener("click", (event) => {
+  const btn = event.target.closest("button");
+  if (!btn) return;
+  document.querySelector("#reports .segmented").querySelectorAll("button").forEach((b) => b.classList.remove("is-selected"));
+  btn.classList.add("is-selected");
+  showToast(`Exportação em ${btn.textContent.trim()} disponível em breve.`);
+});
