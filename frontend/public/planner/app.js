@@ -1197,11 +1197,32 @@ function renderClients() {
       const id = parseInt(btn.dataset.delId);
       const client = clients.find(c => c.id === id);
       if (!client) return;
-      if (!confirm(`Excluir o cliente "${client.name}"? Os posts associados não serão apagados.`)) return;
+
+      const clientPosts = posts.filter(p => p.client === client.name);
+      const postCount   = clientPosts.length;
+      const msg = postCount
+        ? `Excluir "${client.name}"?\n\nIsso vai apagar permanentemente ${postCount} post(s) e todos os comentários associados. Esta ação não pode ser desfeita.`
+        : `Excluir o cliente "${client.name}"? Esta ação não pode ser desfeita.`;
+
+      if (!confirm(msg)) return;
+
+      // Remove posts
+      const deletedIds = new Set(clientPosts.map(p => p.id));
+      posts = posts.filter(p => p.client !== client.name);
+      savePosts();
+
+      // Remove comments for those posts
+      const allCmts = loadComments();
+      deletedIds.forEach(pid => delete allCmts[pid]);
+      saveComments(allCmts);
+
+      // Remove client
       clients = clients.filter(c => c.id !== id);
       saveClients();
+
       renderClients();
-      showToast(`Cliente "${client.name}" removido.`);
+      renderAll();
+      showToast(`Cliente "${client.name}" e ${postCount} post(s) removidos.`);
     });
   });
 
