@@ -187,7 +187,12 @@ let builderArtData = null; // base64 data URL of uploaded or library art
 let builderEditId = null;  // id of post being edited (null = new post)
 
 function labelFor(sectionId) {
-  return document.querySelector(`[data-section="${sectionId}"]`)?.textContent.trim().replace(/^[^A-Za-zÀ-ÿ]+/, "") || "Dashboard";
+  const el = document.querySelector(`[data-section="${sectionId}"]`);
+  if (!el) return "Dashboard";
+  // Clone to remove badge/counter child elements before reading text
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll("span, .badge, [id$='-badge']").forEach(n => n.remove());
+  return clone.textContent.trim().replace(/^[^A-Za-zÀ-ÿ]+/, "").replace(/\s*\d+\s*$/, "") || "Dashboard";
 }
 
 function showSection(sectionId) {
@@ -2201,10 +2206,26 @@ function libPreviewFile(id) {
 
   const isImg   = f.mime?.startsWith("image/");
   const isVideo = f.mime?.startsWith("video/");
+  body.innerHTML = "";
   if (isImg && (f.data || f.thumb)) {
-    body.innerHTML = `<img src="${f.data || f.thumb}" alt="${escapeHtml(f.name)}" />`;
+    const img = document.createElement("img");
+    img.alt = f.name;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "70vh";
+    img.style.objectFit = "contain";
+    img.style.display = "block";
+    img.onerror = () => {
+      body.innerHTML = `<div class="lib-prev-icon">🖼️</div><small style="color:#aaa;font-size:12px;margin-top:8px">Prévia indisponível</small>`;
+    };
+    img.src = f.data || f.thumb;
+    body.appendChild(img);
   } else if (isVideo && f.data) {
-    body.innerHTML = `<video src="${f.data}" controls></video>`;
+    const vid = document.createElement("video");
+    vid.src = f.data;
+    vid.controls = true;
+    vid.style.maxWidth = "100%";
+    vid.style.maxHeight = "70vh";
+    body.appendChild(vid);
   } else {
     body.innerHTML = `<div class="lib-prev-icon">${fileIcon(f.mime)}</div>`;
   }
