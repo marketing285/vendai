@@ -183,6 +183,8 @@ const networkFilter = document.querySelector("#network-filter");
 const search = document.querySelector("#global-search");
 const modal = document.querySelector("#post-modal");
 let activeSlideIndex = 0;
+let builderArtData = null; // base64 data URL of uploaded or library art
+let builderEditId = null;  // id of post being edited (null = new post)
 
 function labelFor(sectionId) {
   return document.querySelector(`[data-section="${sectionId}"]`)?.textContent.trim().replace(/^[^A-Za-zÀ-ÿ]+/, "") || "Dashboard";
@@ -212,7 +214,21 @@ function statusPill(status) {
 
 function openPost(post) {
   activeModalPostId = post.id;
-  document.querySelector("#modal-art").style.setProperty("--art", post.art);
+  const modalArtEl = document.querySelector("#modal-art");
+  if (modalArtEl) {
+    const isUrl = post.art && post.art.includes("url(");
+    if (isUrl) {
+      modalArtEl.style.backgroundImage = post.art;
+      modalArtEl.style.backgroundSize = "cover";
+      modalArtEl.style.backgroundPosition = "center";
+      modalArtEl.style.removeProperty("--art");
+    } else {
+      modalArtEl.style.backgroundImage = "";
+      modalArtEl.style.backgroundSize = "";
+      modalArtEl.style.backgroundPosition = "";
+      modalArtEl.style.setProperty("--art", post.art || "linear-gradient(135deg, #111827, #0f9f8f)");
+    }
+  }
   document.querySelector("#modal-client").textContent = post.client;
   document.querySelector("#modal-title").textContent = post.title;
   document.querySelector("#modal-status").textContent = post.status;
@@ -634,16 +650,27 @@ function collectBuilderPost(statusOverride) {
     goal: document.querySelector("#builder-goal").value || "Objetivo não informado",
     owner: "Gestor",
     caption: document.querySelector("#builder-caption").value || "Legenda não informada.",
-    art: format === "Carrossel"
-      ? "linear-gradient(135deg, #111827, #0f9f8f)"
-      : "linear-gradient(135deg, #3164d4, #e15d4f)",
+    art: builderArtData
+      ? `url('${builderArtData}')`
+      : (format === "Carrossel"
+        ? "linear-gradient(135deg, #111827, #0f9f8f)"
+        : "linear-gradient(135deg, #3164d4, #e15d4f)"),
     slides: format === "Carrossel" ? getSlideData() : []
   };
 }
 
 function upsertBuilderPost(statusOverride) {
   const post = collectBuilderPost(statusOverride);
-  posts = [post, ...posts];
+  if (builderEditId) {
+    const idx = posts.findIndex(p => p.id === builderEditId);
+    if (idx !== -1) {
+      posts[idx] = { ...posts[idx], ...post, id: builderEditId };
+    } else {
+      posts = [post, ...posts];
+    }
+  } else {
+    posts = [post, ...posts];
+  }
   savePosts();
   renderAll();
   return post;
@@ -681,6 +708,24 @@ function updateBuilderPreview() {
   const previewStatus = document.querySelector("#preview-status");
   previewStatus.textContent = status;
   previewStatus.className = `status ${statusClass[status] || "ideia"}`;
+  // Update art display
+  const artEl = document.querySelector("#preview-art");
+  if (artEl) {
+    if (builderArtData) {
+      artEl.style.backgroundImage = `url('${builderArtData}')`;
+      artEl.style.backgroundSize = "cover";
+      artEl.style.backgroundPosition = "center";
+      artEl.style.background = "";
+    } else {
+      const fmt = document.querySelector("#builder-format").value;
+      artEl.style.backgroundImage = "";
+      artEl.style.backgroundSize = "";
+      artEl.style.backgroundPosition = "";
+      artEl.style.background = fmt === "Carrossel"
+        ? "linear-gradient(135deg, #111827, #0f9f8f)"
+        : "linear-gradient(135deg, #3164d4, #e15d4f)";
+    }
+  }
   updateActiveSlidePreview();
 }
 
@@ -797,6 +842,28 @@ document.querySelector("#post-builder-form").addEventListener("input", (event) =
   }
 });
 
+// Handle art file upload in builder
+document.getElementById("builder-file")?.addEventListener("change", async function () {
+  const file = this.files?.[0];
+  const nameEl = document.getElementById("builder-file-name");
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    if (nameEl) nameEl.textContent = file.name;
+    showToast(`Arquivo "${file.name}" adicionado (não é imagem — prévia indisponível).`);
+    return;
+  }
+  if (nameEl) nameEl.textContent = "Processando…";
+  try {
+    builderArtData = await resizeImage(file, 1080);
+    if (nameEl) nameEl.textContent = `✓ ${file.name}`;
+    updateBuilderPreview();
+    showToast(`Arte "${file.name}" carregada na prévia.`);
+  } catch {
+    if (nameEl) nameEl.textContent = "Erro ao processar imagem";
+    showToast("Erro ao processar a imagem. Tente novamente.");
+  }
+});
+
 document.querySelector("#preview-slides").addEventListener("click", (event) => {
   const button = event.target.closest("[data-slide-index]");
   if (!button) return;
@@ -809,6 +876,7 @@ document.querySelector("#next-slide").addEventListener("click", () => moveSlide(
 
 document.querySelector("#save-draft-btn").addEventListener("click", () => {
   upsertBuilderPost("Ideia");
+  builderEditId = null;
   document.querySelector("#save-draft-btn").textContent = "Rascunho salvo";
   setTimeout(() => {
     document.querySelector("#save-draft-btn").textContent = "Salvar rascunho";
@@ -818,6 +886,7 @@ document.querySelector("#save-draft-btn").addEventListener("click", () => {
 document.querySelector("#send-approval-btn").addEventListener("click", () => {
   document.querySelector("#builder-status").value = "Enviado para aprovação";
   upsertBuilderPost("Enviado para aprovação");
+  builderEditId = null;
   updateBuilderPreview();
   document.querySelector("#send-approval-btn").textContent = "Enviado ao cliente";
   setTimeout(() => {
@@ -864,6 +933,8 @@ document.querySelector("#calendar-grid").addEventListener("drop", (event) => {
 
 document.querySelector("#new-post-btn").addEventListener("click", () => {
   showSection("builder");
+  builderArtData = null;
+  builderEditId = null;
   // reset builder form for a fresh post
   ["#builder-title","#builder-theme","#builder-goal","#builder-art-copy","#builder-caption","#builder-cta","#builder-hashtags"].forEach(sel => {
     const el = document.querySelector(sel);
@@ -880,6 +951,10 @@ document.querySelector("#new-post-btn").addEventListener("click", () => {
   }
   const timeEl = document.querySelector("#builder-time");
   if (timeEl) timeEl.value = "09:00";
+  const fileEl = document.getElementById("builder-file");
+  if (fileEl) fileEl.value = "";
+  const nameEl = document.getElementById("builder-file-name");
+  if (nameEl) nameEl.textContent = "JPG, PNG, MP4, PDF, PSD ou AI";
   updateBuilderPreview();
 });
 
@@ -987,6 +1062,8 @@ document.body.addEventListener("click", (event) => {
 
   if (btn.textContent.trim() === "Editar") {
     modal.close();
+    builderArtData = null;
+    builderEditId = post.id;
     fillBuilderFromPost(post);
     showSection("builder");
     return;
@@ -1304,7 +1381,19 @@ function renderApprovalBoard() {
   approvalPostIndex = Math.max(0, Math.min(approvalPostIndex, pending.length - 1));
   const post = pending[approvalPostIndex];
   const board = document.querySelector("#approval-art");
-  if (board) board.style.setProperty("--art", post.art);
+  if (board) {
+    const isUrl = post.art && post.art.includes("url(");
+    if (isUrl) {
+      board.style.backgroundImage = post.art.replace(/^url\(['"]?/, "url('").replace(/['"]?\)$/, "')");
+      board.style.backgroundSize = "cover";
+      board.style.backgroundPosition = "center";
+    } else {
+      board.style.backgroundImage = "";
+      board.style.backgroundSize = "";
+      board.style.backgroundPosition = "";
+      board.style.setProperty("--art", post.art || "linear-gradient(135deg, #111827, #0f9f8f)");
+    }
+  }
   const label = document.querySelector(".art-label");
   if (label) label.innerHTML = `${escapeHtml(post.client)}<br>${escapeHtml(post.title)}`;
   renderApprovalComments(post.id);
@@ -1329,7 +1418,20 @@ document.querySelector("#add-comment-btn")?.addEventListener("click", () => {
 const portalModal = document.querySelector("#portal-modal");
 
 function openPortal(post) {
-  document.querySelector("#portal-art").style.setProperty("--art", post.art);
+  const portalArtEl = document.querySelector("#portal-art");
+  if (portalArtEl) {
+    const isUrl = post.art && post.art.includes("url(");
+    if (isUrl) {
+      portalArtEl.style.backgroundImage = post.art;
+      portalArtEl.style.backgroundSize = "cover";
+      portalArtEl.style.backgroundPosition = "center";
+    } else {
+      portalArtEl.style.backgroundImage = "";
+      portalArtEl.style.backgroundSize = "";
+      portalArtEl.style.backgroundPosition = "";
+      portalArtEl.style.setProperty("--art", post.art || "linear-gradient(135deg, #111827, #0f9f8f)");
+    }
+  }
   document.querySelector("#portal-client-name").textContent = post.client;
   document.querySelector("#portal-title").textContent = post.title;
   document.querySelector("#portal-status").textContent = post.status;
@@ -2142,16 +2244,9 @@ function libDeleteFile(id) {
 function libUseAsArt(id) {
   const f = libFiles.find(x => x.id === id);
   if (!f || !f.data) { showToast("Arquivo sem dados disponíveis."); return; }
-  // Switch to builder and set art preview
+  builderArtData = f.data;
   document.querySelector("[data-section='builder']")?.click();
-  const preview = document.getElementById("builder-preview");
-  if (preview) {
-    preview.style.backgroundImage = `url('${f.data}')`;
-    preview.style.backgroundSize = "cover";
-    preview.style.backgroundPosition = "center";
-  }
-  // Store reference for post save
-  window._libArtData = `url('${f.data}')`;
+  updateBuilderPreview();
   showToast(`Arte "${f.name}" selecionada no builder.`);
 }
 
