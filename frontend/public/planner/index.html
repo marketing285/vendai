@@ -736,19 +736,63 @@
         <section id="files" class="view">
           <div class="section-head">
             <div>
-              <h2>Biblioteca de arquivos</h2>
-              <p>Pastas por cliente para logos, fotos, vídeos, artes, referências, briefings e documentos.</p>
+              <h2>Biblioteca</h2>
+              <p>Logos, fotos, artes, vídeos, briefings e documentos organizados por cliente e categoria.</p>
             </div>
-            <button class="primary-button">Upload</button>
+            <div style="display:flex;gap:10px;align-items:center">
+              <div class="segmented" id="lib-view-seg">
+                <button class="is-selected" data-lview="grid">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                  Grid
+                </button>
+                <button data-lview="list">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  Lista
+                </button>
+              </div>
+              <button class="primary-button" id="lib-upload-btn">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-13M6 14l6-7 6 7"/><path stroke-linecap="round" d="M3 20h18"/></svg>
+                Upload
+              </button>
+            </div>
           </div>
-          <div class="folder-grid">
-            <article><strong>Logos</strong><span>12 arquivos</span></article>
-            <article><strong>Fotos</strong><span>84 arquivos</span></article>
-            <article><strong>Vídeos</strong><span>19 arquivos</span></article>
-            <article><strong>Artes</strong><span>46 arquivos</span></article>
-            <article><strong>Referências</strong><span>27 arquivos</span></article>
-            <article><strong>Briefings</strong><span>8 arquivos</span></article>
-            <article><strong>Documentos</strong><span>15 arquivos</span></article>
+
+          <div class="lib-wrap">
+            <!-- Sidebar nav -->
+            <div class="lib-nav">
+              <div class="lib-search-wrap">
+                <input type="search" id="lib-search" placeholder="Buscar arquivos…" autocomplete="off" />
+              </div>
+              <div id="lib-nav-tree"></div>
+            </div>
+
+            <!-- Main area -->
+            <div class="lib-main" id="lib-main">
+              <div class="lib-dropzone-overlay" id="lib-dropzone-overlay" hidden>
+                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-13M6 14l6-7 6 7"/><path stroke-linecap="round" d="M3 20h18"/></svg>
+                <p>Solte os arquivos aqui</p>
+              </div>
+
+              <div class="lib-toolbar">
+                <div class="lib-toolbar-left">
+                  <span class="lib-breadcrumb" id="lib-breadcrumb">Todos os arquivos</span>
+                  <select class="lib-client-sel" id="lib-client-filter">
+                    <option value="all">Todos os clientes</option>
+                  </select>
+                </div>
+                <span class="lib-count" id="lib-count">0 arquivos</span>
+              </div>
+
+              <div class="lib-grid-wrap" id="lib-grid-wrap">
+                <div id="lib-files-container"></div>
+                <div class="lib-empty" id="lib-empty" hidden>
+                  <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" stroke-width="1.2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+                  <p>Nenhum arquivo aqui</p>
+                  <small>Faça upload ou arraste arquivos para esta área</small>
+                  <button class="ghost-button" style="margin-top:4px" id="lib-empty-upload">+ Upload</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -945,6 +989,62 @@
             </div>
           </div>
         </div>
+      </div>
+    </dialog>
+
+    <!-- Modal: Upload biblioteca -->
+    <dialog id="lib-upload-modal" class="lib-upload-modal">
+      <div class="lib-upload-head">
+        <h3>Upload de arquivos</h3>
+        <button class="modal-close" id="lib-upload-close">×</button>
+      </div>
+      <div class="lib-upload-body">
+        <div class="lib-drop-area" id="lib-drop-area">
+          <input type="file" id="lib-file-input" multiple accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+          <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-13M6 14l6-7 6 7"/><path stroke-linecap="round" d="M3 20h18"/></svg>
+          <p>Arraste arquivos aqui</p>
+          <small>ou clique para selecionar · Imagens, vídeos, PDFs, docs</small>
+        </div>
+        <div class="lib-staged" id="lib-staged" hidden></div>
+        <div class="lib-upload-fields">
+          <label>
+            Cliente
+            <select id="lib-up-client"></select>
+          </label>
+          <label>
+            Categoria
+            <select id="lib-up-category">
+              <option value="logos">Logos</option>
+              <option value="fotos">Fotos</option>
+              <option value="artes" selected>Artes</option>
+              <option value="videos">Vídeos</option>
+              <option value="refs">Referências</option>
+              <option value="briefings">Briefings</option>
+              <option value="docs">Documentos</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="lib-upload-foot">
+        <button class="ghost-button" id="lib-up-cancel">Cancelar</button>
+        <button class="primary-button" id="lib-up-save" disabled>Salvar arquivos</button>
+      </div>
+    </dialog>
+
+    <!-- Modal: Preview arquivo -->
+    <dialog id="lib-preview-modal" class="lib-preview-dialog">
+      <div class="lib-preview-head">
+        <strong id="lib-prev-name">arquivo.jpg</strong>
+        <div style="display:flex;gap:8px">
+          <button class="ghost-button" id="lib-prev-use-art" hidden>Usar como arte</button>
+          <button class="ghost-button" id="lib-prev-download">↓ Baixar</button>
+          <button class="modal-close" id="lib-preview-close">×</button>
+        </div>
+      </div>
+      <div class="lib-preview-body" id="lib-preview-body"></div>
+      <div class="lib-preview-foot">
+        <div class="lib-preview-meta" id="lib-preview-meta"></div>
+        <button class="danger-button" id="lib-prev-delete">Excluir arquivo</button>
       </div>
     </dialog>
 

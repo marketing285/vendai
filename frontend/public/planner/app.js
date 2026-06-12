@@ -1837,6 +1837,474 @@ function renderBestTime() {
 builderNetworkSel?.addEventListener("change", renderBestTime);
 renderBestTime();
 
+// ── Biblioteca ───────────────────────────────────────────────────────────────
+const LIB_KEY = "gvPlannerFiles";
+
+const LIB_CATS = [
+  { id: "all",       label: "Todos",       icon: "🗂" },
+  { id: "logos",     label: "Logos",       icon: "🎨" },
+  { id: "fotos",     label: "Fotos",       icon: "📷" },
+  { id: "artes",     label: "Artes",       icon: "✏️" },
+  { id: "videos",    label: "Vídeos",      icon: "🎬" },
+  { id: "refs",      label: "Referências", icon: "🔗" },
+  { id: "briefings", label: "Briefings",   icon: "📋" },
+  { id: "docs",      label: "Documentos",  icon: "📄" },
+];
+
+let libFiles    = [];
+let libCat      = "all";
+let libClient   = "all";
+let libView     = "grid";
+let libSearch   = "";
+let libStagedFiles = [];
+let libPreviewId   = null;
+
+function loadLibFiles() {
+  try { return JSON.parse(localStorage.getItem(LIB_KEY)) || []; } catch { return []; }
+}
+function saveLibFiles() {
+  try {
+    localStorage.setItem(LIB_KEY, JSON.stringify(libFiles));
+  } catch (e) {
+    showToast("Armazenamento cheio. Remova arquivos antigos.");
+  }
+}
+
+function fileIcon(mime) {
+  if (!mime) return "📎";
+  if (mime.startsWith("image/")) return "🖼";
+  if (mime.startsWith("video/")) return "🎬";
+  if (mime === "application/pdf") return "📑";
+  if (mime.includes("word") || mime.includes("document")) return "📝";
+  if (mime.includes("sheet") || mime.includes("excel")) return "📊";
+  if (mime.includes("presentation") || mime.includes("powerpoint")) return "📊";
+  if (mime.startsWith("text/")) return "📄";
+  return "📎";
+}
+
+function fmtFileSize(bytes) {
+  if (!bytes) return "—";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1048576).toFixed(1) + " MB";
+}
+
+function libCatLabel(catId) {
+  return LIB_CATS.find(c => c.id === catId)?.label || catId;
+}
+
+// Resize image to max dimension, return data URL
+function resizeImage(file, maxDim) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileFull(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => resolve(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function processAndStoreFiles(files, clientName, category) {
+  const now = new Date().toLocaleDateString("pt-BR");
+  let added = 0;
+  for (const file of files) {
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+    let thumb = null;
+    let data  = null;
+
+    try {
+      if (isImage) {
+        thumb = await resizeImage(file, 300);          // always small thumbnail
+        if (file.size < 2 * 1024 * 1024) {            // full data only if < 2MB
+          data = await resizeImage(file, 1920);
+        } else {
+          data = thumb; // use thumbnail as art fallback
+        }
+      } else if (file.size < 500 * 1024) {             // non-images < 500KB: store full
+        data = await readFileFull(file);
+      }
+    } catch (e) { /* skip data on error */ }
+
+    libFiles.push({
+      id:       Date.now() + Math.random(),
+      name:     file.name,
+      mime:     file.type,
+      size:     file.size,
+      client:   clientName,
+      category,
+      date:     now,
+      thumb,
+      data,
+    });
+    added++;
+  }
+  saveLibFiles();
+  return added;
+}
+
+function libFilteredFiles() {
+  return libFiles.filter(f => {
+    const matchCat    = libCat === "all" || f.category === libCat;
+    const matchClient = libClient === "all" || f.client === libClient;
+    const matchSearch = !libSearch || f.name.toLowerCase().includes(libSearch.toLowerCase());
+    return matchCat && matchClient && matchSearch;
+  });
+}
+
+function renderLibNav() {
+  const tree = document.getElementById("lib-nav-tree");
+  if (!tree) return;
+
+  // Count per category
+  const counts = {};
+  LIB_CATS.forEach(c => {
+    counts[c.id] = c.id === "all"
+      ? libFiles.length
+      : libFiles.filter(f => f.category === c.id).length;
+  });
+
+  tree.innerHTML = LIB_CATS.map(c => `
+    <button class="lib-nav-item${libCat === c.id ? " is-active" : ""}" data-libcat="${c.id}">
+      <span class="lib-nav-icon">${c.icon}</span>
+      ${escapeHtml(c.label)}
+      <span class="lib-nav-count">${counts[c.id]}</span>
+    </button>
+  `).join("");
+
+  tree.querySelectorAll("[data-libcat]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      libCat = btn.dataset.libcat;
+      renderLibNav();
+      renderLibMain();
+    });
+  });
+}
+
+function renderLibMain() {
+  const filtered = libFilteredFiles();
+  const container = document.getElementById("lib-files-container");
+  const emptyEl   = document.getElementById("lib-empty");
+  const countEl   = document.getElementById("lib-count");
+  const crumb     = document.getElementById("lib-breadcrumb");
+  if (!container) return;
+
+  const catInfo = LIB_CATS.find(c => c.id === libCat);
+  if (crumb) crumb.textContent = catInfo ? catInfo.icon + " " + catInfo.label : "Todos";
+  if (countEl) countEl.textContent = filtered.length + " arquivo" + (filtered.length !== 1 ? "s" : "");
+
+  if (!filtered.length) {
+    container.innerHTML = "";
+    emptyEl?.removeAttribute("hidden");
+    return;
+  }
+  emptyEl?.setAttribute("hidden", "");
+
+  if (libView === "list") {
+    container.innerHTML = `
+      <div class="lib-list">
+        <div class="lib-list-hdr">
+          <div></div>
+          <div>Nome</div>
+          <div>Cliente</div>
+          <div>Categoria</div>
+          <div>Tamanho</div>
+          <div>Data</div>
+        </div>
+        ${filtered.map(f => libListRow(f)).join("")}
+      </div>`;
+  } else {
+    container.innerHTML = `<div class="lib-grid">${filtered.map(f => libGridCard(f)).join("")}</div>`;
+  }
+
+  container.querySelectorAll("[data-lib-preview]").forEach(el => {
+    el.addEventListener("click", e => {
+      if (e.target.closest("[data-lib-act]")) return; // action btn
+      libPreviewFile(parseFloat(el.dataset.libPreview));
+    });
+  });
+  container.querySelectorAll("[data-lib-act]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const id = parseFloat(btn.dataset.libAct);
+      const act = btn.dataset.act;
+      if (act === "del") libDeleteFile(id);
+      if (act === "art") libUseAsArt(id);
+      if (act === "prev") libPreviewFile(id);
+    });
+  });
+}
+
+function libThumb(f) {
+  if (f.thumb) return `<img src="${f.thumb}" alt="${escapeHtml(f.name)}" loading="lazy" />`;
+  return `<span>${fileIcon(f.mime)}</span>`;
+}
+
+function libGridCard(f) {
+  const isImg = f.mime?.startsWith("image/");
+  return `
+    <div class="lib-file" data-lib-preview="${f.id}">
+      <div class="lib-file-thumb">${libThumb(f)}</div>
+      <div class="lib-file-info">
+        <div class="lib-file-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
+        <div class="lib-file-meta">${fmtFileSize(f.size)} · ${escapeHtml(f.date)}</div>
+      </div>
+      <div class="lib-file-actions">
+        <button class="lib-file-act" data-lib-act="${f.id}" data-act="prev" title="Visualizar">👁</button>
+        ${isImg ? `<button class="lib-file-act" data-lib-act="${f.id}" data-act="art" title="Usar como arte">✨</button>` : ""}
+        <button class="lib-file-act del" data-lib-act="${f.id}" data-act="del" title="Excluir">🗑</button>
+      </div>
+    </div>`;
+}
+
+function libListRow(f) {
+  const isImg = f.mime?.startsWith("image/");
+  return `
+    <div class="lib-list-row" data-lib-preview="${f.id}">
+      <div class="lib-list-icon">${libThumb(f)}</div>
+      <div class="lib-list-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
+      <div style="font-size:12px;color:var(--muted)">${escapeHtml(f.client || "—")}</div>
+      <div style="font-size:12px;color:var(--muted)">${libCatLabel(f.category)}</div>
+      <div style="font-size:12px;color:var(--muted)">${fmtFileSize(f.size)}</div>
+      <div class="lib-list-actions">
+        ${isImg ? `<button class="icon-button" data-lib-act="${f.id}" data-act="art" title="Usar como arte" style="font-size:13px">✨</button>` : ""}
+        <button class="icon-button" data-lib-act="${f.id}" data-act="del" title="Excluir" style="font-size:13px">🗑</button>
+      </div>
+    </div>`;
+}
+
+function libPreviewFile(id) {
+  const f = libFiles.find(x => x.id === id);
+  if (!f) return;
+  libPreviewId = id;
+  const modal = document.getElementById("lib-preview-modal");
+  const body  = document.getElementById("lib-preview-body");
+  const name  = document.getElementById("lib-prev-name");
+  const meta  = document.getElementById("lib-preview-meta");
+  const useArt = document.getElementById("lib-prev-use-art");
+  const dlBtn  = document.getElementById("lib-prev-download");
+
+  name.textContent = f.name;
+  meta.innerHTML = `${escapeHtml(f.client || "Sem cliente")} · ${libCatLabel(f.category)} · ${fmtFileSize(f.size)} · ${escapeHtml(f.date)}`;
+
+  const isImg   = f.mime?.startsWith("image/");
+  const isVideo = f.mime?.startsWith("video/");
+  if (isImg && (f.data || f.thumb)) {
+    body.innerHTML = `<img src="${f.data || f.thumb}" alt="${escapeHtml(f.name)}" />`;
+  } else if (isVideo && f.data) {
+    body.innerHTML = `<video src="${f.data}" controls></video>`;
+  } else {
+    body.innerHTML = `<div class="lib-prev-icon">${fileIcon(f.mime)}</div>`;
+  }
+
+  if (isImg) {
+    useArt.removeAttribute("hidden");
+    useArt.onclick = () => { libUseAsArt(id); modal.close(); };
+  } else {
+    useArt.setAttribute("hidden", "");
+  }
+
+  if (f.data) {
+    dlBtn.onclick = () => {
+      const a = document.createElement("a");
+      a.href = f.data;
+      a.download = f.name;
+      a.click();
+    };
+  } else {
+    dlBtn.style.opacity = ".4";
+    dlBtn.title = "Arquivo grande — download indisponível no armazenamento local";
+  }
+
+  modal.showModal();
+}
+
+function libDeleteFile(id) {
+  const f = libFiles.find(x => x.id === id);
+  if (!f || !confirm(`Excluir "${f.name}"?`)) return;
+  libFiles = libFiles.filter(x => x.id !== id);
+  saveLibFiles();
+  renderLibNav();
+  renderLibMain();
+  showToast(`"${f.name}" removido.`);
+}
+
+function libUseAsArt(id) {
+  const f = libFiles.find(x => x.id === id);
+  if (!f || !f.data) { showToast("Arquivo sem dados disponíveis."); return; }
+  // Switch to builder and set art preview
+  document.querySelector("[data-section='builder']")?.click();
+  const preview = document.getElementById("builder-preview");
+  if (preview) {
+    preview.style.backgroundImage = `url('${f.data}')`;
+    preview.style.backgroundSize = "cover";
+    preview.style.backgroundPosition = "center";
+  }
+  // Store reference for post save
+  window._libArtData = `url('${f.data}')`;
+  showToast(`Arte "${f.name}" selecionada no builder.`);
+}
+
+function renderLibClientFilter() {
+  const sel = document.getElementById("lib-client-filter");
+  const upSel = document.getElementById("lib-up-client");
+  if (!sel) return;
+  const opts = clients.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
+  sel.innerHTML = `<option value="all">Todos os clientes</option>${opts}`;
+  if (upSel) upSel.innerHTML = opts;
+  sel.value = libClient;
+}
+
+function initLibrary() {
+  libFiles = loadLibFiles();
+  renderLibClientFilter();
+  renderLibNav();
+  renderLibMain();
+
+  // View toggle
+  document.getElementById("lib-view-seg")?.addEventListener("click", e => {
+    const btn = e.target.closest("[data-lview]");
+    if (!btn) return;
+    libView = btn.dataset.lview;
+    document.querySelectorAll("#lib-view-seg button").forEach(b => b.classList.toggle("is-selected", b === btn));
+    renderLibMain();
+  });
+
+  // Nav search
+  document.getElementById("lib-search")?.addEventListener("input", e => {
+    libSearch = e.target.value;
+    renderLibMain();
+  });
+
+  // Client filter
+  document.getElementById("lib-client-filter")?.addEventListener("change", e => {
+    libClient = e.target.value;
+    renderLibMain();
+  });
+
+  // Upload button
+  document.getElementById("lib-upload-btn")?.addEventListener("click", () => openLibUpload());
+  document.getElementById("lib-empty-upload")?.addEventListener("click", () => openLibUpload());
+
+  // Drag-and-drop on main area
+  const mainEl = document.getElementById("lib-main");
+  const overlay = document.getElementById("lib-dropzone-overlay");
+  if (mainEl) {
+    mainEl.addEventListener("dragover", e => { e.preventDefault(); overlay?.removeAttribute("hidden"); });
+    mainEl.addEventListener("dragleave", e => { if (!mainEl.contains(e.relatedTarget)) overlay?.setAttribute("hidden", ""); });
+    mainEl.addEventListener("drop", e => {
+      e.preventDefault();
+      overlay?.setAttribute("hidden", "");
+      const files = [...e.dataTransfer.files];
+      if (files.length) { openLibUpload(files); }
+    });
+  }
+
+  // Upload modal
+  const uploadModal = document.getElementById("lib-upload-modal");
+  const dropArea    = document.getElementById("lib-drop-area");
+  const fileInput   = document.getElementById("lib-file-input");
+  const staged      = document.getElementById("lib-staged");
+  const saveBtn     = document.getElementById("lib-up-save");
+
+  document.getElementById("lib-upload-close")?.addEventListener("click", () => uploadModal?.close());
+  document.getElementById("lib-up-cancel")?.addEventListener("click", () => uploadModal?.close());
+
+  dropArea?.addEventListener("click", () => fileInput?.click());
+  dropArea?.addEventListener("dragover", e => { e.preventDefault(); dropArea.classList.add("is-over"); });
+  dropArea?.addEventListener("dragleave", () => dropArea.classList.remove("is-over"));
+  dropArea?.addEventListener("drop", e => {
+    e.preventDefault();
+    dropArea.classList.remove("is-over");
+    addStagedFiles([...e.dataTransfer.files]);
+  });
+  fileInput?.addEventListener("change", () => { addStagedFiles([...fileInput.files]); fileInput.value = ""; });
+
+  document.getElementById("lib-up-save")?.addEventListener("click", async () => {
+    if (!libStagedFiles.length) return;
+    const clientVal   = document.getElementById("lib-up-client")?.value || clients[0]?.name || "";
+    const categoryVal = document.getElementById("lib-up-category")?.value || "artes";
+    saveBtn.textContent = "Salvando…";
+    saveBtn.disabled = true;
+    const count = await processAndStoreFiles(libStagedFiles, clientVal, categoryVal);
+    libStagedFiles = [];
+    uploadModal?.close();
+    renderLibNav();
+    renderLibMain();
+    showToast(`${count} arquivo(s) adicionado(s) à biblioteca.`);
+    saveBtn.textContent = "Salvar arquivos";
+    saveBtn.disabled = false;
+  });
+
+  // Preview modal
+  const previewModal = document.getElementById("lib-preview-modal");
+  document.getElementById("lib-preview-close")?.addEventListener("click", () => previewModal?.close());
+  document.getElementById("lib-prev-delete")?.addEventListener("click", () => {
+    if (libPreviewId) { libDeleteFile(libPreviewId); previewModal?.close(); }
+  });
+}
+
+function openLibUpload(preloadFiles) {
+  libStagedFiles = preloadFiles || [];
+  const staged = document.getElementById("lib-staged");
+  renderStagedList();
+  document.getElementById("lib-up-save").disabled = !libStagedFiles.length;
+  renderLibClientFilter();
+  document.getElementById("lib-upload-modal")?.showModal();
+}
+
+function addStagedFiles(files) {
+  libStagedFiles.push(...files);
+  renderStagedList();
+  const saveBtn = document.getElementById("lib-up-save");
+  if (saveBtn) saveBtn.disabled = false;
+}
+
+function renderStagedList() {
+  const staged = document.getElementById("lib-staged");
+  if (!staged) return;
+  if (!libStagedFiles.length) { staged.setAttribute("hidden", ""); return; }
+  staged.removeAttribute("hidden");
+  staged.innerHTML = libStagedFiles.map((f, i) => `
+    <div class="lib-staged-item">
+      <span class="ficon">${fileIcon(f.type)}</span>
+      <span class="fname">${escapeHtml(f.name)}</span>
+      <span class="fsize">${fmtFileSize(f.size)}</span>
+    </div>`).join("");
+}
+
+// Initialise when #files section is shown
+const _origShowSection = showSection;
+showSection = function(id) {
+  _origShowSection(id);
+  if (id === "files") {
+    renderLibClientFilter();
+    renderLibNav();
+    renderLibMain();
+  }
+};
+
+// Init on load if #files is already visible
+initLibrary();
+
 // ── Admin PDF export ─────────────────────────────────────────────────────────
 function adminDownloadPDF() {
   const client = clientFilter.value === "all" ? (posts[0]?.client || "Todos os clientes") : clientFilter.value;
