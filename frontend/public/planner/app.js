@@ -1121,15 +1121,7 @@ document.querySelector("#strategy .ghost-button")?.addEventListener("click", () 
   showToast("Exportação disponível em breve.");
 });
 
-document.querySelector("#files .primary-button")?.addEventListener("click", () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  input.click();
-  input.addEventListener("change", () => {
-    if (input.files.length) showToast(`${input.files.length} arquivo(s) selecionado(s).`);
-  });
-});
+// #files upload handled by initLibrary() → lib-upload-btn
 
 document.querySelector("#report-pdf-btn")?.addEventListener("click", () => {
   showSection("reports");
