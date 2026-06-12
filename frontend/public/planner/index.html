@@ -19,7 +19,7 @@
           <button class="nav-item" data-section="builder"><span>✎</span> Construir Post</button>
           <button class="nav-item" data-section="calendar"><span>□</span> Calendário</button>
           <button class="nav-item" data-section="feed"><span>▩</span> Feed Preview</button>
-          <button class="nav-item" data-section="approval"><span>◎</span> Central de Aprovação</button>
+          <button class="nav-item" data-section="approval"><span>◎</span> Central de Aprovação<span class="nav-badge" id="approval-badge" hidden>0</span></button>
           <button class="nav-item" data-section="sharing"><span>◇</span> Portal do Cliente</button>
           <button class="nav-item" data-section="strategy"><span>◌</span> Visão Estratégica</button>
           <button class="nav-item" data-section="files"><span>▤</span> Biblioteca</button>
@@ -30,6 +30,11 @@
           <small>Perfil atual</small>
           <strong>Administrador</strong>
           <span>Acesso total a clientes, aprovações e configurações.</span>
+        </div>
+        <div class="kbd-hint">
+          <span class="kbd">N</span><span class="kbd-label">novo post</span>
+          <span class="kbd">A</span><span class="kbd-label">aprovar</span>
+          <span class="kbd">Esc</span><span class="kbd-label">fechar</span>
         </div>
       </aside>
 
@@ -79,25 +84,25 @@
 
         <section id="dashboard" class="view is-visible">
           <div class="metric-grid">
-            <article class="metric-card"><span>Clientes ativos</span><strong>18</strong><small>+3 no trimestre</small></article>
-            <article class="metric-card"><span>Posts do mês</span><strong>142</strong><small>93 planejados</small></article>
-            <article class="metric-card warning"><span>Aguardando aprovação</span><strong>26</strong><small>Tempo médio: 2,4 dias</small></article>
-            <article class="metric-card success"><span>Aprovados</span><strong>74</strong><small>Taxa de aprovação: 82%</small></article>
-            <article class="metric-card"><span>Publicados</span><strong>51</strong><small>12 nesta semana</small></article>
-            <article class="metric-card danger"><span>Ajustes pendentes</span><strong>9</strong><small>3 vencem hoje</small></article>
+            <article class="metric-card"><span>Clientes ativos</span><strong id="stat-clients">0</strong><small id="stat-clients-sub">carregando</small></article>
+            <article class="metric-card"><span>Posts do mês</span><strong id="stat-posts">0</strong><small id="stat-posts-sub">carregando</small></article>
+            <article class="metric-card warning"><span>Aguardando aprovação</span><strong id="stat-pending">0</strong><small id="stat-pending-sub">carregando</small></article>
+            <article class="metric-card success"><span>Taxa de aprovação</span><strong id="stat-rate">0%</strong><small id="stat-rate-sub">carregando</small></article>
+            <article class="metric-card"><span>Publicados</span><strong id="stat-published">0</strong><small id="stat-published-sub">carregando</small></article>
+            <article class="metric-card danger"><span>Ajustes pendentes</span><strong id="stat-adjusts">0</strong><small id="stat-adjusts-sub">carregando</small></article>
           </div>
 
           <div class="dashboard-grid">
             <article class="panel chart-panel">
               <div class="panel-head">
-                <h2>Gráfico mensal</h2>
-                <span>Junho 2026</span>
+                <h2>Posts por rede social</h2>
+                <span id="dash-month-label">Junho 2026</span>
               </div>
-              <div class="bar-chart" aria-label="Conteúdos planejados, publicados e aprovados">
-                <div style="--h: 82%"><span></span><b>Planejados</b></div>
-                <div style="--h: 48%"><span></span><b>Publicados</b></div>
-                <div style="--h: 66%"><span></span><b>Aprovados</b></div>
-                <div style="--h: 22%"><span></span><b>Ajustes</b></div>
+              <div class="net-chart" id="net-chart">
+                <div class="net-row"><span class="net-row-label">Instagram</span><div class="net-row-track"><div class="net-row-fill" data-net-fill="Instagram" style="background:#e1306c;width:0%"></div></div><span class="net-row-count" data-net-count="Instagram">0</span></div>
+                <div class="net-row"><span class="net-row-label">LinkedIn</span><div class="net-row-track"><div class="net-row-fill" data-net-fill="LinkedIn" style="background:#0a66c2;width:0%"></div></div><span class="net-row-count" data-net-count="LinkedIn">0</span></div>
+                <div class="net-row"><span class="net-row-label">TikTok</span><div class="net-row-track"><div class="net-row-fill" data-net-fill="TikTok" style="background:#010101;width:0%"></div></div><span class="net-row-count" data-net-count="TikTok">0</span></div>
+                <div class="net-row"><span class="net-row-label">Facebook</span><div class="net-row-track"><div class="net-row-fill" data-net-fill="Facebook" style="background:#1877f2;width:0%"></div></div><span class="net-row-count" data-net-count="Facebook">0</span></div>
               </div>
             </article>
 
@@ -112,13 +117,10 @@
             <article class="panel activity-panel">
               <div class="panel-head">
                 <h2>Atividades recentes</h2>
-                <span>Atualizado agora</span>
+                <span id="activity-ts">Agora</span>
               </div>
-              <div class="activity-list">
-                <p><strong>Marina</strong> aprovou o Reels de lançamento da Venda Prime.</p>
-                <p><strong>Cliente Essenza</strong> solicitou ajuste na legenda institucional.</p>
-                <p><strong>João</strong> alterou a data do carrossel educativo para 14/06.</p>
-                <p><strong>Bianca</strong> enviou 4 artes para aprovação.</p>
+              <div class="activity-list" id="activity-list">
+                <p class="activity-empty">Nenhuma atividade ainda.</p>
               </div>
             </article>
           </div>
@@ -191,6 +193,7 @@
               <p>Ambiente do gestor para montar o conteúdo completo antes de enviar ao cliente.</p>
             </div>
             <div class="builder-actions">
+              <span class="autosave-ind" id="autosave-ind">✓ Rascunho salvo</span>
               <button class="ghost-button" id="save-draft-btn">Salvar rascunho</button>
               <button class="primary-button" id="send-approval-btn">Enviar para aprovação</button>
             </div>
@@ -312,12 +315,14 @@
                   </div>
                   <label>Legenda
                     <textarea id="builder-caption">Comprar um imóvel premium exige método, análise e timing. Veja os critérios que protegem sua decisão e ajudam você a escolher com mais segurança.</textarea>
+                    <span class="char-counter" id="caption-counter">0 / 2200</span>
                   </label>
                   <label>CTA
                     <input id="builder-cta" value="Fale com um consultor" />
                   </label>
                   <label>Hashtags
                     <input id="builder-hashtags" value="#imoveispremium #grupovenda #vendaprime" />
+                    <span class="char-counter" id="hashtag-counter">3 / 30 hashtags</span>
                   </label>
                   <label>Observações para o cliente
                     <textarea>Conteúdo pensado para reforçar autoridade consultiva e gerar conversas qualificadas no direct.</textarea>
@@ -424,6 +429,19 @@
             </div>
             <button class="primary-button">Enviar lote para cliente</button>
           </div>
+          <div class="approval-nav">
+            <button class="ghost-button" id="approval-prev">← Anterior</button>
+            <div class="approval-nav-info">
+              <strong id="approval-nav-title">Nenhum conteúdo</strong>
+              <span id="approval-nav-sub">aguardando aprovação</span>
+            </div>
+            <button class="ghost-button" id="approval-next">Próximo →</button>
+          </div>
+          <div class="approval-pbar-wrap">
+            <div class="approval-pbar-track"><div class="approval-pbar-fill" id="approval-pbar" style="width:0%"></div></div>
+            <p class="approval-pbar-label" id="approval-pbar-label">0 de 0 aprovados</p>
+          </div>
+
           <div class="approval-workspace">
             <div class="art-board" id="approval-art">
               <span class="pin" style="left: 64%; top: 35%">1</span>

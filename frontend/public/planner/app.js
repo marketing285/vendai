@@ -1119,3 +1119,423 @@ document.querySelector("#portal-adjust-btn")?.addEventListener("click", () => {
   portalModal.close();
   showToast("Ajuste solicitado. A equipe será notificada.");
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// GV PLANNER — Enhancement Layer
+// Inspired by: Planable, Later, ContentCal, Buffer
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Network colors ────────────────────────────────────────────────────────────
+const netColor = {
+  "Instagram": "#e1306c",
+  "LinkedIn":  "#0a66c2",
+  "TikTok":    "#010101",
+  "Facebook":  "#1877f2",
+};
+
+// ── Activity log ──────────────────────────────────────────────────────────────
+const ACT_KEY = "gvPlannerActivity";
+
+function tsNowFull() {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+  }).format(new Date());
+}
+
+function logActivity(msg) {
+  try {
+    const log = JSON.parse(localStorage.getItem(ACT_KEY)) || [];
+    log.unshift({ msg, time: tsNowFull() });
+    localStorage.setItem(ACT_KEY, JSON.stringify(log.slice(0, 20)));
+  } catch {}
+  renderActivityFeed();
+}
+
+function renderActivityFeed() {
+  const el = document.getElementById("activity-list");
+  if (!el) return;
+  try {
+    const log = JSON.parse(localStorage.getItem(ACT_KEY)) || [];
+    if (!log.length) { el.innerHTML = '<p class="activity-empty">Nenhuma atividade ainda.</p>'; return; }
+    el.innerHTML = log.slice(0, 7).map(a =>
+      `<p><strong>Equipe</strong> ${escapeHtml(a.msg)}<span class="act-time">${a.time}</span></p>`
+    ).join("");
+  } catch { el.innerHTML = '<p class="activity-empty">Nenhuma atividade ainda.</p>'; }
+}
+
+// ── Dashboard: live stats from posts ──────────────────────────────────────────
+function renderDashboard() {
+  const total     = posts.length;
+  const approved  = posts.filter(p => p.status === "Aprovado" || p.status === "Publicado").length;
+  const pending   = posts.filter(p => p.status === "Enviado para aprovação").length;
+  const adjusts   = posts.filter(p => p.status === "Ajuste solicitado").length;
+  const published = posts.filter(p => p.status === "Publicado").length;
+  const rate      = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+  function setEl(id, val) { const e = document.getElementById(id); if (e) e.textContent = val; }
+
+  setEl("stat-clients",  clients.length);
+  setEl("stat-clients-sub", `${clients.filter(c => c.status === "Contrato ativo").length} contratos ativos`);
+  setEl("stat-posts",    total);
+  setEl("stat-posts-sub", `${posts.filter(p => p.status === "Ideia").length} ideias · ${posts.filter(p => p.status === "Em produção").length} em produção`);
+  setEl("stat-pending",  pending);
+  setEl("stat-pending-sub", `Tempo médio: 2,4 dias`);
+  setEl("stat-rate",     `${rate}%`);
+  setEl("stat-rate-sub", `${approved} de ${total} aprovados`);
+  setEl("stat-published",published);
+  setEl("stat-published-sub", `${posts.filter(p => p.status === "Agendado").length} agendados`);
+  setEl("stat-adjusts",  adjusts);
+  setEl("stat-adjusts-sub", adjusts > 0 ? `${adjusts} pendente${adjusts > 1 ? "s" : ""}` : "Tudo em dia");
+
+  // Notification badge on approval nav
+  const badge = document.getElementById("approval-badge");
+  const badgeCount = pending + adjusts;
+  if (badge) { badge.textContent = badgeCount; badge.hidden = badgeCount === 0; }
+
+  // Network breakdown chart
+  const nets = ["Instagram", "LinkedIn", "TikTok", "Facebook"];
+  const counts = nets.map(n => posts.filter(p => p.network === n).length);
+  const maxCount = Math.max(...counts, 1);
+  nets.forEach((n, i) => {
+    const fill = document.querySelector(`[data-net-fill="${n}"]`);
+    const cnt  = document.querySelector(`[data-net-count="${n}"]`);
+    if (fill) fill.style.width = `${(counts[i] / maxCount) * 100}%`;
+    if (cnt)  cnt.textContent  = counts[i];
+  });
+
+  // Month label
+  const monthLabel = document.getElementById("dash-month-label");
+  if (monthLabel) {
+    monthLabel.textContent = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" })
+      .format(new Date()).replace(/^\w/, c => c.toUpperCase());
+  }
+
+  // Upcoming: better card rendering
+  renderUpcomingEnhanced();
+  renderActivityFeed();
+}
+
+function renderUpcomingEnhanced() {
+  const list = document.getElementById("upcoming-list");
+  if (!list) return;
+  const upcoming = activePosts()
+    .filter(p => p.date >= new Date().toISOString().slice(0, 10))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 6);
+  if (!upcoming.length) {
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:12px 0">Nenhum post agendado.</p>';
+    return;
+  }
+  list.innerHTML = upcoming.map(p => `
+    <div class="upcoming-post">
+      <div class="upcoming-thumb" style="background:${p.art}"></div>
+      <div class="upcoming-body">
+        <strong>${escapeHtml(p.title)}</strong>
+        <span>${escapeHtml(p.client)} · ${formatDate(p.date)} às ${escapeHtml(p.time)}</span>
+      </div>
+      <span class="upcoming-net" style="background:${netColor[p.network]||'#667085'}" title="${escapeHtml(p.network)}"></span>
+      ${statusPill(p.status)}
+    </div>`).join("");
+}
+
+// Patch renderAll to include dashboard
+const _origRenderAll = renderAll;
+renderAll = function() {
+  _origRenderAll();
+  renderDashboard();
+};
+
+// ── Enhanced mini-post for calendar ──────────────────────────────────────────
+function miniPostHtml(post) {
+  const color = netColor[post.network] || "#667085";
+  return `<button class="mini-post" draggable="true" data-post-id="${post.id}"
+    data-network="${escapeHtml(post.network)}"
+    style="--status-color:${statusColor[post.status]}">
+    <span class="mini-row">
+      <strong>${escapeHtml(post.client)}</strong>
+      <span class="mini-time">${escapeHtml(post.time)}</span>
+    </span>
+    <span class="mini-sub">
+      <span class="net-dot" style="background:${color}"></span>
+      ${escapeHtml(post.format)} · ${escapeHtml(post.network)}
+    </span>
+  </button>`;
+}
+
+// Patch renderCalendar to use enhanced mini-post
+const _origRenderCalendar = renderCalendar;
+renderCalendar = function() {
+  const grid = document.querySelector("#calendar-grid");
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayNum = now.getDate();
+
+  const headers  = WDAYS.map(d => `<div class="cal-wday-hdr">${d}</div>`).join("");
+  const blanks   = Array.from({ length: firstDow }, () => `<div class="day-card is-empty"></div>`).join("");
+  const cells    = Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayPosts = activePosts().filter(p => p.date === iso);
+    const isToday  = day === todayNum;
+    return `<article class="day-card${isToday ? " is-today" : ""}" data-day="${day}">
+      <time class="day-num${isToday ? " is-today" : ""}">${day}</time>
+      ${dayPosts.map(miniPostHtml).join("")}
+    </article>`;
+  }).join("");
+  grid.innerHTML = headers + blanks + cells;
+};
+
+// Patch week view in segmented toggle to use enhanced mini-post
+// (handled via the calendarSegmented listener — override the Semana branch)
+const _calSeg = document.querySelector("#calendar .segmented");
+if (_calSeg) {
+  _calSeg.addEventListener("click", (event) => {
+    const btn = event.target.closest("button");
+    if (!btn || btn.textContent.trim() !== "Semana") return;
+    const grid = document.querySelector("#calendar-grid");
+    const today = new Date();
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today); d.setDate(today.getDate() + i); return d;
+    });
+    grid.innerHTML = weekDays.map(date => {
+      const dayStr   = String(date.getDate()).padStart(2, "0");
+      const monthStr = String(date.getMonth() + 1).padStart(2, "0");
+      const isoDate  = `${date.getFullYear()}-${monthStr}-${dayStr}`;
+      const dayPosts = activePosts().filter(p => p.date === isoDate);
+      const isToday  = date.toDateString() === today.toDateString();
+      return `<article class="day-card${isToday ? " is-today" : ""}" data-day="${date.getDate()}">
+        <div class="day-card-head">
+          <span class="day-wday">${WDAYS[date.getDay()]}</span>
+          <time class="day-num${isToday ? " is-today" : ""}">${dayStr}/${monthStr}</time>
+        </div>
+        ${dayPosts.map(miniPostHtml).join("")}
+      </article>`;
+    }).join("");
+  });
+}
+
+// ── Caption & hashtag counters ────────────────────────────────────────────────
+function updateCounters() {
+  const captionEl   = document.getElementById("builder-caption");
+  const hashtagEl   = document.getElementById("builder-hashtags");
+  const networkEl   = document.getElementById("builder-network");
+  const capCounter  = document.getElementById("caption-counter");
+  const tagCounter  = document.getElementById("hashtag-counter");
+
+  if (captionEl && capCounter) {
+    const len   = captionEl.value.length;
+    const limit = networkEl?.value === "LinkedIn" ? 3000 : 2200;
+    capCounter.textContent = `${len} / ${limit}`;
+    capCounter.className   = `char-counter${len > limit ? " over" : len > limit * 0.9 ? " warn" : ""}`;
+  }
+  if (hashtagEl && tagCounter) {
+    const tags = (hashtagEl.value.match(/#\w+/g) || []).length;
+    tagCounter.textContent = `${tags} / 30 hashtags`;
+    tagCounter.className   = `char-counter${tags >= 30 ? " over" : tags > 26 ? " warn" : ""}`;
+  }
+}
+
+document.getElementById("builder-caption")?.addEventListener("input", updateCounters);
+document.getElementById("builder-hashtags")?.addEventListener("input", updateCounters);
+document.getElementById("builder-network")?.addEventListener("change", updateCounters);
+updateCounters();
+
+// ── Auto-save builder to localStorage ────────────────────────────────────────
+let _autoSaveTimer = null;
+const DRAFT_KEY = "gvPlannerBuilderDraft";
+
+function triggerAutoSave() {
+  const ind = document.getElementById("autosave-ind");
+  if (ind) { ind.textContent = "Salvando..."; ind.className = "autosave-ind show saving"; }
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    const draft = {};
+    ["builder-client","builder-title","builder-date","builder-time","builder-network",
+     "builder-format","builder-pillar","builder-category","builder-status","builder-theme",
+     "builder-goal","builder-art-copy","builder-caption","builder-cta","builder-hashtags"].forEach(id => {
+       const el = document.getElementById(id);
+       if (el) draft[id] = el.value;
+     });
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    if (ind) { ind.textContent = "✓ Rascunho salvo"; ind.className = "autosave-ind show saved"; }
+    setTimeout(() => { if (ind) ind.className = "autosave-ind"; }, 2200);
+  }, 1200);
+}
+
+document.querySelector("#post-builder-form")?.addEventListener("input", triggerAutoSave);
+
+// Restore draft on page load
+(function restoreDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY));
+    if (!draft) return;
+    Object.entries(draft).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+    updateBuilderPreview();
+    updateCounters();
+    const ind = document.getElementById("autosave-ind");
+    if (ind) { ind.textContent = "↩ Rascunho restaurado"; ind.className = "autosave-ind show saved"; setTimeout(() => { ind.className = "autosave-ind"; }, 2500); }
+  } catch {}
+})();
+
+// ── Approval board: prev/next navigation ─────────────────────────────────────
+function renderApprovalNav() {
+  const pending = posts.filter(p => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  const total   = posts.filter(p => ["Enviado para aprovação","Ajuste solicitado","Aprovado"].includes(p.status)).length;
+  const approved = posts.filter(p => p.status === "Aprovado").length;
+
+  const title   = document.getElementById("approval-nav-title");
+  const sub     = document.getElementById("approval-nav-sub");
+  const pbar    = document.getElementById("approval-pbar");
+  const pLabel  = document.getElementById("approval-pbar-label");
+
+  if (!pending.length) {
+    if (title) title.textContent = "Tudo aprovado! 🎉";
+    if (sub)   sub.textContent = "Nenhum post aguardando";
+    if (pbar)  pbar.style.width = "100%";
+    if (pLabel) pLabel.textContent = `${approved} de ${approved} aprovados`;
+    return;
+  }
+  approvalPostIndex = Math.max(0, Math.min(approvalPostIndex, pending.length - 1));
+  const post = pending[approvalPostIndex];
+  if (title) title.textContent = `${escapeHtml(post.title)} — ${escapeHtml(post.client)}`;
+  if (sub)   sub.textContent = `Post ${approvalPostIndex + 1} de ${pending.length} pendentes`;
+  const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
+  if (pbar)  pbar.style.width = `${pct}%`;
+  if (pLabel) pLabel.textContent = `${approved} de ${total} aprovados (${pct}%)`;
+}
+
+document.getElementById("approval-prev")?.addEventListener("click", () => {
+  const pending = posts.filter(p => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  if (!pending.length) return;
+  approvalPostIndex = (approvalPostIndex - 1 + pending.length) % pending.length;
+  renderApprovalBoard();
+  renderApprovalNav();
+});
+
+document.getElementById("approval-next")?.addEventListener("click", () => {
+  const pending = posts.filter(p => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  if (!pending.length) return;
+  approvalPostIndex = (approvalPostIndex + 1) % pending.length;
+  renderApprovalBoard();
+  renderApprovalNav();
+});
+
+// Patch renderApprovalBoard to also update nav
+const _origApprovalBoard = renderApprovalBoard;
+renderApprovalBoard = function() {
+  _origApprovalBoard();
+  renderApprovalNav();
+};
+renderApprovalNav();
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, textarea, select")) return;
+  if (e.key === "n" || e.key === "N") {
+    document.getElementById("new-post-btn")?.click();
+  }
+  if (e.key === "Escape" && modal?.open) {
+    modal.close();
+  }
+  const inApproval = document.querySelector("#approval.is-visible");
+  if (inApproval) {
+    if (e.key === "ArrowRight") document.getElementById("approval-next")?.click();
+    if (e.key === "ArrowLeft")  document.getElementById("approval-prev")?.click();
+    if (e.key === "a" || e.key === "A") {
+      const pending = posts.filter(p => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+      if (!pending.length) return;
+      const post = pending[approvalPostIndex];
+      post.status = "Aprovado";
+      savePosts();
+      renderAll();
+      renderApprovalBoard();
+      logActivity(`aprovou "${post.title}" (${post.client})`);
+      showToast(`"${post.title}" aprovado.`);
+    }
+  }
+  // 1-9 = jump to nav sections
+  const SECTION_KEYS = { "1":"dashboard","2":"clients","3":"builder","4":"calendar","5":"feed","6":"approval","7":"sharing","8":"strategy","9":"reports" };
+  if (SECTION_KEYS[e.key] && !e.ctrlKey && !e.metaKey) showSection(SECTION_KEYS[e.key]);
+});
+
+// ── Log actions into activity feed ───────────────────────────────────────────
+// Patch key existing actions to log
+
+const _origSaveApproval = document.querySelector("#approval .primary-button.full");
+if (_origSaveApproval) {
+  const _origClick = _origSaveApproval.onclick;
+  _origSaveApproval.addEventListener("click", () => {
+    const pending = posts.filter(p => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+    if (pending.length) {
+      const post = pending[approvalPostIndex];
+      if (post.status !== "Aprovado") logActivity(`aprovou "${post.title}" (${post.client})`);
+    }
+  });
+}
+
+document.getElementById("send-approval-btn")?.addEventListener("click", () => {
+  const title = document.getElementById("builder-title")?.value || "Novo post";
+  const client = document.getElementById("builder-client")?.value || "Cliente";
+  logActivity(`enviou "${title}" para aprovação — ${client}`);
+}, { capture: true });
+
+document.getElementById("save-draft-btn")?.addEventListener("click", () => {
+  const title = document.getElementById("builder-title")?.value || "Novo post";
+  logActivity(`salvou rascunho: "${title}"`);
+}, { capture: true });
+
+// ── Search result count badge ─────────────────────────────────────────────────
+const globalSearch = document.getElementById("global-search");
+globalSearch?.addEventListener("input", () => {
+  const term = globalSearch.value.trim();
+  if (!term) {
+    document.querySelector(".search-count-badge")?.remove();
+    return;
+  }
+  const count = activePosts().length;
+  let badge = document.querySelector(".search-count-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "search-count-badge search-count";
+    globalSearch.parentElement.appendChild(badge);
+  }
+  badge.textContent = `${count} resultado${count !== 1 ? "s" : ""}`;
+});
+
+// ── Best time to post hint in builder ────────────────────────────────────────
+const BEST_TIMES = {
+  "Instagram": "Melhores horários: seg-sex 11h–13h ou 19h–21h",
+  "LinkedIn":  "Melhores horários: ter–qui 8h–10h ou 12h",
+  "TikTok":    "Melhores horários: ter–sex 19h–23h",
+  "Facebook":  "Melhores horários: qua–qui 13h–16h",
+};
+
+const builderNetworkSel = document.getElementById("builder-network");
+const builderTimeSel    = document.getElementById("builder-time");
+
+function renderBestTime() {
+  const net  = builderNetworkSel?.value;
+  const hint = BEST_TIMES[net];
+  let el = document.getElementById("best-time-hint");
+  if (!hint) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "best-time-hint";
+    el.className = "best-time-badge";
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span></span>`;
+    builderTimeSel?.closest("label")?.appendChild(el);
+  }
+  el.querySelector("span").textContent = hint;
+}
+
+builderNetworkSel?.addEventListener("change", renderBestTime);
+renderBestTime();
+
+// ── Init: call renderDashboard on first load ──────────────────────────────────
+renderDashboard();
