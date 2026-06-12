@@ -2194,6 +2194,11 @@ function libPreviewFile(id) {
   const f = libFiles.find(x => x.id === id);
   if (!f) return;
   libPreviewId = id;
+  // Reset inline delete confirm state
+  const dc = document.getElementById("lib-prev-del-confirm");
+  const db = document.getElementById("lib-prev-delete");
+  if (dc) dc.style.display = "none";
+  if (db) db.style.display = "";
   const modal = document.getElementById("lib-preview-modal");
   const body  = document.getElementById("lib-preview-body");
   const name  = document.getElementById("lib-prev-name");
@@ -2254,7 +2259,7 @@ function libPreviewFile(id) {
 
 function libDeleteFile(id) {
   const f = libFiles.find(x => x.id === id);
-  if (!f || !confirm(`Excluir "${f.name}"?`)) return;
+  if (!f) return;
   libFiles = libFiles.filter(x => x.id !== id);
   saveLibFiles();
   renderLibNav();
@@ -2364,9 +2369,28 @@ function initLibrary() {
 
   // Preview modal
   const previewModal = document.getElementById("lib-preview-modal");
-  document.getElementById("lib-preview-close")?.addEventListener("click", () => previewModal?.close());
-  document.getElementById("lib-prev-delete")?.addEventListener("click", () => {
+  const delConfirm   = document.getElementById("lib-prev-del-confirm");
+  const delBtn       = document.getElementById("lib-prev-delete");
+
+  document.getElementById("lib-preview-close")?.addEventListener("click", () => {
+    if (delConfirm) delConfirm.style.display = "none";
+    if (delBtn) delBtn.style.display = "";
+    previewModal?.close();
+  });
+
+  // First click → show inline confirm; second click (Sim) → delete
+  delBtn?.addEventListener("click", () => {
+    if (delConfirm) delConfirm.style.display = "flex";
+    delBtn.style.display = "none";
+  });
+  document.getElementById("lib-prev-del-yes")?.addEventListener("click", () => {
+    if (delConfirm) delConfirm.style.display = "none";
+    if (delBtn) delBtn.style.display = "";
     if (libPreviewId) { libDeleteFile(libPreviewId); previewModal?.close(); }
+  });
+  document.getElementById("lib-prev-del-no")?.addEventListener("click", () => {
+    if (delConfirm) delConfirm.style.display = "none";
+    if (delBtn) delBtn.style.display = "";
   });
 }
 
