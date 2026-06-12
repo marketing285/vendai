@@ -2392,10 +2392,17 @@ function initLibrary() {
   const delConfirm   = document.getElementById("lib-prev-del-confirm");
   const delBtn       = document.getElementById("lib-prev-delete");
 
-  document.getElementById("lib-preview-close")?.addEventListener("click", () => {
+  function closePreviewModal() {
     if (delConfirm) delConfirm.style.display = "none";
     if (delBtn) delBtn.style.display = "";
     previewModal?.close();
+  }
+
+  document.getElementById("lib-preview-close")?.addEventListener("click", closePreviewModal);
+
+  // Click on backdrop (outside dialog box) also closes
+  previewModal?.addEventListener("click", e => {
+    if (e.target === previewModal) closePreviewModal();
   });
 
   // First click → show inline confirm; second click (Sim) → delete
