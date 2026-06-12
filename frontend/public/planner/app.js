@@ -2044,7 +2044,7 @@ async function processAndStoreFiles(files, clientName, category) {
     } catch (e) { /* skip data on error */ }
 
     libFiles.push({
-      id:       Date.now() + Math.random(),
+      id:       `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name:     file.name,
       mime:     file.type,
       size:     file.size,
@@ -2137,13 +2137,13 @@ function renderLibMain() {
   container.querySelectorAll("[data-lib-preview]").forEach(el => {
     el.addEventListener("click", e => {
       if (e.target.closest("[data-lib-act]")) return; // action btn
-      libPreviewFile(parseFloat(el.dataset.libPreview));
+      libPreviewFile(el.dataset.libPreview);
     });
   });
   container.querySelectorAll("[data-lib-act]").forEach(btn => {
     btn.addEventListener("click", e => {
       e.stopPropagation();
-      const id = parseFloat(btn.dataset.libAct);
+      const id = btn.dataset.libAct;
       const act = btn.dataset.act;
       if (act === "del") libDeleteFile(id);
       if (act === "art") libUseAsArt(id);
@@ -2191,9 +2191,10 @@ function libListRow(f) {
 }
 
 function libPreviewFile(id) {
-  const f = libFiles.find(x => x.id === id);
+  const sid = String(id);
+  const f = libFiles.find(x => String(x.id) === sid);
   if (!f) return;
-  libPreviewId = id;
+  libPreviewId = f.id; // store actual id from the file object
   // Reset inline delete confirm state
   const dc = document.getElementById("lib-prev-del-confirm");
   const db = document.getElementById("lib-prev-delete");
@@ -2258,9 +2259,10 @@ function libPreviewFile(id) {
 }
 
 function libDeleteFile(id) {
-  const f = libFiles.find(x => x.id === id);
+  const sid = String(id);
+  const f = libFiles.find(x => String(x.id) === sid);
   if (!f) return;
-  libFiles = libFiles.filter(x => x.id !== id);
+  libFiles = libFiles.filter(x => String(x.id) !== sid);
   saveLibFiles();
   renderLibNav();
   renderLibMain();
@@ -2268,7 +2270,8 @@ function libDeleteFile(id) {
 }
 
 function libUseAsArt(id) {
-  const f = libFiles.find(x => x.id === id);
+  const sid = String(id);
+  const f = libFiles.find(x => String(x.id) === sid);
   if (!f || !f.data) { showToast("Arquivo sem dados disponíveis."); return; }
   builderArtData = f.data;
   document.querySelector("[data-section='builder']")?.click();
