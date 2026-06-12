@@ -88,15 +88,17 @@
       display:flex; align-items:center; justify-content:center; }
 
     /* ── Pin dots ───────────────────────────────────────── */
-    .pin-dot { position:absolute; width:26px; height:26px; border-radius:50% 50% 50% 0;
-      transform:translate(-50%, -100%) rotate(-45deg);
+    .pin-dot { position:absolute; width:28px; height:28px; border-radius:50%;
+      transform:translate(-50%,-50%);
       background:var(--coral); border:2.5px solid #fff;
       display:flex; align-items:center; justify-content:center;
-      box-shadow:0 2px 10px rgba(0,0,0,.35); cursor:pointer; z-index:10; }
-    .pin-dot span { transform:rotate(45deg); color:#fff; font-size:11px; font-weight:700;
-      line-height:1; }
+      box-shadow:0 2px 12px rgba(0,0,0,.4); cursor:pointer; z-index:10;
+      transition:transform .15s,box-shadow .15s; }
+    .pin-dot span { color:#fff; font-size:11px; font-weight:700; line-height:1; pointer-events:none; }
     .pin-dot.pin-temp { background:var(--blue); animation:pulse .8s infinite alternate; }
-    @keyframes pulse { to { box-shadow:0 0 0 6px rgba(49,100,212,.25); } }
+    .pin-dot.is-active { transform:translate(-50%,-50%) scale(1.35);
+      box-shadow:0 0 0 5px rgba(225,93,79,.35),0 2px 12px rgba(0,0,0,.4); }
+    @keyframes pulse { to { box-shadow:0 0 0 8px rgba(49,100,212,.25); } }
 
     /* ── Carousel ───────────────────────────────────────── */
     .cv-wrap { position:relative; }
@@ -161,12 +163,16 @@
     .cmt-label { font-size:11px; font-weight:600; color:var(--muted);
       text-transform:uppercase; letter-spacing:.06em; }
     .cmt-item { background:#f8fafc; border-left:3px solid var(--teal);
-      border-radius:0 8px 8px 0; padding:10px 12px; }
+      border-radius:0 8px 8px 0; padding:10px 12px; transition:background .15s,border-color .15s;
+      cursor:default; }
+    .cmt-item.has-pin { cursor:pointer; }
+    .cmt-item.is-lit { background:#fff3f2; border-left-color:var(--coral); }
     .cmt-item strong { font-size:12px; color:var(--teal); display:block; margin-bottom:2px; }
+    .cmt-item.is-lit strong { color:var(--coral); }
     .cmt-item p { font-size:13px; line-height:1.5; }
     .cmt-item small { font-size:11px; color:var(--muted); display:block; margin-top:3px; }
     .cmt-item .pin-ref { font-size:11px; color:var(--coral); display:inline-flex;
-      align-items:center; gap:3px; margin-top:4px; }
+      align-items:center; gap:4px; margin-top:4px; font-weight:600; }
 
     .cmt-input { width:100%; min-height:68px; resize:vertical; border:1px solid var(--line);
       border-radius:8px; padding:10px 12px; font-size:13px; color:var(--ink);
@@ -260,10 +266,13 @@
     .art-inner { display:grid; grid-template-columns:1fr 340px; max-height:92vh; }
     .art-left { position:relative; overflow:hidden; background:#111; cursor:crosshair; }
     .art-left img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
-    .art-left .art-bg { width:100%; height:100%; background-size:cover; background-position:center; }
-    .art-pin-tip { position:absolute; top:10px; left:10px; background:rgba(0,0,0,.55);
+    .art-left .art-bg { position:absolute; inset:0; background-size:cover; background-position:center; pointer-events:none; }
+    /* separate pin layer so pins don't interfere with click target calc */
+    .pin-layer { position:absolute; inset:0; pointer-events:none; }
+    .pin-layer .pin-dot { pointer-events:auto; }
+    .art-pin-tip { position:absolute; bottom:10px; left:10px; background:rgba(0,0,0,.55);
       color:#fff; font-size:11px; padding:5px 10px; border-radius:99px;
-      backdrop-filter:blur(4px); pointer-events:none; }
+      backdrop-filter:blur(4px); pointer-events:none; z-index:20; }
     .art-right { display:flex; flex-direction:column; background:var(--surface); overflow-y:auto; }
     .art-right-head { display:flex; align-items:flex-start; justify-content:space-between;
       gap:8px; padding:18px 20px 14px; border-bottom:1px solid var(--line); }
@@ -406,7 +415,8 @@
   <div class="art-inner">
     <div class="art-left" id="art-left">
       <div class="art-bg" id="art-bg"></div>
-      <span class="art-pin-tip">📍 Clique na imagem para marcar um ponto</span>
+      <div class="pin-layer" id="pin-layer"></div>
+      <span class="art-pin-tip" id="art-pin-tip">📍 Clique na imagem para marcar um ponto</span>
     </div>
     <div class="art-right">
       <div class="art-right-head">
@@ -722,71 +732,112 @@ let artPostId=null,pendingPin=null;
 const artDlg=document.getElementById("art-dialog");
 const artLeft=document.getElementById("art-left");
 const artBgEl=document.getElementById("art-bg");
+const pinLayer=document.getElementById("pin-layer");
+const artPinTip=document.getElementById("art-pin-tip");
 
 function openArt(postId){
   const p=allPosts.find(x=>x.id===postId);if(!p)return;
   artPostId=postId;pendingPin=null;
+  artBgEl.style.backgroundImage=p.art.startsWith("url(")?p.art.slice(4,-1):p.art;
   artBgEl.style.backgroundImage=p.art;
-  artBgEl.style.cssText=`width:100%;height:100%;background-image:${p.art};background-size:cover;background-position:center;`;
-  // format ratio on left panel
-  artLeft.style.aspectRatio=p.format==="Story"||p.format==="Reels"||p.format==="TikTok"?"9/16":p.format==="LinkedIn"?"16/9":"1/1";
+  const ratio=p.format==="Story"||p.format==="Reels"||p.format==="TikTok"?"9/16":p.format==="LinkedIn"?"16/9":"1/1";
+  artLeft.style.aspectRatio=ratio;
   document.getElementById("art-title").textContent=p.title;
   document.getElementById("art-meta").textContent=`${fmtD(p.date)} · ${p.network} · ${p.format}`;
   document.getElementById("art-cmt-txt").value="";
-  document.getElementById("art-cmt-txt").placeholder="Descreva o ajuste desejado neste ponto...";
   document.getElementById("art-pin-status").classList.add("is-hidden");
+  artPinTip.style.display="";
   renderArtCmts(postId);
   artDlg.showModal();
 }
 
-artBgEl.addEventListener("click",e=>{
-  const rect=artBgEl.getBoundingClientRect();
-  const x=parseFloat(((e.clientX-rect.left)/rect.width*100).toFixed(1));
-  const y=parseFloat(((e.clientY-rect.top)/rect.height*100).toFixed(1));
-  // remove temp pins
-  artLeft.querySelectorAll(".pin-dot.pin-temp").forEach(p=>p.remove());
+// Click on art-left to place a pin (coordinates relative to artLeft itself)
+artLeft.addEventListener("click",e=>{
+  // ignore clicks on existing permanent pins and close button area
+  if(e.target.closest(".pin-dot:not(.pin-temp)"))return;
+  const rect=artLeft.getBoundingClientRect();
+  const x=parseFloat(((e.clientX-rect.left)/rect.width*100).toFixed(2));
+  const y=parseFloat(((e.clientY-rect.top)/rect.height*100).toFixed(2));
+  // clamp to 2-98% so pin circle doesn't clip at edges
+  const cx=Math.min(98,Math.max(2,x));
+  const cy=Math.min(98,Math.max(2,y));
+  // remove previous temp pin
+  pinLayer.querySelectorAll(".pin-temp").forEach(p=>p.remove());
   // add new temp pin
   const pin=document.createElement("span");
   pin.className="pin-dot pin-temp";
-  pin.style.left=x+"%"; pin.style.top=y+"%";
+  pin.style.left=cx+"%"; pin.style.top=cy+"%";
   pin.innerHTML="<span>+</span>";
-  artLeft.appendChild(pin);
-  pendingPin={x,y};
+  pinLayer.appendChild(pin);
+  pendingPin={x:cx,y:cy};
   document.getElementById("art-pin-status").classList.remove("is-hidden");
+  artPinTip.style.display="none";
   document.getElementById("art-cmt-txt").focus();
 });
 
 function renderArtCmts(postId){
   const items=(loadCmts()[postId]||[]).filter(c=>c.type!=="Interno");
   const cont=document.getElementById("art-comments");
-  // remove old pins from art
-  artLeft.querySelectorAll(".pin-dot:not(.pin-temp)").forEach(p=>p.remove());
+  // clear pin layer (keep temp pin)
+  pinLayer.querySelectorAll(".pin-dot:not(.pin-temp)").forEach(p=>p.remove());
   if(!items.length){
     cont.innerHTML=`<span class="cmt-label">Comentários</span><p class="art-no-cmt">Sem comentários ainda. Clique na imagem para marcar um ponto.</p>`;
     return;
   }
-  let pinCount=0;
+  let pinSeq=0;
+  // render permanent pins on image
   items.forEach((c,i)=>{
-    if(c.pin){
-      pinCount++;
-      const pin=document.createElement("span");
-      pin.className="pin-dot";
-      pin.style.left=c.pin.x+"%"; pin.style.top=c.pin.y+"%";
-      pin.innerHTML=`<span>${pinCount}</span>`;
-      pin.title=c.text;
-      artLeft.appendChild(pin);
-    }
+    if(!c.pin)return;
+    pinSeq++;
+    const pin=document.createElement("span");
+    pin.className="pin-dot";
+    pin.dataset.idx=i;
+    pin.style.left=c.pin.x+"%";
+    pin.style.top=c.pin.y+"%";
+    pin.innerHTML=`<span>${pinSeq}</span>`;
+    pin.title=c.text;
+    // hover: highlight linked comment
+    pin.addEventListener("mouseenter",()=>{
+      pin.classList.add("is-active");
+      const cEl=cont.querySelector(`.cmt-item[data-idx="${i}"]`);
+      if(cEl){cEl.classList.add("is-lit");cEl.scrollIntoView({block:"nearest",behavior:"smooth"});}
+    });
+    pin.addEventListener("mouseleave",()=>{
+      pin.classList.remove("is-active");
+      cont.querySelectorAll(".cmt-item").forEach(el=>el.classList.remove("is-lit"));
+    });
+    pinLayer.appendChild(pin);
   });
-  const pinItems=items.map((c,i)=>{
-    let pNum=0;if(c.pin){pNum=items.slice(0,i+1).filter(x=>x.pin).length;}
-    return`<div class="cmt-item">
+  // render comment list
+  pinSeq=0;
+  const cmtHtml=items.map((c,i)=>{
+    const hasPIn=!!c.pin;
+    if(hasPIn)pinSeq++;
+    const pNum=pinSeq;
+    return`<div class="cmt-item ${hasPIn?"has-pin":""}" data-idx="${i}">
+      ${hasPIn?`<span class="pin-ref">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--coral)"><circle cx="12" cy="12" r="10"/></svg>
+        Ponto ${pNum} marcado na imagem
+      </span>`:""}
       <strong>${esc(c.author)}</strong>
-      ${c.pin?`<span class="pin-ref">📍 Pin ${pNum} na imagem</span>`:""}
       <p>${esc(c.text)}</p>
       <small>${c.date}</small>
     </div>`;
   }).join("");
-  cont.innerHTML=`<span class="cmt-label">Comentários (${items.length})</span>${pinItems}`;
+  cont.innerHTML=`<span class="cmt-label">Comentários (${items.length})</span>${cmtHtml}`;
+  // hover on comment: highlight linked pin
+  cont.querySelectorAll(".cmt-item.has-pin").forEach(el=>{
+    const idx=parseInt(el.dataset.idx);
+    el.addEventListener("mouseenter",()=>{
+      el.classList.add("is-lit");
+      const pin=pinLayer.querySelector(`.pin-dot[data-idx="${idx}"]`);
+      if(pin)pin.classList.add("is-active");
+    });
+    el.addEventListener("mouseleave",()=>{
+      el.classList.remove("is-lit");
+      pinLayer.querySelectorAll(".pin-dot").forEach(p=>p.classList.remove("is-active"));
+    });
+  });
 }
 
 document.getElementById("art-send").addEventListener("click",()=>{
@@ -796,7 +847,7 @@ document.getElementById("art-send").addEventListener("click",()=>{
   pendingPin=null;
   document.getElementById("art-cmt-txt").value="";
   document.getElementById("art-pin-status").classList.add("is-hidden");
-  artLeft.querySelectorAll(".pin-dot.pin-temp").forEach(p=>p.remove());
+  pinLayer.querySelectorAll(".pin-temp").forEach(p=>p.remove());
   renderArtCmts(artPostId);
   renderPosts();
   toast("Comentário enviado!");
