@@ -473,7 +473,13 @@
               <h2>Portal do Cliente</h2>
               <p>Compartilhamento seguro para aprovação manual, sem conexão direta com contas Meta nesta fase.</p>
             </div>
-            <button class="primary-button" id="copy-share-btn">Copiar link de aprovação</button>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <button class="secondary-button" id="admin-pdf-btn" onclick="adminDownloadPDF()" title="Gerar PDF de aprovação">
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="vertical-align:middle;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v13M6 10l6 7 6-7"/><path stroke-linecap="round" d="M3 20h18"/></svg>
+                Baixar PDF
+              </button>
+              <button class="primary-button" id="copy-share-btn">Copiar link de aprovação</button>
+            </div>
           </div>
 
           <div class="sharing-layout">

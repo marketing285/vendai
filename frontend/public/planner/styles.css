@@ -223,6 +223,7 @@ select {
 }
 
 .primary-button,
+.secondary-button,
 .ghost-button,
 .outline-button,
 .danger-button,
@@ -238,6 +239,18 @@ select {
   background: var(--ink);
   color: #fff;
 }
+
+.secondary-button {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+.secondary-button:hover { background: var(--hover); }
 
 .ghost-button {
   background: #eef2f7;

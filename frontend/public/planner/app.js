@@ -1537,5 +1537,162 @@ function renderBestTime() {
 builderNetworkSel?.addEventListener("change", renderBestTime);
 renderBestTime();
 
+// ── Admin PDF export ─────────────────────────────────────────────────────────
+function adminDownloadPDF() {
+  const client = clientFilter.value === "all" ? (posts[0]?.client || "Todos os clientes") : clientFilter.value;
+  const month = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date());
+  const monthLabel = month.charAt(0).toUpperCase() + month.slice(1);
+  const clientPosts = clientFilter.value === "all" ? posts : posts.filter(p => p.client === client);
+  if (!clientPosts.length) { alert("Nenhum post para exportar."); return; }
+
+  const base = document.baseURI || location.href;
+  function abs(src) { try { return new URL(src, base).href; } catch { return src; } }
+  const logoUrl = abs("./logo-grupo-venda.png");
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+  const approved = clientPosts.filter(p => p.status === "Aprovado").length;
+  const adjusts  = clientPosts.filter(p => p.status === "Ajuste solicitado").length;
+  const pending  = clientPosts.filter(p => !p.status || p.status === "Aguardando aprovação" || p.status === "Pendente").length;
+
+  const allCmts = JSON.parse(localStorage.getItem("gvPlannerComments") || "{}");
+  const netColors = { Instagram:"#e1306c", LinkedIn:"#0a66c2", TikTok:"#010101", Facebook:"#1877f2", YouTube:"#ff0000", Twitter:"#1da1f2", Pinterest:"#e60023" };
+
+  function esc(s) { return (s||"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function fmtD(d) { if(!d) return "—"; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; }
+  function netColor(n) { return netColors[n] || "#667085"; }
+  function statusLabel(s) { return s==="Aprovado"?"✓ Aprovado":s==="Ajuste solicitado"?"↺ Ajuste":"⏳ Aguardando"; }
+  function statusBg(s) { return s==="Aprovado"?"#dcfce7":s==="Ajuste solicitado"?"#fee2e2":"#eff6ff"; }
+  function statusFg(s) { return s==="Aprovado"?"#166534":s==="Ajuste solicitado"?"#991b1b":"#1e40af"; }
+  function imgFromArt(art) { const m=art&&art.match(/url\(['"]?([^'")\s]+)['"]?\)/); return m?abs(m[1]):""; }
+
+  function buildComments(postId) {
+    const cmts = (allCmts[postId] || []).filter(c => c.type !== "Interno");
+    if (!cmts.length) return "";
+    return `<div class="pdf-cmts"><div class="pdf-cmts-hd">Comentários</div>${
+      cmts.map(c=>`<div class="pdf-cmt">
+        ${c.pin?`<span class="pdf-pin-ref">📍 Ponto referenciado na imagem</span>`:""}
+        <div class="pdf-cmt-author">${esc(c.author)}</div>
+        <div class="pdf-cmt-text">${esc(c.text)}</div>
+        <div class="pdf-cmt-date">${c.date}</div>
+      </div>`).join("")}
+    </div>`;
+  }
+
+  const coverHtml = `<div class="pdf-cover">
+    <div class="pdf-cover-inner">
+      <div class="pdf-cover-logo-wrap">
+        <img src="${logoUrl}" class="pdf-cover-logo" />
+        <div class="pdf-cover-divider"></div>
+        <span class="pdf-cover-tag">Relatório de Aprovação de Conteúdo</span>
+      </div>
+      <div class="pdf-cover-client">${esc(client)}</div>
+      <div class="pdf-cover-period">${esc(monthLabel)}</div>
+      <div class="pdf-cover-stats">
+        <div class="pdf-stat"><strong>${clientPosts.length}</strong><span>Total</span></div>
+        <div class="pdf-stat pdf-stat-ok"><strong>${approved}</strong><span>Aprovados</span></div>
+        <div class="pdf-stat pdf-stat-warn"><strong>${adjusts}</strong><span>Ajustes</span></div>
+        <div class="pdf-stat pdf-stat-pend"><strong>${pending}</strong><span>Aguardando</span></div>
+      </div>
+      <div class="pdf-cover-foot">Documento gerado em ${dateStr} · GV Planner · Grupo Venda</div>
+    </div>
+  </div>`;
+
+  const pagesHtml = clientPosts.map(p => {
+    const img = imgFromArt(p.art);
+    const nc  = netColor(p.network);
+    return `<div class="pdf-page">
+      <div class="pdf-hdr">
+        <img src="${logoUrl}" class="pdf-logo" />
+        <div class="pdf-hdr-mid">
+          <strong>${esc(client)}</strong>
+          <span>${esc(monthLabel)}</span>
+        </div>
+        <span class="pdf-badge" style="background:${statusBg(p.status)};color:${statusFg(p.status)}">${statusLabel(p.status)}</span>
+      </div>
+      ${img?`<div class="pdf-img-wrap"><img src="${img}" class="pdf-img" /></div>`:`<div class="pdf-img-placeholder"><span>Sem imagem</span></div>`}
+      <div class="pdf-body">
+        <div class="pdf-title-row">
+          <h2>${esc(p.title||"Sem título")}</h2>
+          <span class="pdf-net" style="background:${nc}20;color:${nc};border-color:${nc}40">${esc(p.network||"")}</span>
+        </div>
+        <div class="pdf-meta-row">
+          <div class="pdf-meta-item"><span>📅</span><span>${fmtD(p.date)}${p.time?" às "+esc(p.time):""}</span></div>
+          <div class="pdf-meta-item"><span>📐</span><span>${esc(p.format||"—")}</span></div>
+          ${p.pillar?`<div class="pdf-meta-item"><span>🎯</span><span>${esc(p.pillar)}</span></div>`:""}
+        </div>
+        ${p.caption?`<div class="pdf-caption-block"><div class="pdf-sec-label">Legenda</div><p class="pdf-caption">${esc(p.caption)}</p></div>`:""}
+        ${p.hashtags?`<div class="pdf-tags-block"><div class="pdf-sec-label">Hashtags</div><p class="pdf-tags">${esc(p.hashtags)}</p></div>`:""}
+        ${buildComments(p.id)}
+      </div>
+      <div class="pdf-foot"><img src="${logoUrl}" class="pdf-foot-logo" /> GV Planner · Grupo Venda · Documento de aprovação</div>
+    </div>`;
+  }).join("");
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    @page{size:A4 portrait;margin:0}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;background:#f1f5f9;-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#111827}
+    .pdf-cover{width:210mm;min-height:297mm;background:#101828;display:flex;align-items:center;justify-content:center;page-break-after:always;break-after:page}
+    .pdf-cover-inner{text-align:center;padding:20mm;display:flex;flex-direction:column;align-items:center;gap:16px}
+    .pdf-cover-logo-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:12px}
+    .pdf-cover-logo{height:52px;filter:brightness(0) invert(1)}
+    .pdf-cover-divider{width:60px;height:3px;background:#0f9f8f;border-radius:2px}
+    .pdf-cover-tag{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8892a4}
+    .pdf-cover-client{font-size:36px;font-weight:900;color:#fff;line-height:1.1;margin-top:8px}
+    .pdf-cover-period{font-size:16px;color:#8892a4;font-weight:500;margin-top:4px}
+    .pdf-cover-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px;width:100%}
+    .pdf-stat{background:#1e2d3d;border-radius:10px;padding:16px 12px;text-align:center}
+    .pdf-stat strong{display:block;font-size:32px;font-weight:900;color:#fff;line-height:1}
+    .pdf-stat span{display:block;font-size:10px;color:#667085;text-transform:uppercase;letter-spacing:.08em;margin-top:6px}
+    .pdf-stat-ok strong{color:#34d399} .pdf-stat-warn strong{color:#f87171} .pdf-stat-pend strong{color:#60a5fa}
+    .pdf-cover-foot{font-size:10px;color:#4b5563;margin-top:28px}
+    .pdf-page{width:210mm;min-height:297mm;background:#fff;display:flex;flex-direction:column;page-break-after:always;break-after:page;overflow:hidden}
+    .pdf-page:last-child{page-break-after:avoid;break-after:avoid}
+    .pdf-hdr{display:flex;align-items:center;gap:12px;padding:7mm 12mm 6mm;background:#101828;flex-shrink:0}
+    .pdf-logo{height:26px;filter:brightness(0) invert(1)}
+    .pdf-hdr-mid{flex:1;padding-left:12px;border-left:2px solid #2d3e50}
+    .pdf-hdr-mid strong{display:block;font-size:12px;color:#fff;font-weight:700}
+    .pdf-hdr-mid span{display:block;font-size:10px;color:#8892a4}
+    .pdf-badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:99px;white-space:nowrap;flex-shrink:0}
+    .pdf-img-wrap{width:100%;height:88mm;overflow:hidden;background:#111827;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    .pdf-img{width:100%;height:88mm;object-fit:cover;display:block}
+    .pdf-img-placeholder{width:100%;height:40mm;background:#f8fafc;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    .pdf-img-placeholder span{font-size:12px;color:#9ca3af}
+    .pdf-body{flex:1;padding:7mm 12mm 5mm;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+    .pdf-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    h2{font-size:18px;font-weight:800;color:#111827;line-height:1.2}
+    .pdf-net{font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid;flex-shrink:0;align-self:flex-start;margin-top:3px}
+    .pdf-meta-row{display:flex;gap:16px;flex-wrap:wrap}
+    .pdf-meta-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#667085}
+    .pdf-caption-block,.pdf-tags-block{background:#f8fafc;border-radius:8px;padding:8px 12px;border:1px solid #e5e7eb}
+    .pdf-sec-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;margin-bottom:5px}
+    .pdf-caption{font-size:13px;line-height:1.7;color:#374151}
+    .pdf-tags{font-size:12px;color:#3164d4;line-height:1.6}
+    .pdf-cmts{border-top:1px solid #f0f2f5;padding-top:8px}
+    .pdf-cmts-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#0f9f8f;margin-bottom:6px}
+    .pdf-cmt{background:#f0faf8;border-left:3px solid #0f9f8f;border-radius:0 6px 6px 0;padding:6px 10px;margin-bottom:5px}
+    .pdf-pin-ref{font-size:9px;color:#e15d4f;font-weight:600;margin-bottom:3px}
+    .pdf-cmt-author{font-size:11px;font-weight:700;color:#0f9f8f}
+    .pdf-cmt-text{font-size:12px;color:#374151;margin-top:2px;line-height:1.5}
+    .pdf-cmt-date{font-size:9px;color:#9ca3af;margin-top:3px}
+    .pdf-foot{display:flex;align-items:center;justify-content:center;gap:10px;border-top:1px solid #e5e7eb;padding:4mm 12mm;font-size:9px;color:#9ca3af;flex-shrink:0;background:#f9fafb}
+    .pdf-foot-logo{height:14px;filter:grayscale(1) opacity(.4)}
+  `;
+
+  const win = window.open("", "_blank", "width=960,height=780");
+  if (!win) { alert("Ative pop-ups para exportar o PDF."); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+    <meta charset="utf-8"/>
+    <title>Aprovação — ${esc(client)} — ${esc(monthLabel)}</title>
+    <base href="${base}"/>
+    <style>${css}</style>
+  </head><body>${coverHtml}${pagesHtml}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 1200);
+}
+
 // ── Init: call renderDashboard on first load ──────────────────────────────────
 renderDashboard();
