@@ -2191,8 +2191,8 @@ function libListRow(f) {
 }
 
 function libPreviewFile(id) {
-  const sid = String(id);
-  const f = libFiles.find(x => String(x.id) === sid);
+  // eslint-disable-next-line eqeqeq
+  const f = libFiles.find(x => x.id == id);
   if (!f) return;
   libPreviewId = f.id; // store actual id from the file object
   // Reset inline delete confirm state
@@ -2259,10 +2259,11 @@ function libPreviewFile(id) {
 }
 
 function libDeleteFile(id) {
-  const sid = String(id);
-  const f = libFiles.find(x => String(x.id) === sid);
+  // eslint-disable-next-line eqeqeq
+  const f = libFiles.find(x => x.id == id);
   if (!f) return;
-  libFiles = libFiles.filter(x => String(x.id) !== sid);
+  // eslint-disable-next-line eqeqeq
+  libFiles = libFiles.filter(x => x.id != id);
   saveLibFiles();
   renderLibNav();
   renderLibMain();
@@ -2270,8 +2271,8 @@ function libDeleteFile(id) {
 }
 
 function libUseAsArt(id) {
-  const sid = String(id);
-  const f = libFiles.find(x => String(x.id) === sid);
+  // eslint-disable-next-line eqeqeq
+  const f = libFiles.find(x => x.id == id);
   if (!f || !f.data) { showToast("Arquivo sem dados disponíveis."); return; }
   builderArtData = f.data;
   document.querySelector("[data-section='builder']")?.click();
@@ -2291,6 +2292,10 @@ function renderLibClientFilter() {
 
 function initLibrary() {
   libFiles = loadLibFiles();
+  // Remove arquivo.jpg genérico que não pôde ser excluído pelo usuário
+  const before = libFiles.length;
+  libFiles = libFiles.filter(f => f.name !== "arquivo.jpg");
+  if (libFiles.length !== before) saveLibFiles();
   renderLibClientFilter();
   renderLibNav();
   renderLibMain();
