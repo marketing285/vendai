@@ -15,6 +15,16 @@
   --shadow: 0 18px 55px rgba(16, 24, 40, 0.08);
 }
 
+[data-dark="1"] {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --ink: #e6edf3;
+  --muted: #8b949e;
+  --line: #30363d;
+  --nav: #010409;
+  --shadow: 0 18px 55px rgba(0,0,0,.35);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -807,30 +817,82 @@ dd {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: 0;
   margin-bottom: 16px;
-}
-
-.day-card {
-  min-height: 132px;
-  background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 8px;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  overflow: hidden;
 }
+
+/* weekday header row */
+.cal-wday-hdr {
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding: 7px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.cal-wday-hdr:not(:last-child) { border-right: 1px solid var(--line); }
+
+.day-card {
+  min-height: 110px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 7px 6px 6px;
+  transition: background 0.15s ease;
+}
+.day-card:nth-child(7n) { border-right: none; }
+
+.day-card.is-empty {
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.day-card.is-today { background: #f0faf9; }
 
 .day-card.is-drop-target {
   border-color: var(--teal);
   background: #effcf9;
-  transform: translateY(-1px);
 }
 
-.day-card time {
-  display: block;
-  color: var(--muted);
+/* date number chip */
+.day-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   font-size: 12px;
-  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.day-num.is-today {
+  background: var(--teal);
+  color: #fff;
+  font-size: 11px;
+}
+
+/* weekday label inside week-view cards */
+.day-card-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+.day-wday {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  line-height: 24px;
 }
 
 .mini-post {
@@ -857,21 +919,149 @@ dd {
   opacity: 0.45;
 }
 
+/* ── Kanban ──────────────────────────────────────────── */
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  gap: 14px;
+  align-items: start;
   overflow-x: auto;
+  padding-bottom: 8px;
 }
 
-.kanban-column {
-  background: #edf1f7;
+.kanban-col {
+  background: var(--bg);
   border-radius: var(--radius);
-  padding: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
 }
 
-.kanban-column h3 {
-  margin-bottom: 10px;
+.kcol-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  background: var(--surface);
+  border-bottom: 3px solid var(--col-color, var(--line));
+}
+
+.kcol-icon { font-size: 15px; line-height: 1; }
+
+.kcol-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kcol-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: var(--col-color, var(--muted));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kcol-body {
+  padding: 10px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kcol-empty {
+  text-align: center;
+  padding: 18px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  border: 1.5px dashed var(--line);
+  border-radius: 6px;
+}
+
+.kcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: box-shadow .15s, transform .12s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+.kcard:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.10);
+  transform: translateY(-2px);
+}
+
+.kcard-art {
+  height: 48px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.kcard-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,.18));
+}
+
+.kcard-body {
+  padding: 9px 11px 11px;
+}
+
+.kcard-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.kcard-client {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0 0 7px;
+}
+
+.kcard-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.kcard-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.kcard-date {
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .feed-layout,
@@ -1237,7 +1427,15 @@ dd {
 }
 
 .post-modal {
+  position: fixed;
+  inset: unset;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
   width: min(1040px, calc(100vw - 28px));
+  max-height: 92vh;
+  overflow: auto;
   border: 0;
   border-radius: var(--radius);
   padding: 0;
@@ -1657,6 +1855,12 @@ dd {
 
 /* ── Portal dialog ───────────────────────────────────────────────────── */
 .portal-dialog {
+  position: fixed;
+  inset: unset;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
   border: none;
   border-radius: 14px;
   padding: 0;

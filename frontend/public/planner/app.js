@@ -258,38 +258,72 @@ function renderUpcoming() {
   `).join("");
 }
 
+const WDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
 function renderCalendar() {
   const grid = document.querySelector("#calendar-grid");
-  const days = Array.from({ length: 30 }, (_, index) => index + 1);
-  grid.innerHTML = days.map((day) => {
-    const dayPosts = activePosts().filter((post) => Number(post.date.slice(-2)) === day);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayNum = now.getDate();
+
+  const headers = WDAYS.map(d => `<div class="cal-wday-hdr">${d}</div>`).join("");
+  const blanks  = Array.from({ length: firstDow }, () => `<div class="day-card is-empty"></div>`).join("");
+  const cells   = Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayPosts = activePosts().filter(p => p.date === iso);
+    const isToday = day === todayNum;
     return `
-      <article class="day-card" data-day="${day}">
-        <time>${String(day).padStart(2, "0")}/06</time>
-        ${dayPosts.map((post) => `
+      <article class="day-card${isToday ? " is-today" : ""}" data-day="${day}">
+        <time class="day-num${isToday ? " is-today" : ""}">${day}</time>
+        ${dayPosts.map(post => `
           <button class="mini-post" draggable="true" data-post-id="${post.id}" style="--status-color:${statusColor[post.status]}">
             <strong>${escapeHtml(post.client)}</strong><br>${escapeHtml(post.format)} · ${escapeHtml(post.network)}
-          </button>
-        `).join("")}
-      </article>
-    `;
+          </button>`).join("")}
+      </article>`;
   }).join("");
+
+  grid.innerHTML = headers + blanks + cells;
 }
 
 function renderKanban() {
   const board = document.querySelector("#kanban-board");
-  const columns = ["Ideia", "Em produção", "Enviado para aprovação", "Aprovado"];
-  board.innerHTML = columns.map((status) => `
-    <section class="kanban-column">
-      <h3>${status}</h3>
-      ${activePosts().filter((post) => post.status === status).map((post) => `
-        <button class="post-row" data-post-id="${post.id}">
-          <span class="thumb" style="--art:${post.art}"></span>
-          <span><strong>${escapeHtml(post.title)}</strong><span>${escapeHtml(post.client)}</span></span>
-        </button>
-      `).join("")}
-    </section>
-  `).join("");
+  const cols = [
+    { status: "Ideia",                  label: "Ideia",         icon: "💡", color: "#9ca3af" },
+    { status: "Em produção",            label: "Em produção",   icon: "⚙️", color: "#f3b33d" },
+    { status: "Enviado para aprovação", label: "Para aprovar",  icon: "👁",  color: "#3164d4" },
+    { status: "Aprovado",               label: "Aprovado",      icon: "✓",   color: "#2b9e66" },
+  ];
+  board.innerHTML = cols.map(col => {
+    const cards = activePosts().filter(p => p.status === col.status);
+    const cardsHtml = cards.length
+      ? cards.map(post => `
+          <button class="kcard" data-post-id="${post.id}">
+            <div class="kcard-art" style="background:${post.art}"></div>
+            <div class="kcard-body">
+              <strong class="kcard-title">${escapeHtml(post.title)}</strong>
+              <p class="kcard-client">${escapeHtml(post.client)}</p>
+              <div class="kcard-meta">
+                <span class="kcard-badge">${escapeHtml(post.format)}</span>
+                <span class="kcard-badge">${escapeHtml(post.network)}</span>
+                <span class="kcard-date">📅 ${formatDate(post.date)}</span>
+              </div>
+            </div>
+          </button>`).join("")
+      : `<p class="kcol-empty">Nenhum post</p>`;
+    return `
+      <section class="kanban-col">
+        <div class="kcol-head" style="--col-color:${col.color}">
+          <span class="kcol-icon">${col.icon}</span>
+          <span class="kcol-title">${col.label}</span>
+          <span class="kcol-count">${cards.length}</span>
+        </div>
+        <div class="kcol-body">${cardsHtml}</div>
+      </section>`;
+  }).join("");
 }
 
 function renderFeed() {
@@ -563,6 +597,30 @@ document.querySelector("#calendar-grid").addEventListener("drop", (event) => {
 
 document.querySelector("#new-post-btn").addEventListener("click", () => {
   showSection("builder");
+  // reset builder form for a fresh post
+  ["#builder-title","#builder-theme","#builder-goal","#builder-art-copy","#builder-caption","#builder-cta","#builder-hashtags"].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) el.value = "";
+  });
+  ["#builder-client","#builder-network","#builder-format","#builder-pillar","#builder-category","#builder-status"].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) el.selectedIndex = 0;
+  });
+  const dateEl = document.querySelector("#builder-date");
+  if (dateEl) {
+    const d = new Date();
+    dateEl.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()+1).padStart(2,"0")}`;
+  }
+  const timeEl = document.querySelector("#builder-time");
+  if (timeEl) timeEl.value = "09:00";
+  updateBuilderPreview();
+});
+
+// ◐ button → dark/light mode toggle
+document.querySelector(".icon-button").addEventListener("click", function() {
+  const isDark = document.documentElement.dataset.dark === "1";
+  document.documentElement.dataset.dark = isDark ? "0" : "1";
+  this.title = isDark ? "Modo escuro" : "Modo claro";
 });
 
 document.querySelector("#copy-share-btn").addEventListener("click", () => {
@@ -729,18 +787,7 @@ if (calendarSegmented) {
     if (view === "Kanban") {
       grid.classList.add("is-hidden");
       kanban.classList.remove("is-hidden");
-    } else if (view === "Lista") {
-      kanban.classList.add("is-hidden");
-      grid.classList.remove("is-hidden");
-      grid.innerHTML = activePosts().map((post) => `
-        <button class="list-row" data-post-id="${post.id}">
-          <span class="thumb" style="--art:${post.art}"></span>
-          <span class="list-date">${formatDate(post.date)}</span>
-          <span class="list-main"><strong>${escapeHtml(post.title)}</strong><span>${escapeHtml(post.client)}</span></span>
-          <span>${escapeHtml(post.network)} · ${escapeHtml(post.format)}</span>
-          ${statusPill(post.status)}
-        </button>
-      `).join("");
+      renderKanban();
     } else if (view === "Semana") {
       kanban.classList.add("is-hidden");
       grid.classList.remove("is-hidden");
@@ -751,20 +798,23 @@ if (calendarSegmented) {
         return d;
       });
       grid.innerHTML = weekDays.map((date) => {
-        const dayStr = String(date.getDate()).padStart(2, "0");
+        const dayStr   = String(date.getDate()).padStart(2, "0");
         const monthStr = String(date.getMonth() + 1).padStart(2, "0");
-        const isoDate = `${date.getFullYear()}-${monthStr}-${dayStr}`;
+        const isoDate  = `${date.getFullYear()}-${monthStr}-${dayStr}`;
         const dayPosts = activePosts().filter((p) => p.date === isoDate);
+        const isToday  = date.toDateString() === today.toDateString();
+        const wday     = WDAYS[date.getDay()];
         return `
-          <article class="day-card" data-day="${date.getDate()}">
-            <time>${dayStr}/${monthStr}</time>
+          <article class="day-card${isToday ? " is-today" : ""}" data-day="${date.getDate()}">
+            <div class="day-card-head">
+              <span class="day-wday">${wday}</span>
+              <time class="day-num${isToday ? " is-today" : ""}">${dayStr}/${monthStr}</time>
+            </div>
             ${dayPosts.map((post) => `
               <button class="mini-post" draggable="true" data-post-id="${post.id}" style="--status-color:${statusColor[post.status]}">
                 <strong>${escapeHtml(post.client)}</strong><br>${escapeHtml(post.format)} · ${escapeHtml(post.network)}
-              </button>
-            `).join("")}
-          </article>
-        `;
+              </button>`).join("")}
+          </article>`;
       }).join("");
     } else {
       kanban.classList.add("is-hidden");
