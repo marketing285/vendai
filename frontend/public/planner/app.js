@@ -326,14 +326,278 @@ function renderKanban() {
   }).join("");
 }
 
+// ── Instagram Feed Simulator ──────────────────────────────────────────────────
+let igFilter = "all";
+let igActivePostId = null;
+
+const colorMap = { coral: "var(--coral)", teal: "var(--teal)", ink: "var(--ink)", blue: "#3b82f6", yellow: "#f3b33d" };
+
+function igFakeLikes(id) { return (Math.abs(id * 2971 + 371) % 2800) + 200; }
+function igFakeViews(id) { return (Math.abs(id * 5171 + 1103) % 18000) + 2000; }
+
 function renderFeed() {
-  const feed = document.querySelector("#instagram-grid");
-  const feedPosts = activePosts().concat(posts).slice(0, 12);
-  feed.innerHTML = feedPosts.map((post) => `
-    <button class="feed-tile" data-post-id="${post.id}" style="--art:${post.art}">
-      ${escapeHtml(post.pillar)}
-    </button>
-  `).join("");
+  const clientName = clientFilter.value === "all" ? null : clientFilter.value;
+  const clientInfo = clientName ? clients.find(c => c.name === clientName) : null;
+
+  const allCP = clientName ? posts.filter(p => p.client === clientName) : posts;
+  let gridPosts = [...allCP].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  if (igFilter !== "all") gridPosts = gridPosts.filter(p => p.status === igFilter);
+
+  const approved  = allCP.filter(p => p.status === "Aprovado").length;
+  const pending   = allCP.filter(p => !p.status || p.status === "Aguardando aprovação" || p.status === "Pendente").length;
+  const initials  = clientInfo
+    ? clientInfo.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
+    : "GV";
+  const handle    = clientInfo?.instagram || (clientName ? "@" + clientName.toLowerCase().replace(/\s+/g, "") : "@cliente");
+  const avColor   = colorMap[clientInfo?.color] || "var(--teal)";
+
+  // ── Update profile header ───────────────────────────────────────────────────
+  const $= id => document.getElementById(id);
+  if ($("ig-appbar-handle")) $("ig-appbar-handle").textContent = handle;
+  if ($("ig-pav"))           { $("ig-pav").textContent = initials; $("ig-pav").style.background = avColor; }
+  if ($("ig-np"))            $("ig-np").textContent    = allCP.length;
+  if ($("ig-nappr"))         $("ig-nappr").textContent = approved;
+  if ($("ig-npend"))         $("ig-npend").textContent = pending;
+  if ($("ig-bio-name"))      $("ig-bio-name").textContent = clientInfo?.name  || "Selecione um cliente";
+  if ($("ig-bio-seg"))       $("ig-bio-seg").textContent  = clientInfo?.segment || "Grupo Venda · GV Planner";
+  if ($("ig-bnav-me"))       { $("ig-bnav-me").textContent = initials; $("ig-bnav-me").style.background = avColor; }
+
+  // ── Stories ─────────────────────────────────────────────────────────────────
+  const storySrc = allCP.slice(0, 7).reverse();
+  const storiesEl = $("ig-stories");
+  if (storiesEl) {
+    storiesEl.innerHTML = `<div class="ig-story">
+      <div class="ig-story-ring is-seen"><div class="ig-story-inner" style="background:#f0f0f0;font-size:18px;color:#bbb">+</div></div>
+      <span class="ig-story-lbl">Novo</span>
+    </div>` + storySrc.map((p, i) => {
+      const bg = p.art || "";
+      const isUrl = bg.includes("url(");
+      const inner = isUrl
+        ? `style="background-image:${bg};background-size:cover;background-position:center"`
+        : bg ? `style="background:${bg}"` : `style="background:linear-gradient(135deg,#111827,#0f9f8f)"`;
+      return `<div class="ig-story" data-story-id="${p.id}">
+        <div class="ig-story-ring${i < 2 ? "" : " is-seen"}">
+          <div class="ig-story-inner" ${inner}>${isUrl ? "" : escapeHtml((p.pillar || "").slice(0, 3))}</div>
+        </div>
+        <span class="ig-story-lbl">${escapeHtml(p.title?.split(" ")[0] || "Post")}</span>
+      </div>`;
+    }).join("");
+
+    storiesEl.querySelectorAll("[data-story-id]").forEach(el => {
+      el.addEventListener("click", () => {
+        const pid = parseInt(el.dataset.storyId);
+        igActivePostId = pid;
+        showIgDetail(pid);
+        refreshIgGrid();
+      });
+    });
+  }
+
+  // ── Grid ────────────────────────────────────────────────────────────────────
+  refreshIgGrid(gridPosts);
+}
+
+function refreshIgGrid(gridPosts) {
+  if (!gridPosts) {
+    const clientName = clientFilter.value === "all" ? null : clientFilter.value;
+    const allCP = clientName ? posts.filter(p => p.client === clientName) : posts;
+    gridPosts = [...allCP].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    if (igFilter !== "all") gridPosts = gridPosts.filter(p => p.status === igFilter);
+  }
+
+  const grid = document.getElementById("ig-grid");
+  if (!grid) return;
+
+  if (!gridPosts.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:36px 16px;text-align:center;color:#999;font-size:13px;background:#fff">
+      Nenhum post${igFilter !== "all" ? " com este filtro" : " para este cliente"}
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = gridPosts.slice(0, 30).map(p => {
+    const bg = p.art || "";
+    const isUrl = bg.includes("url(");
+    let style = "";
+    if (isUrl) {
+      const m = bg.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+      style = m ? `background-image:url('${m[1]}');background-size:cover;background-position:center`
+                : `background:linear-gradient(135deg,#111827,#0f9f8f)`;
+    } else {
+      style = bg ? `background:${bg}` : "background:linear-gradient(135deg,#111827,#0f9f8f)";
+    }
+
+    const dotClass = p.status === "Aprovado"          ? "s-approved"
+                   : p.status === "Ajuste solicitado" ? "s-adjust"
+                   : p.status === "Publicado"          ? "s-published"
+                   : "";
+
+    const isCarousel = p.format === "Carrossel";
+    const isReel     = p.format === "Reels" || p.format === "TikTok";
+    const badge = isCarousel
+      ? `<span class="ig-tile-badge"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M3 7l-2 2 2 2M21 7l2 2-2 2"/></svg></span>`
+      : isReel
+        ? `<span class="ig-tile-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18a1 1 0 0 0 0-1.69L9.54 5.98A1 1 0 0 0 8 6.82z"/></svg></span>`
+        : "";
+
+    const isActive = p.id === igActivePostId;
+    const fakeLikes = igFakeLikes(p.id);
+    const fakeCmts  = (loadComments()[p.id] || []).length;
+
+    return `<button class="ig-tile${isActive ? " is-active" : ""}" data-pid="${p.id}" style="${style}">
+      <div class="ig-tile-ov">
+        <span><svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${fakeLikes}</span>
+        ${fakeCmts ? `<span><svg width="14" height="14" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${fakeCmts}</span>` : ""}
+      </div>
+      ${badge}
+      <div class="ig-tile-dot ${dotClass}"></div>
+    </button>`;
+  }).join("");
+
+  grid.querySelectorAll(".ig-tile").forEach(tile => {
+    tile.addEventListener("click", () => {
+      const pid = parseInt(tile.dataset.pid);
+      igActivePostId = pid;
+      showIgDetail(pid);
+      grid.querySelectorAll(".ig-tile").forEach(t => t.classList.toggle("is-active", t === tile));
+    });
+  });
+}
+
+function showIgDetail(postId) {
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+
+  const clientInfo = clients.find(c => c.name === post.client);
+  const initials = clientInfo?.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "GV";
+  const handle   = clientInfo?.instagram || ("@" + (post.client || "cliente").toLowerCase().replace(/\s+/g, ""));
+  const avColor  = colorMap[clientInfo?.color] || "var(--teal)";
+
+  const fakeLikes  = igFakeLikes(post.id);
+  const fakeViews  = (post.format === "Reels" || post.format === "TikTok") ? igFakeViews(post.id) : null;
+  const cmts       = (loadComments()[post.id] || []);
+
+  const statusConfig = {
+    "Aprovado":           { cls: "aprovado",  icon: "✓", label: "Aprovado" },
+    "Ajuste solicitado":  { cls: "ajuste",    icon: "↺", label: "Ajuste solicitado" },
+    "Publicado":          { cls: "publicado", icon: "✓", label: "Publicado" },
+  };
+  const st = statusConfig[post.status] || { cls: "enviado", icon: "⏳", label: "Aguardando aprovação" };
+
+  const fmtCaption = c => escapeHtml(c)
+    .replace(/#(\w+)/g, `<span style="color:var(--teal)">#$1</span>`)
+    .replace(/@(\w+)/g, `<span style="color:var(--teal)">@$1</span>`);
+
+  const artBg  = post.art || "linear-gradient(135deg,#111827,#0f9f8f)";
+  const isUrl  = artBg.includes("url(");
+  const artSt  = isUrl ? `background-image:${artBg};background-size:cover;background-position:center`
+                        : `background:${artBg}`;
+
+  const cmtHtml = cmts.slice(-3).map(c => `
+    <div class="ig-dcmt">
+      <b>${escapeHtml(c.author)}</b> ${escapeHtml(c.text)}
+      <div class="ig-dcmt-date">${c.date}</div>
+    </div>`).join("");
+
+  const canPublish = post.status === "Aprovado";
+  const lockHint   = !canPublish
+    ? `<small style="font-size:11px;color:var(--muted);display:block;margin-top:4px">Requer aprovação do cliente</small>`
+    : "";
+
+  document.getElementById("ig-detail").innerHTML = `
+    <div class="ig-dpost">
+      <div class="ig-dpost-hdr">
+        <div class="ig-dpost-hdr-left">
+          <div class="ig-dpost-av" style="background:${avColor}">${initials}</div>
+          <div>
+            <div class="ig-dpost-handle">${escapeHtml(handle)}</div>
+            <div class="ig-dpost-client">${escapeHtml(post.client || "")}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <span class="status ${st.cls}" style="font-size:11px">${st.icon} ${st.label}</span>
+          <button class="ghost-button" style="font-size:12px;min-height:30px;padding:0 10px"
+            onclick="document.querySelector('[data-section=approval]').click();showApprovalForPost(${post.id})">
+            Aprovação →
+          </button>
+        </div>
+      </div>
+
+      <div class="ig-dpost-img" style="${artSt}"></div>
+
+      <div class="ig-dactions">
+        <div class="ig-dact-row">
+          <button class="ig-dact-btn" title="Curtidas simuladas">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+          <button class="ig-dact-btn" title="${cmts.length} comentários">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button class="ig-dact-btn">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <button class="ig-dact-btn">
+          <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
+      </div>
+
+      <div class="ig-dlikes">${fakeViews
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>${fakeViews.toLocaleString("pt-BR")} visualizações`
+        : `${fakeLikes.toLocaleString("pt-BR")} curtidas`}
+      </div>
+
+      <div class="ig-dcaption">
+        <b>${escapeHtml(handle)}</b> ${fmtCaption(post.caption || "")}
+        ${post.hashtags ? `<div class="ig-dhashtags">${fmtCaption(post.hashtags)}</div>` : ""}
+      </div>
+
+      ${cmts.length ? `<div class="ig-dcomments">
+        <div class="ig-dcomments-hd">Ver todos os ${cmts.length} comentários</div>
+        ${cmtHtml}
+      </div>` : ""}
+
+      <div class="ig-dmeta">
+        <div class="ig-dmeta-date">${formatDate(post.date)}${post.time ? " às " + post.time : ""}</div>
+        <div class="ig-dmeta-tags">
+          <span class="ig-dmeta-tag">📐 ${escapeHtml(post.format || "—")}</span>
+          ${post.pillar ? `<span class="ig-dmeta-tag">🎯 ${escapeHtml(post.pillar)}</span>` : ""}
+          <span class="ig-dmeta-tag">🌐 ${escapeHtml(post.network || "—")}</span>
+        </div>
+      </div>
+
+      <div class="ig-dactions-bar">
+        <button class="primary-button" style="flex:1;opacity:${canPublish ? 1 : .45};cursor:${canPublish ? "pointer" : "not-allowed"}"
+          ${canPublish ? `onclick="changePostStatus(${post.id},'Publicado')"` : ""}
+          title="${canPublish ? "Marcar como publicado" : "Aguardando aprovação do cliente"}">
+          Marcar Publicado
+        </button>
+        ${lockHint}
+        <button class="ghost-button" style="flex:1" onclick="openEditModal(${post.id})">Editar post</button>
+      </div>
+    </div>`;
+}
+
+function changePostStatus(postId, newStatus) {
+  const i = posts.findIndex(p => p.id === postId);
+  if (i < 0) return;
+  posts[i].status = newStatus;
+  savePosts();
+  showToast(`Post marcado como "${newStatus}".`);
+  renderAll();
+  showIgDetail(postId);
+  refreshIgGrid();
+}
+
+function showApprovalForPost(postId) {
+  const pending = posts.filter(p => p.status === "Enviado para aprovação" || p.status === "Ajuste solicitado");
+  const idx = pending.findIndex(p => p.id === postId);
+  if (idx >= 0) { approvalPostIndex = idx; renderApprovalBoard(); }
+}
+
+function openEditModal(postId) {
+  const post = posts.find(p => p.id === postId);
+  if (post) openPost(post);
 }
 
 function renderStrategy() {
@@ -391,7 +655,10 @@ document.querySelectorAll("[data-section-jump]").forEach((button) => {
   button.addEventListener("click", () => showSection(button.dataset.sectionJump));
 });
 
-[clientFilter, statusFilter, networkFilter, search].forEach((control) => control.addEventListener("input", renderAll));
+[clientFilter, statusFilter, networkFilter, search].forEach((control) => {
+  control.addEventListener("input", renderAll);
+  control.addEventListener("change", renderAll);
+});
 
 document.querySelector("#clear-filters").addEventListener("click", () => {
   clientFilter.value = "all";
@@ -824,32 +1091,22 @@ if (calendarSegmented) {
   });
 }
 
-// ── Feed segmented toggle ─────────────────────────────────────────────────────
-const feedSegmented = document.querySelector("#feed .segmented");
-if (feedSegmented) {
-  feedSegmented.addEventListener("click", (event) => {
-    const btn = event.target.closest("button");
-    if (!btn) return;
-    feedSegmented.querySelectorAll("button").forEach((b) => b.classList.remove("is-selected"));
-    btn.classList.add("is-selected");
+// ── Instagram Feed segmented filter ──────────────────────────────────────────
+document.getElementById("ig-seg")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-igf]");
+  if (!btn) return;
+  igFilter = btn.dataset.igf;
+  document.querySelectorAll("#ig-seg button").forEach(b => b.classList.toggle("is-selected", b === btn));
+  renderFeed();
+});
 
-    const filter = btn.textContent.trim();
-    const feed = document.querySelector("#instagram-grid");
-    let filtered;
-    if (filter === "Aprovados") {
-      filtered = posts.filter((p) => p.status === "Aprovado");
-    } else if (filter === "Publicados") {
-      filtered = posts.filter((p) => p.status === "Publicado");
-    } else {
-      filtered = activePosts().concat(posts);
-    }
-    feed.innerHTML = filtered.slice(0, 12).map((post) => `
-      <button class="feed-tile" data-post-id="${post.id}" style="--art:${post.art}">
-        ${escapeHtml(post.pillar)}
-      </button>
-    `).join("");
+// ── ig-gtabs (decorative) ─────────────────────────────────────────────────────
+document.getElementById("ig-grid")?.closest(".ig-screen")?.querySelector(".ig-gtabs")
+  ?.addEventListener("click", e => {
+    const btn = e.target.closest(".ig-gtab");
+    if (!btn) return;
+    document.querySelectorAll(".ig-gtab").forEach(b => b.classList.toggle("is-active", b === btn));
   });
-}
 
 // ── Prototype-only buttons (toast feedback) ───────────────────────────────────
 document.querySelector("#clients .primary-button")?.addEventListener("click", () => {
@@ -908,16 +1165,23 @@ function renderClients() {
   grid.innerHTML = clients.map((c, i) => {
     const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
     const color = c.color || clientColorCycle[i % clientColorCycle.length];
+    const postCount = posts.filter(p => p.client === c.name).length;
     const rows = [
       `<div><dt>Responsável</dt><dd>${escapeHtml(c.owner || "—")}</dd></div>`,
       `<div><dt>Status</dt><dd>${escapeHtml(c.status)}</dd></div>`,
+      `<div><dt>Posts</dt><dd>${postCount}</dd></div>`,
       c.instagram ? `<div><dt>Instagram</dt><dd>${escapeHtml(c.instagram)}</dd></div>` : "",
-      c.linkedin ? `<div><dt>LinkedIn</dt><dd>${escapeHtml(c.linkedin)}</dd></div>` : "",
-      c.site ? `<div><dt>Site</dt><dd>${escapeHtml(c.site)}</dd></div>` : "",
+      c.linkedin  ? `<div><dt>LinkedIn</dt><dd>${escapeHtml(c.linkedin)}</dd></div>`  : "",
+      c.site      ? `<div><dt>Site</dt><dd>${escapeHtml(c.site)}</dd></div>`          : "",
       `<div><dt>Início</dt><dd>${c.start ? formatDate(c.start) : "—"}</dd></div>`
     ].filter(Boolean).join("");
     return `
-      <article class="client-card">
+      <article class="client-card panel">
+        <button class="client-card-del" data-del-id="${c.id}" title="Excluir cliente">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
         <div class="client-logo ${color}">${initials}</div>
         <h3>${escapeHtml(c.name)}</h3>
         <p>${escapeHtml(c.segment || "")}</p>
@@ -925,6 +1189,21 @@ function renderClients() {
       </article>
     `;
   }).join("");
+
+  // Delete handler
+  grid.querySelectorAll(".client-card-del").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.delId);
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+      if (!confirm(`Excluir o cliente "${client.name}"? Os posts associados não serão apagados.`)) return;
+      clients = clients.filter(c => c.id !== id);
+      saveClients();
+      renderClients();
+      showToast(`Cliente "${client.name}" removido.`);
+    });
+  });
 
   const options = clients.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
   document.querySelector("#client-filter").innerHTML = `<option value="all">Todos os clientes</option>${options}`;
