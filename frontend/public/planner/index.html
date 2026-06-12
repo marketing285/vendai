@@ -1033,27 +1033,29 @@
       </div>
     </dialog>
 
-    <!-- Modal: Preview arquivo -->
-    <dialog id="lib-preview-modal" class="lib-preview-dialog">
-      <div class="lib-preview-head">
-        <strong id="lib-prev-name">arquivo.jpg</strong>
-        <div style="display:flex;gap:8px">
-          <button class="ghost-button" id="lib-prev-use-art" hidden>Usar como arte</button>
-          <button class="ghost-button" id="lib-prev-download">↓ Baixar</button>
-          <button class="modal-close" id="lib-preview-close">×</button>
+    <!-- Modal: Preview arquivo (div overlay — não usa <dialog> para evitar bugs de fechamento) -->
+    <div id="lib-preview-modal" class="lib-preview-overlay" style="display:none">
+      <div class="lib-preview-dialog">
+        <div class="lib-preview-head">
+          <strong id="lib-prev-name">arquivo.jpg</strong>
+          <div style="display:flex;gap:8px">
+            <button class="ghost-button" id="lib-prev-use-art" hidden>Usar como arte</button>
+            <button class="ghost-button" id="lib-prev-download">↓ Baixar</button>
+            <button class="modal-close" id="lib-preview-close">×</button>
+          </div>
+        </div>
+        <div class="lib-preview-body" id="lib-preview-body"></div>
+        <div class="lib-preview-foot">
+          <div class="lib-preview-meta" id="lib-preview-meta"></div>
+          <div id="lib-prev-del-confirm" style="display:none;align-items:center;gap:8px">
+            <span style="font-size:13px;color:var(--muted)">Excluir este arquivo?</span>
+            <button class="danger-button" id="lib-prev-del-yes" style="min-height:32px;padding:0 12px;font-size:12px">Sim, excluir</button>
+            <button class="ghost-button" id="lib-prev-del-no" style="min-height:32px;padding:0 12px;font-size:12px">Cancelar</button>
+          </div>
+          <button class="danger-button" id="lib-prev-delete">Excluir arquivo</button>
         </div>
       </div>
-      <div class="lib-preview-body" id="lib-preview-body"></div>
-      <div class="lib-preview-foot">
-        <div class="lib-preview-meta" id="lib-preview-meta"></div>
-        <div id="lib-prev-del-confirm" style="display:none;align-items:center;gap:8px">
-          <span style="font-size:13px;color:var(--muted)">Excluir este arquivo?</span>
-          <button class="danger-button" id="lib-prev-del-yes" style="min-height:32px;padding:0 12px;font-size:12px">Sim, excluir</button>
-          <button class="ghost-button" id="lib-prev-del-no" style="min-height:32px;padding:0 12px;font-size:12px">Cancelar</button>
-        </div>
-        <button class="danger-button" id="lib-prev-delete">Excluir arquivo</button>
-      </div>
-    </dialog>
+    </div>
 
     <script src="./app.js"></script>
   </body>

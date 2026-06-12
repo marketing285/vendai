@@ -2255,7 +2255,7 @@ function libPreviewFile(id) {
     dlBtn.title = "Arquivo grande — download indisponível no armazenamento local";
   }
 
-  modal.showModal();
+  modal.style.display = "flex";
 }
 
 function libDeleteFile(id) {
@@ -2395,14 +2395,19 @@ function initLibrary() {
   function closePreviewModal() {
     if (delConfirm) delConfirm.style.display = "none";
     if (delBtn) delBtn.style.display = "";
-    previewModal?.close();
+    if (previewModal) previewModal.style.display = "none";
   }
 
   document.getElementById("lib-preview-close")?.addEventListener("click", closePreviewModal);
 
-  // Click on backdrop (outside dialog box) also closes
+  // Click on backdrop closes
   previewModal?.addEventListener("click", e => {
     if (e.target === previewModal) closePreviewModal();
+  });
+
+  // Escape key closes
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && previewModal?.style.display !== "none") closePreviewModal();
   });
 
   // First click → show inline confirm; second click (Sim) → delete
@@ -2413,7 +2418,7 @@ function initLibrary() {
   document.getElementById("lib-prev-del-yes")?.addEventListener("click", () => {
     if (delConfirm) delConfirm.style.display = "none";
     if (delBtn) delBtn.style.display = "";
-    if (libPreviewId) { libDeleteFile(libPreviewId); previewModal?.close(); }
+    if (libPreviewId) { libDeleteFile(libPreviewId); closePreviewModal(); }
   });
   document.getElementById("lib-prev-del-no")?.addEventListener("click", () => {
     if (delConfirm) delConfirm.style.display = "none";
