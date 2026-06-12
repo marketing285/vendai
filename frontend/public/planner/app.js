@@ -2290,15 +2290,27 @@ function renderLibClientFilter() {
   sel.value = libClient;
 }
 
+function clearAllLibFiles() {
+  localStorage.removeItem(LIB_KEY);
+  libFiles = [];
+  renderLibNav();
+  renderLibMain();
+  showToast("Biblioteca limpa.");
+}
+
 function initLibrary() {
   libFiles = loadLibFiles();
-  // Remove arquivo.jpg genérico que não pôde ser excluído pelo usuário
-  const before = libFiles.length;
-  libFiles = libFiles.filter(f => f.name !== "arquivo.jpg");
-  if (libFiles.length !== before) saveLibFiles();
+  // Remove arquivo.jpg genérico que não pôde ser excluído
+  libFiles = libFiles.filter(f => f.name?.toLowerCase() !== "arquivo.jpg");
+  saveLibFiles();
   renderLibClientFilter();
   renderLibNav();
   renderLibMain();
+
+  // Clear all button
+  document.getElementById("lib-clear-btn")?.addEventListener("click", () => {
+    clearAllLibFiles();
+  });
 
   // View toggle
   document.getElementById("lib-view-seg")?.addEventListener("click", e => {
