@@ -717,15 +717,9 @@ function updateBuilderPreview() {
   const artEl = document.querySelector("#preview-art");
   if (artEl) {
     if (builderArtData) {
-      artEl.style.backgroundImage = `url('${builderArtData}')`;
-      artEl.style.backgroundSize = "cover";
-      artEl.style.backgroundPosition = "center";
-      artEl.style.background = "";
+      artEl.style.background = `url('${builderArtData}') center/cover no-repeat`;
     } else {
       const fmt = document.querySelector("#builder-format").value;
-      artEl.style.backgroundImage = "";
-      artEl.style.backgroundSize = "";
-      artEl.style.backgroundPosition = "";
       artEl.style.background = fmt === "Carrossel"
         ? "linear-gradient(135deg, #111827, #0f9f8f)"
         : "linear-gradient(135deg, #3164d4, #e15d4f)";
@@ -1052,6 +1046,15 @@ function fillBuilderFromPost(post) {
   document.querySelector("#builder-cta").value = post.cta || "";
   if (post.format === "Carrossel") {
     document.querySelector("#builder-slides-count").value = (post.slides || []).length || 2;
+  }
+  // Restore image art when editing a post that has a photo
+  if (post.art && post.art.startsWith("url(")) {
+    const m = post.art.match(/url\(['"]?(data:[^'")\s]+)['"]?\)/);
+    builderArtData = m ? m[1] : null;
+    const nameEl = document.getElementById("builder-file-name");
+    if (nameEl) nameEl.textContent = builderArtData ? "✓ Arte carregada" : "JPG, PNG, MP4, PDF, PSD ou AI";
+  } else {
+    builderArtData = null;
   }
   renderCarouselSlides();
   updateBuilderPreview();
