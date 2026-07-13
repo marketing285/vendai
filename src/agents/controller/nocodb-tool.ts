@@ -11,17 +11,17 @@ export const NDB = {
   baseUrl:  NOCODB_BASE_URL,
   baseId:   NOCODB_BASE_ID,
   tables: {
-    tasks_bu1:         "m9zoy59q6nnwbdf",
-    tasks_bu2:         "mi7dptf2jjezxwe",
-    tasks_design:      "mmdcj3520zc4w4r",
-    deposito_design:   "monizzmow55l4ou",  // arquivo de entregas — Bruna
-    tasks_edicao:      "m96rva43spx02v8",
-    deposito_edicao:   "mkq6lpidc7k7oog",  // arquivo de entregas — Ana Laura
-    clientes:          "mefxfhg7thuxljc",
-    clientes_bu1:      "m6jiwooxmwaadrg",
-    clientes_bu2:      "mo8f8vj4phh4m66",
-    tasks_bu3:         "ms60o4e8iqbj134",
-    clientes_bu3:      "m2uhsn6tssh8wix",
+    tasks_bu1:         "mvxyvsg2b4cy45q",
+    tasks_bu2:         "mc2ri5leog03yfh",
+    tasks_design:      "m8ev34f09perncn",
+    deposito_design:   "mxcnp4t3swtzrt4",  // arquivo de entregas — Bruna
+    tasks_edicao:      "mc7f31fsebllxep",
+    deposito_edicao:   "mnv3r1mtzci1w0r",  // arquivo de entregas — Ana Laura
+    clientes:          "m0647dgnd9d59gx",
+    clientes_bu1:      "m0647dgnd9d59gx",  // usa mesma tabela filtrada por BU
+    clientes_bu2:      "m0647dgnd9d59gx",  // usa mesma tabela filtrada por BU
+    tasks_bu3:         "mb0ksjaiysldnd9",
+    clientes_bu3:      "m0647dgnd9d59gx",  // usa mesma tabela filtrada por BU
   },
 } as const;
 
