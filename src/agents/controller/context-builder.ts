@@ -188,9 +188,7 @@ async function fetchClientesGV(): Promise<ClientSummary[]> {
 //  Supabase (gv_*) — fetch de demandas (tasks + produções + métricas)
 //  Substitui as antigas tabelas do NocoDB (tasks_bu1/2/3, tasks_design,
 //  tasks_edicao). Cada demanda tem BU (BU1..BU4) e tipo (arte/vídeo/tráfego).
-//  Para preservar a estrutura do dashboard (que só conhece BU1/BU2/BU3 +
-//  Design + Edição), cada demanda gera uma linha na coluna da BU dela
-//  (quando é BU1/2/3 — BU4 não tem coluna própria no dashboard) e mais uma
+//  Cada demanda gera uma linha na coluna da BU dela (BU1..BU4) e mais uma
 //  linha cruzada em "Design" (tipo arte) ou "Edição" (tipo vídeo).
 // ─────────────────────────────────────────────
 const STATUS_LABEL_GV: Record<string, string> = {
@@ -270,7 +268,7 @@ async function fetchDemandasGV(): Promise<{
         quantity: d.type === "arte" ? d.quantidade : null,
       };
       // Coluna da BU — só existe slot pra BU1/BU2/BU3 no dashboard hoje
-      if (["BU1", "BU2", "BU3"].includes(d.bu_code)) tasks.push({ ...base, area: d.bu_code });
+      if (["BU1", "BU2", "BU3", "BU4"].includes(d.bu_code)) tasks.push({ ...base, area: d.bu_code });
       // Cruzamento por função — Design (arte) e Edição (vídeo), de qualquer BU
       if (d.type === "arte")  tasks.push({ ...base, area: "Design" });
       if (d.type === "video") tasks.push({ ...base, area: "Edição" });

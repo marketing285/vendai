@@ -33,7 +33,7 @@ interface Briefing {
   generatedAt: string;
 }
 
-type AreaKey = "BU1" | "BU2" | "BU3" | "Design" | "Edição";
+type AreaKey = "BU1" | "BU2" | "BU3" | "BU4" | "Design" | "Edição";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -57,6 +57,7 @@ const BOARD: Record<AreaKey, { main: string; bg: string; label: string; gestor: 
   BU1:    { main:"#4A9EFF", bg:"rgba(74,158,255,0.08)",   label:"BU1",    gestor:"Christian Castilhoni" },
   BU2:    { main:"#2DD4A0", bg:"rgba(45,212,160,0.08)",   label:"BU2",    gestor:"Armando Cavazana" },
   BU3:    { main:"#F472B6", bg:"rgba(244,114,182,0.08)",  label:"BU3",    gestor:"Bruna Benevides" },
+  BU4:    { main:"#8B5CF6", bg:"rgba(139,92,246,0.08)",   label:"BU4",    gestor:"Bruno Zanardo" },
   Design: { main:"#A78BFA", bg:"rgba(167,139,250,0.08)",  label:"Design", gestor:"Bruna Benevides" },
   Edição: { main:"#F59E0B", bg:"rgba(245,158,11,0.08)",   label:"Edição", gestor:"Samantha" },
 };
@@ -144,7 +145,7 @@ export default function Dashboard() {
   const dmCurrent = [...dm].filter(m => m.month <= thisMonth).sort((a,b) => b.month.localeCompare(a.month))[0];
   const emCurrent = [...em].filter(m => m.month <= thisMonth).sort((a,b) => b.month.localeCompare(a.month))[0];
 
-  const areas     = ["Todas","BU1","BU2","BU3","Design","Edição"];
+  const areas     = ["Todas","BU1","BU2","BU3","BU4","Design","Edição"];
   const tasksVis  = activeArea === "Todas" ? abertas : abertas.filter(t => t.area === activeArea);
 
   return (
@@ -229,8 +230,8 @@ export default function Dashboard() {
               </div>
               <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.05)" }}/>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:24 }}>
-              {(["BU1","BU2","BU3"] as AreaKey[]).map(area => {
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:24 }}>
+              {(["BU1","BU2","BU3","BU4"] as AreaKey[]).map(area => {
                 const bTasks   = abertas.filter(t => t.area === area);
                 const total    = bTasks.length;
                 const late     = bTasks.filter(t => t.sla?.includes("Atrasado")).length;
@@ -510,7 +511,7 @@ export default function Dashboard() {
                       textTransform:"uppercase", color:"#4A5060" }}>Clientes</div>
                     <span style={{ fontSize:14, fontWeight:700, color:"#2DD4A0" }}>{ativos.length} ativos</span>
                   </div>
-                  {(["BU1","BU2","BU3"] as const).map(bu => {
+                  {(["BU1","BU2","BU3","BU4"] as const).map(bu => {
                     const lista = ativos.filter(c => c.bu === bu);
                     if (!lista.length) return null;
                     return (
@@ -557,7 +558,7 @@ export default function Dashboard() {
 
 const SEVERITY_COLOR = { alta: "#EF4444", media: "#F59E0B", baixa: "#4A9EFF" };
 const AREA_COLOR: Record<string, string> = {
-  BU1: "#4A9EFF", BU2: "#2DD4A0", BU3: "#F472B6", Design: "#A78BFA", "Edição": "#F59E0B",
+  BU1: "#4A9EFF", BU2: "#2DD4A0", BU3: "#F472B6", BU4: "#8B5CF6", Design: "#A78BFA", "Edição": "#F59E0B",
 };
 
 function ScoreRing({ score, color, size = 56 }: { score: number; color: string; size?: number }) {
@@ -713,7 +714,7 @@ function DetailDrawer({ area, tasks, clients, designMetrics, edicaoMetrics, onCl
 
   // BU-specific: tasks by client
   const byClient: Record<string, NocoTask[]> = {};
-  if (area === "BU1" || area === "BU2" || area === "BU3") {
+  if (area === "BU1" || area === "BU2" || area === "BU3" || area === "BU4") {
     for (const t of abertas) {
       const key = t.client || "—";
       if (!byClient[key]) byClient[key] = [];
@@ -806,7 +807,7 @@ function DetailDrawer({ area, tasks, clients, designMetrics, edicaoMetrics, onCl
         )}
 
         {/* Tasks by client (BU only) */}
-        {(area === "BU1" || area === "BU2" || area === "BU3") && Object.keys(byClient).length > 0 && (
+        {(area === "BU1" || area === "BU2" || area === "BU3" || area === "BU4") && Object.keys(byClient).length > 0 && (
           <Section title="Tasks por Cliente" color={main}>
             {Object.entries(byClient)
               .sort((a,b) => b[1].length - a[1].length)
