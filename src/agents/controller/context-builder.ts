@@ -1,7 +1,15 @@
 // Agrega dados operacionais em tempo real.
 // Quando o Supabase estiver configurado, as funções reais substituem os mocks.
 
-import { NDB, ndbList } from "./nocodb-tool";
+// Fonte de dados operacionais: Supabase, tabelas gv_* (sistema gestao-venda).
+// O NocoDB antigo (nocodb-tool.ts) saiu de uso — ver [[project_gestao_atividades_bu]].
+async function getGvClient(): Promise<any | null> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || url === "https://xxxx.supabase.co") return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(url, key);
+}
 
 export interface TaskSummary {
   protocol: string;
@@ -67,7 +75,7 @@ export interface NocoProdSummary {
 }
 
 export interface NocoTaskSummary {
-  id: number;
+  id: string;
   title: string;
   area: string;
   client: string;
@@ -133,322 +141,220 @@ export interface OperationalContext {
 }
 
 // ─────────────────────────────────────────────
-//  NocoDB — fetch de clientes (tabela principal)
+//  Supabase (gv_*) — fetch de clientes
 // ─────────────────────────────────────────────
-async function fetchClientesNocoDB(): Promise<ClientSummary[]> {
+async function fetchClientesGV(): Promise<ClientSummary[]> {
   try {
-    const rows = await ndbList(NDB.tables.clientes, undefined, 200);
-    return rows.map((r: any): ClientSummary => ({
-      name:             r["Nome do Cliente"] ?? r["Nome"] ?? "—",
-      segment:          r["Segmento"] ?? "—",
-      bu:               r["BU"] ?? "—",
-      gestor:           r["Gestor"] ?? "—",
-      status:           r["Status do Cliente"] ?? r["Status"] ?? "—",
-      pacote:           r["Pacote"] ?? "—",
-      valorMensal:      r["Valor Mensal (R$)"] ?? null,
-      nps:              r["NPS"] ?? null,
-      canaisAtivos:     Array.isArray(r["Canais Ativos"]) ? r["Canais Ativos"].join(", ") : (r["Canais Ativos"] ?? "—"),
-      dataInicio:       r["Data de Início"] ?? "",
-      whatsapp:         r["WhatsApp do Cliente"] ?? "",
-      // legado
-      portfolio:        r["BU"] ?? "—",
-      valor:            r["Valor Mensal (R$)"] ?? 0,
-      metaAdsAccountId: null,
-      escopoMensal:     r["Escopo Mensal"] ?? "—",
-      verbaTrafego:     r["Verba Mensal (Tráfego)"] ?? null,
-      linkInstagram:    r["Link Instagram"] ?? "",
-      linkFacebook:     r["Link Facebook"] ?? "",
-      linkDrive:        r["Link Drive"] ?? "",
-      linkGrupoWhatsApp:r["Link Grupo WhatsApp"] ?? "",
-      diaRelatorio:     r["Dia do Relatório"] ?? null,
-    }));
+    const db = await getGvClient();
+    if (!db) return [];
+    const { data } = await db
+      .from("gv_clients")
+      .select("*, gv_business_units(code, name, manager:gv_users!gv_business_units_manager_user_id_fkey(name))")
+      .limit(500);
+
+    return (data ?? []).map((r: any): ClientSummary => {
+      const buCode = r.gv_business_units?.code ?? "—";
+      return {
+        name:             r["nome"] ?? "—",
+        segment:          r["segment"] ?? "—",
+        bu:               buCode,
+        gestor:           r.gv_business_units?.manager?.name ?? "—",
+        status:           r["status"] ?? "—",
+        pacote:           "—",
+        valorMensal:      r["valor_mensal"] ?? null,
+        nps:              null,
+        canaisAtivos:     r["canais_ativos"] ?? "—",
+        dataInicio:       "",
+        whatsapp:         r["whatsapp"] ?? "",
+        // legado
+        portfolio:        buCode,
+        valor:            r["valor_mensal"] ?? 0,
+        metaAdsAccountId: null,
+        escopoMensal:     "—",
+        verbaTrafego:     null,
+        linkInstagram:    r["link_instagram"] ?? "",
+        linkFacebook:     r["link_facebook"] ?? "",
+        linkDrive:        r["link_drive"] ?? "",
+        linkGrupoWhatsApp:r["link_grupo_whatsapp"] ?? "",
+        diaRelatorio:     r["dia_relatorio"] ?? null,
+      };
+    });
   } catch {
     return [];
   }
 }
 
 // ─────────────────────────────────────────────
-//  NocoDB — fetch de produções de design
+//  Supabase (gv_*) — fetch de demandas (tasks + produções + métricas)
+//  Substitui as antigas tabelas do NocoDB (tasks_bu1/2/3, tasks_design,
+//  tasks_edicao). Cada demanda tem BU (BU1..BU4) e tipo (arte/vídeo/tráfego).
+//  Para preservar a estrutura do dashboard (que só conhece BU1/BU2/BU3 +
+//  Design + Edição), cada demanda gera uma linha na coluna da BU dela
+//  (quando é BU1/2/3 — BU4 não tem coluna própria no dashboard) e mais uma
+//  linha cruzada em "Design" (tipo arte) ou "Edição" (tipo vídeo).
 // ─────────────────────────────────────────────
-async function fetchProducoesDesignNocoDB(): Promise<{
-  productions: DesignProductionSummary[];
-  metrics: DesignMonthMetrics[];
-}> {
-  try {
-    const rows = await ndbList(NDB.tables.deposito_design, undefined, 1000);
+const STATUS_LABEL_GV: Record<string, string> = {
+  rascunho:              "⬜ Em Standby",
+  em_execucao:           "▶️ Em Andamento",
+  aguardando_aprovacao:  "⏳ Em Aprovação",
+  refazer:               "🔄 Em Revisão",
+  aprovado:              "✅ Entregue",
+};
 
-    const productions: DesignProductionSummary[] = rows.map((r: any) => ({
-      clientName:          r["Cliente"] ?? "—",
-      designerName:        "Bruna Benevides",
-      responsible:         r["Responsável Aprovação"] ?? "—",
-      itemType:            r["Tipo"] ?? "—",
-      quantity:            r["Quantidade"] ?? null,
-      status:              r["Status"] ?? "—",
-      urgency:             r["Urgência"] ?? "—",
-      date:                r["Data"] ?? "—",
-      briefing:            r["Briefing"] ?? "—",
-      approvalResponsible: r["Responsável Aprovação"] ?? "—",
-      deliveryLink:        r["Link de Entrega"] ?? "—",
-      deliveryDate:        r["Data de Entrega"] ?? "—",
-      neededRevision:      r["Precisou de Alteração?"] ?? "—",
-      revisionCount:       r["Nº de Alterações"] ?? null,
-      complexity:          r["Complexidade"] ?? "—",
-    }));
-
-    // Métricas mensais
-    const MONTH_LABELS: Record<string, string> = {
-      "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
-      "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
-      "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
-    };
-    const monthMap: Record<string, {
-      totalPlanned: number; delivered: number; inApproval: number;
-      withRevision: number; days: Set<string>;
-      uniqueTasks: number; uniqueDeliveredTasks: number;
-    }> = {};
-
-    for (const r of rows) {
-      const date = r["Data"];
-      if (!date) continue;
-      // Suporta tanto DD-MM-YYYY quanto YYYY-MM-DD
-      const isoDate = date.match(/^\d{4}/)
-        ? date.slice(0, 10)
-        : date.split("-").reverse().join("-");
-      const m = isoDate.slice(0, 7);
-      if (!monthMap[m]) monthMap[m] = { totalPlanned: 0, delivered: 0, inApproval: 0, withRevision: 0, days: new Set(), uniqueTasks: 0, uniqueDeliveredTasks: 0 };
-      const qty = parseInt(r["Quantidade"]) || 1;
-      monthMap[m].totalPlanned += qty;
-      monthMap[m].uniqueTasks  += 1;
-      if (r["Status"] === "Entregue") {
-        monthMap[m].delivered            += qty;
-        monthMap[m].uniqueDeliveredTasks += 1;
-      }
-      if (r["Status"] === "Em Aprovação") monthMap[m].inApproval += qty;
-      if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") monthMap[m].withRevision += qty;
-      monthMap[m].days.add(isoDate);
-    }
-
-    const metrics: DesignMonthMetrics[] = Object.keys(monthMap).sort().map(m => {
-      const v = monthMap[m];
-      const dias = v.days.size;
-      const pending = v.totalPlanned - v.delivered - v.inApproval;
-      return {
-        month: m,
-        label: `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
-        totalPlanned:            v.totalPlanned,
-        delivered:               v.delivered,
-        inApproval:              v.inApproval,
-        withRevision:            v.withRevision,
-        pending:                 Math.max(0, pending),
-        completionPct:           v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
-        uniqueProductionDays:    dias,
-        avgDailyProduction:      dias > 0 ? Math.round((v.delivered / dias) * 10) / 10 : 0,
-        uniqueTasks:             v.uniqueTasks,
-        uniqueDeliveredTasks:    v.uniqueDeliveredTasks,
-      };
-    });
-
-    return { productions, metrics };
-  } catch {
-    return { productions: [], metrics: [] };
-  }
+function slaLabelGV(deadline: string | null, closed: boolean): { sla: string; daysLeft: number | null } {
+  if (!deadline || closed) return { sla: "—", daysLeft: null };
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((new Date(`${deadline}T00:00:00`).getTime() - hoje.getTime()) / 86_400_000);
+  const sla = diff < 0 ? "🔴 Atrasado" : diff <= 2 ? "⚠️ Atenção" : "✅ No Prazo";
+  return { sla, daysLeft: diff };
 }
 
-// ─────────────────────────────────────────────
-//  NocoDB — fetch de produções de edição (Ana Laura)
-// ─────────────────────────────────────────────
-async function fetchProducoesEdicaoNocoDB(): Promise<{
-  productions: NocoProdSummary[];
-  metrics: DesignMonthMetrics[];
+type GvDemandRow = {
+  id: string; type: "arte" | "video" | "trafego"; title: string; status: string;
+  deadline: string | null; priority: string; quantidade: number;
+  archived_at: string | null; had_rework: boolean;
+  cliente_nome: string; bu_code: string; responsavel: string;
+};
+
+async function fetchDemandasGV(): Promise<{
+  demands: GvDemandRow[];
+  tasks: NocoTaskSummary[];
+  designProductions: DesignProductionSummary[];
+  edicaoProductions: NocoProdSummary[];
 }> {
   try {
-    const rows = await ndbList(NDB.tables.tasks_edicao, undefined, 500);
+    const db = await getGvClient();
+    if (!db) return { demands: [], tasks: [], designProductions: [], edicaoProductions: [] };
 
-    const productions: NocoProdSummary[] = rows.map((r: any) => ({
-      clientName:          r["Cliente"] ?? "—",
-      itemType:            r["Tarefa"] ?? "—",
-      quantity:            r["Nº de Alterações"] ?? null,
-      status:              r["Status"] ?? "—",
-      urgency:             r["Urgência"] ?? "—",
-      date:                r["Prazo de Entrega"] ?? r["Data de Entrega"] ?? "—",
-      deliveryDate:        r["Data de Entrega"] ?? r["Prazo de Entrega"] ?? "—",
-      neededRevision:      r["Precisou de Alteração?"] ?? "—",
-      revisionCount:       r["Nº de Alterações"] ?? null,
-      complexity:          r["Complexidade"] ?? "—",
-      approvalResponsible: r["Responsável Aprovação"] ?? "—",
-      deliveryLink:        r["Link de Entrega"] ?? "—",
-      briefing:            r["Briefing Completo"] ?? "—",
+    // Histórico de refação (passou por "refazer" em algum momento)
+    const { data: rows } = await db
+      .from("gv_demands")
+      .select("*, gv_clients(nome), gv_business_units(code), assignee:gv_users!gv_demands_assigned_to_fkey(name)")
+      .order("deadline", { ascending: true })
+      .limit(1000);
+
+    const ids = (rows ?? []).map((r: any) => r.id);
+    let reworkIds = new Set<string>();
+    if (ids.length > 0) {
+      const { data: hist } = await db
+        .from("gv_demand_status_history")
+        .select("demand_id")
+        .eq("to_status", "refazer")
+        .in("demand_id", ids);
+      reworkIds = new Set((hist ?? []).map((h: any) => h.demand_id));
+    }
+
+    const demands: GvDemandRow[] = (rows ?? []).map((r: any) => ({
+      id: r.id, type: r.type, title: r.title, status: r.status,
+      deadline: r.deadline, priority: r.priority, quantidade: r.quantidade ?? 1,
+      archived_at: r.archived_at, had_rework: reworkIds.has(r.id),
+      cliente_nome: r.gv_clients?.nome ?? "—",
+      bu_code: r.gv_business_units?.code ?? "—",
+      responsavel: r.assignee?.name ?? "—",
     }));
 
-    const MONTH_LABELS: Record<string, string> = {
-      "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
-      "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
-      "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
-    };
-    const monthMap: Record<string, { totalPlanned:number; delivered:number; inApproval:number; withRevision:number; days:Set<string> }> = {};
-    for (const r of rows) {
-      const date = r["Prazo de Entrega"] ?? r["Data de Entrega"]; if (!date) continue;
-      const isoDate = date.match(/^\d{4}/) ? date.slice(0,10) : date.split("-").reverse().join("-");
-      const m = isoDate.slice(0,7);
-      if (!monthMap[m]) monthMap[m] = { totalPlanned:0, delivered:0, inApproval:0, withRevision:0, days:new Set() };
-      monthMap[m].totalPlanned += 1;
-      if (r["Status"] === "✅ Entregue")     monthMap[m].delivered  += 1;
-      if (r["Status"] === "⏳ Em Aprovação") monthMap[m].inApproval += 1;
-      if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") monthMap[m].withRevision += 1;
-      monthMap[m].days.add(isoDate);
-    }
-    const metrics: DesignMonthMetrics[] = Object.keys(monthMap).sort().map(m => {
-      const v = monthMap[m];
-      const dias = v.days.size;
-      return {
-        month: m,
-        label: `${MONTH_LABELS[m.slice(5)]}/${m.slice(0,4)}`,
-        totalPlanned: v.totalPlanned, delivered: v.delivered, inApproval: v.inApproval,
-        withRevision: v.withRevision, pending: Math.max(0, v.totalPlanned - v.delivered - v.inApproval),
-        completionPct: v.totalPlanned > 0 ? Math.round((v.delivered / v.totalPlanned) * 100) : 0,
-        uniqueProductionDays: dias, avgDailyProduction: dias > 0 ? Math.round((v.delivered / dias)*10)/10 : 0,
-        uniqueTasks: v.totalPlanned, uniqueDeliveredTasks: v.delivered, // edição: 1 por row
-      };
-    });
-    return { productions, metrics };
-  } catch {
-    return { productions: [], metrics: [] };
-  }
-}
-
-// ─────────────────────────────────────────────
-//  NocoDB — fetch de tasks (todas as BUs + Design + Edição)
-// ─────────────────────────────────────────────
-async function fetchTasksNocoDB(): Promise<NocoTaskSummary[]> {
-  try {
-    const tableMap: Array<[string, string]> = [
-      [NDB.tables.tasks_bu1,    "BU1"],
-      [NDB.tables.tasks_bu2,    "BU2"],
-      [NDB.tables.tasks_bu3,    "BU3"],
-      [NDB.tables.tasks_design, "Design"],
-      [NDB.tables.tasks_edicao, "Edição"],
-    ];
-    const results = await Promise.all(
-      tableMap.map(([tid]) => ndbList(tid, undefined, 200))
-    );
     const tasks: NocoTaskSummary[] = [];
-    for (let i = 0; i < tableMap.length; i++) {
-      const area = tableMap[i][1];
-      for (const r of results[i]) {
-        tasks.push({
-          id:          r["Id"],
-          title:       r["Tarefa"] ?? r["Título"] ?? "—",
-          area,
-          client:      r["Cliente"] ?? "—",
-          status:      r["Status"] ?? "—",
-          sla:         r["Status SLA"] ?? "—",
-          deadline:    r["Prazo de Entrega"] ?? "—",
-          daysLeft:    r["Dias até o Prazo"] ?? null,
-          responsible: r["Responsável"] ?? "—",
-          priority:    r["Prioridade"] ?? "—",
-          quantity:    area === "Design" ? (parseInt(r["Quantidade"]) || null) : null,
-        });
-      }
+    for (const d of demands) {
+      const closed = d.status === "aprovado";
+      const { sla, daysLeft } = slaLabelGV(d.deadline, closed);
+      const base = {
+        id: d.id,
+        title: d.title,
+        client: d.cliente_nome,
+        status: STATUS_LABEL_GV[d.status] ?? d.status,
+        sla,
+        deadline: d.deadline ?? "—",
+        daysLeft,
+        responsible: d.responsavel,
+        priority: d.priority,
+        quantity: d.type === "arte" ? d.quantidade : null,
+      };
+      // Coluna da BU — só existe slot pra BU1/BU2/BU3 no dashboard hoje
+      if (["BU1", "BU2", "BU3"].includes(d.bu_code)) tasks.push({ ...base, area: d.bu_code });
+      // Cruzamento por função — Design (arte) e Edição (vídeo), de qualquer BU
+      if (d.type === "arte")  tasks.push({ ...base, area: "Design" });
+      if (d.type === "video") tasks.push({ ...base, area: "Edição" });
     }
-    return tasks;
+
+    const designProductions: DesignProductionSummary[] = demands
+      .filter(d => d.type === "arte")
+      .map(d => ({
+        clientName: d.cliente_nome, designerName: d.responsavel, responsible: d.responsavel,
+        itemType: "Arte", quantity: d.quantidade,
+        status: STATUS_LABEL_GV[d.status] ?? d.status,
+        urgency: d.priority === "P0" ? "Urgente" : d.priority === "P1" ? "Alta" : "Normal",
+        date: d.archived_at?.slice(0, 10) ?? d.deadline ?? "—",
+        briefing: "—", approvalResponsible: "—", deliveryLink: "—",
+        deliveryDate: d.archived_at?.slice(0, 10) ?? "—",
+        neededRevision: d.had_rework ? "Sim" : "Não",
+        revisionCount: null, complexity: "—",
+      }));
+
+    const edicaoProductions: NocoProdSummary[] = demands
+      .filter(d => d.type === "video")
+      .map(d => ({
+        clientName: d.cliente_nome, itemType: "Vídeo", quantity: d.quantidade,
+        status: STATUS_LABEL_GV[d.status] ?? d.status,
+        urgency: d.priority === "P0" ? "Urgente" : d.priority === "P1" ? "Alta" : "Normal",
+        date: d.deadline ?? "—", deliveryDate: d.archived_at?.slice(0, 10) ?? "—",
+        neededRevision: d.had_rework ? "Sim" : "Não", revisionCount: null,
+        complexity: "—", approvalResponsible: "—", deliveryLink: "—", briefing: "—",
+      }));
+
+    return { demands, tasks, designProductions, edicaoProductions };
   } catch {
-    return [];
+    return { demands: [], tasks: [], designProductions: [], edicaoProductions: [] };
   }
 }
 
 // ─────────────────────────────────────────────
-//  Métricas da Bruna combinando duas fontes:
-//  - deposito_design: tasks entregues (com Quantidade e data real de entrega)
-//  - tasks_design:    tasks abertas (com Quantidade, agrupadas pelo mês do prazo)
+//  Métricas mensais (Design/Edição) a partir das demandas gv_*
 // ─────────────────────────────────────────────
-function computeDesignMetricsFromTasks(
-  openTasks: any[],   // tasks_design — abertas
-  delivered: any[],   // deposito_design — entregues
-): DesignMonthMetrics[] {
-  const MONTH_LABELS: Record<string, string> = {
-    "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
-    "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
-    "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
-  };
+const MONTH_LABELS_GV: Record<string, string> = {
+  "01":"Janeiro","02":"Fevereiro","03":"Março","04":"Abril",
+  "05":"Maio","06":"Junho","07":"Julho","08":"Agosto",
+  "09":"Setembro","10":"Outubro","11":"Novembro","12":"Dezembro",
+};
 
-  type MonthBucket = {
-    openArtes: number; openTasks: number;
-    deliveredArtes: number; deliveredTasks: number;
-    inApprovalArtes: number; withRevision: number;
-    days: Set<string>;
-  };
-  const monthMap: Record<string, MonthBucket> = {};
+function computeMonthMetricsGV(demands: GvDemandRow[], type: "arte" | "video"): DesignMonthMetrics[] {
+  type Bucket = { openQty: number; openTasks: number; deliveredQty: number; deliveredTasks: number; inApprovalQty: number; withRevisionQty: number; days: Set<string> };
+  const monthMap: Record<string, Bucket> = {};
+  const bucket = (m: string): Bucket => (monthMap[m] ??= { openQty: 0, openTasks: 0, deliveredQty: 0, deliveredTasks: 0, inApprovalQty: 0, withRevisionQty: 0, days: new Set() });
 
-  const bucket = (m: string): MonthBucket => {
-    if (!monthMap[m]) monthMap[m] = {
-      openArtes: 0, openTasks: 0,
-      deliveredArtes: 0, deliveredTasks: 0,
-      inApprovalArtes: 0, withRevision: 0,
-      days: new Set(),
-    };
-    return monthMap[m];
-  };
-
-  // tasks abertas → agrupadas pelo mês do prazo
-  for (const r of openTasks) {
-    const date = r["Prazo de Entrega"];
-    if (!date) continue;
-    const isoDate = date.match(/^\d{4}/) ? date.slice(0, 10) : date.split("-").reverse().join("-");
-    const m = isoDate.slice(0, 7);
-    const qty = parseInt(r["Quantidade"]) || 1;
-    const status = r["Status"] ?? "";
-    const b = bucket(m);
-    b.openArtes += qty;
-    b.openTasks += 1;
-    if (status.includes("Aprovação") || status.includes("Revisão")) b.inApprovalArtes += qty;
+  for (const d of demands) {
+    if (d.type !== type) continue;
+    if (d.status === "aprovado") {
+      if (!d.archived_at) continue;
+      const m = d.archived_at.slice(0, 7);
+      const b = bucket(m);
+      b.deliveredQty += d.quantidade;
+      b.deliveredTasks += 1;
+      b.days.add(d.archived_at.slice(0, 10));
+      if (d.had_rework) b.withRevisionQty += d.quantidade;
+    } else {
+      if (!d.deadline) continue;
+      const m = d.deadline.slice(0, 7);
+      const b = bucket(m);
+      b.openQty += d.quantidade;
+      b.openTasks += 1;
+      if (d.status === "aguardando_aprovacao") b.inApprovalQty += d.quantidade;
+    }
   }
-
-  // tasks entregues → agrupadas pelo mês da data de entrega
-  for (const r of delivered) {
-    const date = r["Data"] ?? r["Data de Entrega"];
-    if (!date) continue;
-    const isoDate = date.match(/^\d{4}/) ? date.slice(0, 10) : date.split("-").reverse().join("-");
-    const m = isoDate.slice(0, 7);
-    const qty = parseInt(r["Quantidade"]) || 1;
-    const b = bucket(m);
-    b.deliveredArtes += qty;
-    b.deliveredTasks += 1;
-    b.days.add(isoDate);
-    if (r["Precisou de Alteração?"]?.toLowerCase() === "sim") b.withRevision += qty;
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-  const todayMonth = today.slice(0, 7);
 
   return Object.keys(monthMap).sort().map(m => {
     const v = monthMap[m];
-    const totalArtes = v.deliveredArtes + v.openArtes;
-    const artesProducidas = v.deliveredArtes + v.inApprovalArtes; // já trabalhadas
-    const pending = v.openArtes - v.inApprovalArtes;
-
-    // Dias úteis (seg-sex) do mês, até hoje se for o mês atual
-    const [year, mon] = m.split("-").map(Number);
-    const lastDay = m === todayMonth
-      ? new Date().getDate()
-      : new Date(year, mon, 0).getDate(); // último dia do mês
-    let workingDays = 0;
-    for (let d = 1; d <= lastDay; d++) {
-      const dow = new Date(year, mon - 1, d).getDay();
-      if (dow !== 0 && dow !== 6) workingDays++;
-    }
-
+    const totalPlanned = v.deliveredQty + v.openQty;
+    const pending = v.openQty - v.inApprovalQty;
+    const dias = v.days.size;
     return {
-      month:                m,
-      label:                `${MONTH_LABELS[m.slice(5)]}/${m.slice(0, 4)}`,
-      totalPlanned:         totalArtes,
-      delivered:            v.deliveredArtes,
-      inApproval:           v.inApprovalArtes,
-      withRevision:         v.withRevision,
-      pending:              Math.max(0, pending),
-      completionPct:        totalArtes > 0 ? Math.round((v.deliveredArtes / totalArtes) * 100) : 0,
-      uniqueProductionDays: workingDays,
-      avgDailyProduction:   workingDays > 0 ? Math.round((artesProducidas / workingDays) * 10) / 10 : 0,
-      uniqueTasks:          v.deliveredTasks + v.openTasks,
+      month: m,
+      label: `${MONTH_LABELS_GV[m.slice(5)]}/${m.slice(0, 4)}`,
+      totalPlanned, delivered: v.deliveredQty, inApproval: v.inApprovalQty,
+      withRevision: v.withRevisionQty, pending: Math.max(0, pending),
+      completionPct: totalPlanned > 0 ? Math.round((v.deliveredQty / totalPlanned) * 100) : 0,
+      uniqueProductionDays: dias,
+      avgDailyProduction: dias > 0 ? Math.round((v.deliveredQty / dias) * 10) / 10 : 0,
+      uniqueTasks: v.deliveredTasks + v.openTasks,
       uniqueDeliveredTasks: v.deliveredTasks,
     };
   });
@@ -503,27 +409,19 @@ export async function buildContext(): Promise<OperationalContext> {
     base = getMockContext();
   }
 
-  // Todos os dados em paralelo (fonte de verdade)
-  const [clients, designData, edicaoData, tasks, rawDesignTasks, gpiaMemories] = await Promise.all([
-    fetchClientesNocoDB(),
-    fetchProducoesDesignNocoDB(),
-    fetchProducoesEdicaoNocoDB(),
-    fetchTasksNocoDB(),
-    ndbList(NDB.tables.tasks_design, undefined, 500),
+  // Todos os dados em paralelo (fonte de verdade — Supabase, tabelas gv_*)
+  const [clients, demandasData, gpiaMemories] = await Promise.all([
+    fetchClientesGV(),
+    fetchDemandasGV(),
     fetchGpiaMemories(),
   ]);
   base.clients           = clients;
   base.gpiaMemories      = gpiaMemories;
-  base.designProductions = designData.productions;
-  // Métricas: open tasks (tasks_design) + entregues (deposito_design) com Quantidade real
-  const DESIGN_FECHADOS = new Set(["✅ Concluído","✅ Entregue","📦 Arquivado","📦 Arquivo","Cancelado","❌ Cancelado"]);
-  const openDesignTasks = rawDesignTasks.filter(r => !DESIGN_FECHADOS.has(r["Status"] ?? ""));
-  base.designMetrics     = computeDesignMetricsFromTasks(openDesignTasks, designData.productions.map(p => ({
-    "Data": p.date, "Quantidade": p.quantity, "Precisou de Alteração?": p.neededRevision,
-  })));
-  base.edicaoProductions = edicaoData.productions;
-  base.edicaoMetrics     = edicaoData.metrics;
-  base.tasks             = tasks;
+  base.designProductions = demandasData.designProductions;
+  base.designMetrics     = computeMonthMetricsGV(demandasData.demands, "arte");
+  base.edicaoProductions = demandasData.edicaoProductions;
+  base.edicaoMetrics     = computeMonthMetricsGV(demandasData.demands, "video");
+  base.tasks             = demandasData.tasks;
 
   contextCache = { data: base, expiresAt: Date.now() + 30_000 };
   return base;
@@ -739,7 +637,7 @@ function getMockContext(): OperationalContext {
         protocol: "2026-03-03-0009",
         title: "Reels produto novo",
         area: "video",
-        assignee: "Ana Laura",
+        assignee: "Samantha",
         client: "Cliente Demo",
         deadline: "—",
         hoursWaiting: 31,

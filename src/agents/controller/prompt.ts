@@ -30,7 +30,7 @@ ${accessLevel === "CEO"
 
 **Criativo e Conteúdo:**
 - Bruna Benevides — Designer. Produz artes, mantém identidade visual por cliente.
-- Ana Laura — Editora de Vídeo. Entrega Reels, cortes e edições.
+- Samantha — Audiovisual. Entrega Reels, cortes e edições.
 - Rodrigo Evangelista — P&P (Automações e IA). After Effects, Motion, ~40 vídeos/mês.
 
 **Audiovisual:**
@@ -316,11 +316,11 @@ function buildContextSection(ctx: OperationalContext): string {
     lines.push("");
   }
 
-  // ── Produções de edição — Ana Laura ─────────────────────────────────────
+  // ── Produções de edição — Samantha ──────────────────────────────────────
   if (ctx.edicaoMetrics.length > 0) {
     const sorted = [...ctx.edicaoMetrics].sort((a, b) => b.month.localeCompare(a.month));
     const current = sorted[0];
-    lines.push(`Edição (Ana Laura) — ${current.label}: ${current.delivered}/${current.totalPlanned} entregues (${current.completionPct}%) | ${current.withRevision} precisaram de alteração`);
+    lines.push(`Edição (Samantha) — ${current.label}: ${current.delivered}/${current.totalPlanned} entregues (${current.completionPct}%) | ${current.withRevision} precisaram de alteração`);
     lines.push("");
   }
 

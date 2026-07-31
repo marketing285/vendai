@@ -15,7 +15,7 @@ export interface Classification {
 
 const ROUTING_MAP: Record<string, string> = {
   design: "Bruna",
-  video: "Ana Laura",
+  video: "Samantha",
   capture: "Gestora de Captação",
   content: "Gestor do cliente",
   traffic: "Gestor de Tráfego",

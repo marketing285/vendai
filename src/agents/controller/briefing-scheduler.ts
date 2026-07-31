@@ -64,7 +64,7 @@ async function generateBriefing(): Promise<Briefing> {
     `Tasks abertas: ${abertas.length} | Atrasadas: ${atrasadas.length} | Atenção: ${atencao.length} | Aguardando aprovação: ${aprovacao.length} (${aprovacaoAtrasadas.length} atrasadas, ${aprovacaoAtencao.length} atenção, ${aprovacaoNoPrazo.length} no prazo)`,
     ...areaStats.map(s => `  ${s.area}: ${s.total} tasks abertas, ${s.late} atrasadas, ${s.warn} atenção | em revisão/aprovação: ${s.aprLate} atrasadas, ${s.aprWarn} atenção, ${s.aprOk} no prazo`),
     dmCurrent ? `Design (Bruna): ${dmCurrent.delivered} artes entregues de ${dmCurrent.totalPlanned} total | ${dmCurrent.inApproval} artes em aprovação | ${dmCurrent.withRevision} revisões | ${dmCurrent.uniqueDeliveredTasks} tasks entregues de ${dmCurrent.uniqueTasks} total | média ${dmCurrent.avgDailyProduction} artes/dia útil` : "",
-    emCurrent ? `Edição (Ana Laura): ${emCurrent.delivered} vídeos entregues de ${emCurrent.totalPlanned} total | ${emCurrent.withRevision} precisaram de alteração` : "",
+    emCurrent ? `Edição (Samantha): ${emCurrent.delivered} vídeos entregues de ${emCurrent.totalPlanned} total | ${emCurrent.withRevision} precisaram de alteração` : "",
     `Clientes ativos: ${ctx.clients.filter(c => c.status === "Ativo").length}`,
     ctx.gpiaMemories ? `\nDECISÕES E CONTEXTO RECENTES (enviados pelos gestores via WhatsApp):\n${ctx.gpiaMemories}` : "",
   ].filter(Boolean).join("\n");

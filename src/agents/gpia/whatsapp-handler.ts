@@ -180,7 +180,7 @@ ${quemEh}
 
 **Produção:**
 - Design: Bruna Benevides (artes, identidade visual, feed, stories, carrosséis)
-- Edição de vídeo: Ana Laura (Reels, cortes, edições)
+- Edição de vídeo: Samantha (Reels, cortes, edições)
 - Videomakers: Hebert Luidy, André Talamonte, Daniel (captações)
 
 **Fluxo de status das tasks:**

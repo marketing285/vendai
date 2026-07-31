@@ -58,14 +58,14 @@ const BOARD: Record<AreaKey, { main: string; bg: string; label: string; gestor: 
   BU2:    { main:"#2DD4A0", bg:"rgba(45,212,160,0.08)",   label:"BU2",    gestor:"Armando Cavazana" },
   BU3:    { main:"#F472B6", bg:"rgba(244,114,182,0.08)",  label:"BU3",    gestor:"Bruna Benevides" },
   Design: { main:"#A78BFA", bg:"rgba(167,139,250,0.08)",  label:"Design", gestor:"Bruna Benevides" },
-  Edição: { main:"#F59E0B", bg:"rgba(245,158,11,0.08)",   label:"Edição", gestor:"Ana Laura" },
+  Edição: { main:"#F59E0B", bg:"rgba(245,158,11,0.08)",   label:"Edição", gestor:"Samantha" },
 };
 
 const AGENTS = [
   { name:"MAX",              role:"Monitor Ativo de Operações",    active:true,  color:"#4A9EFF" },
   { name:"GPIA",             role:"Controlador de atividades",     active:true,  color:"#2DD4A0" },
   { name:"design-sync",     role:"Sincronização Design (Bruna)",  active:true,  color:"#A78BFA" },
-  { name:"video-archive",   role:"Sincronização Edição (Ana)",    active:true,  color:"#F59E0B" },
+  { name:"video-archive",   role:"Sincronização Edição (Samantha)", active:true,  color:"#F59E0B" },
   { name:"GTPRO",           role:"Orquestrador de tráfego",       active:false, color:"#FBBF24" },
   { name:"Sênior PerNEW",   role:"Social media sênior",           active:false, color:"#FBBF24" },
   { name:"CrIA",            role:"Criativo e design IA",          active:false, color:"#FBBF24" },
@@ -395,7 +395,7 @@ export default function Dashboard() {
               <ProdCard title="Design — Bruna Benevides" color="#A78BFA" current={dmCurrent}
                 history={[...dm].sort((a,b)=>b.month.localeCompare(a.month)).slice(0,6)}
                 onClick={() => setDrawer("Design")} />
-              <ProdCard title="Edição — Ana Laura" color="#F59E0B" current={emCurrent}
+              <ProdCard title="Edição — Samantha" color="#F59E0B" current={emCurrent}
                 history={[...em].sort((a,b)=>b.month.localeCompare(a.month)).slice(0,6)}
                 onClick={() => setDrawer("Edição")} />
             </div>
