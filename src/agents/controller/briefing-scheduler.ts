@@ -104,6 +104,11 @@ Regras:
 - gargalos: máximo 4, só inclua se forem reais com base nos dados
 - acoes: máximo 3, objetivas e acionáveis agora
 - summary: fale como COO, direto ao ponto, sem enrolação
+- NUNCA invente nomes de clientes, incidentes, datas, prazos ou qualquer detalhe que não esteja
+  explicitamente nos DADOS ATUAIS acima. Se uma área não tiver tasks abertas nem histórico
+  suficiente pra avaliar, diga isso literalmente na "note" (ex: "Sem atividade registrada no
+  momento.") e não gere gargalo nem ação pra ela. É preferível dizer "sem dado suficiente" do
+  que inventar um cenário plausível.
 - IMPORTANTE: para Design, sempre use "artes" (não "tasks") — cada task pode conter múltiplas artes
 - Taxa de retrabalho (revisão) de até 30% em Design é considerada NORMAL e aceitável — NÃO penalize o score por isso, só aponte como gargalo se ultrapassar 30%
 - Tarefas em "Revisão Interna" ou "Em Aprovação": avalie a severidade pelo Status SLA, não pelo volume. Se estiverem "no prazo" → sem penalidade no score. Se "Atenção" → gargalo de severidade "baixa". Se "Atrasado" → gargalo de severidade "alta"`,
