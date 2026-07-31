@@ -267,11 +267,21 @@ async function fetchDemandasGV(): Promise<{
         priority: d.priority,
         quantity: d.type === "arte" ? d.quantidade : null,
       };
-      // Coluna da BU — só existe slot pra BU1/BU2/BU3 no dashboard hoje
-      if (["BU1", "BU2", "BU3", "BU4"].includes(d.bu_code)) tasks.push({ ...base, area: d.bu_code });
-      // Cruzamento por função — Design (arte) e Edição (vídeo), de qualquer BU
-      if (d.type === "arte")  tasks.push({ ...base, area: "Design" });
-      if (d.type === "video") tasks.push({ ...base, area: "Edição" });
+      // Uma única coluna por vez, decidida por "de quem é a vez" — evita duplicar
+      // a mesma demanda na coluna da BU e na de Design/Edição simultaneamente.
+      // Gestor (BU): recém-criada, ou executor já entregou e aguarda aprovação/já foi aprovada.
+      // Executor (Design/Edição): em execução, ou voltou pra refazer.
+      const comGestor = d.status === "rascunho" || d.status === "aguardando_aprovacao" || d.status === "aprovado";
+      if (comGestor) {
+        if (["BU1", "BU2", "BU3", "BU4"].includes(d.bu_code)) tasks.push({ ...base, area: d.bu_code });
+      } else if (d.type === "arte") {
+        tasks.push({ ...base, area: "Design" });
+      } else if (d.type === "video") {
+        tasks.push({ ...base, area: "Edição" });
+      } else if (["BU1", "BU2", "BU3", "BU4"].includes(d.bu_code)) {
+        // Tráfego não tem coluna de função própria — permanece na BU mesmo em execução.
+        tasks.push({ ...base, area: d.bu_code });
+      }
     }
 
     const designProductions: DesignProductionSummary[] = demands
