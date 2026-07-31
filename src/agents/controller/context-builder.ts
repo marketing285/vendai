@@ -379,9 +379,13 @@ async function fetchGpiaMemories(): Promise<string> {
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const db = createClient(url, key);
+    // Só memórias dos últimos 7 dias — evita que uma escalada antiga (ex: de
+    // quando o NocoDB ainda existia) seja lida pelo MAX como situação atual.
+    const seteDiasAtras = new Date(Date.now() - 7 * 24 * 3_600_000).toISOString();
     const { data } = await db
       .from("gpia_memory")
       .select("bu, tipo, conteudo, cliente, criado_em")
+      .gte("criado_em", seteDiasAtras)
       .order("criado_em", { ascending: false })
       .limit(15);
 
