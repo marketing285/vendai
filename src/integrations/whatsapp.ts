@@ -14,7 +14,7 @@ async function request(path: string, body: object): Promise<any> {
       },
       body: JSON.stringify(body),
     });
-    return res.json();
+    return await res.json();
   } catch (err: any) {
     console.error("[whatsapp] Erro na requisição:", err?.message);
     return null;
