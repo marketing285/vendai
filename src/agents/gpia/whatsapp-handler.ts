@@ -17,6 +17,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NDB, ndbList, ndbUpdate } from "../controller/nocodb-tool";
 import { buildContext } from "../controller/context-builder";
 import { sendTextMessage } from "../../integrations/whatsapp";
+import { getSupabase } from "../../integrations/supabase";
 import { saveMemory, MemoryType } from "./memory";
 import { log } from "../controller/logger";
 import type { BU } from "./analyzer";
@@ -27,7 +28,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export interface Gestor {
   nome:  string;
   bu:    BU | null;
-  role:  "gestor" | "cmo" | "ceo";
+  role:  "gestor" | "cmo" | "ceo" | "audiovisual" | "trafego";
 }
 
 /** Remove todos os não-dígitos e sufixos WhatsApp */
@@ -52,6 +53,8 @@ function variantesPhone(num: string): string[] {
   return variants;
 }
 
+// Fallback estático — só entra em uso até a primeira carga do Supabase completar,
+// ou se o Supabase cair. A lista de verdade vem do gv_users (gestao-venda).
 export const GESTORES_LIST: { phone: string; gestor: Gestor }[] = [
   { phone: limparPhone(process.env.GPIA_PHONE_BU1     ?? "5511995320721"), gestor: { nome: "Christian", bu: "BU1", role: "gestor" } },
   { phone: limparPhone(process.env.GPIA_PHONE_ARMANDO ?? "5511994053632"), gestor: { nome: "Armando",   bu: "BU2", role: "cmo"    } },
@@ -60,6 +63,84 @@ export const GESTORES_LIST: { phone: string; gestor: Gestor }[] = [
     ? [{ phone: limparPhone(process.env.GPIA_PHONE_BRUNO), gestor: { nome: "Bruno", bu: null as BU | null, role: "ceo" as const } }]
     : []),
 ];
+
+// Emails com título especial que o cadastro do gestao-venda não guarda (só tem is_owner).
+const TITULO_ESPECIAL: Record<string, Gestor["role"]> = {
+  "armandoluizcavazana@gmail.com": "cmo",
+};
+
+/**
+ * Recarrega GESTORES_LIST a partir do gv_users/gv_user_bu_scopes/gv_user_function_scopes
+ * (Supabase, mesmo banco do gestao-venda). Roda no load do módulo e a cada 5 min — assim,
+ * incluir ou tirar alguém do WhatsApp do GPIA é só editar o usuário no gestao-venda, sem
+ * precisar mexer em código/env var aqui.
+ */
+async function carregarGestoresDoSupabase(): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  try {
+    const { data: users, error } = await supabase
+      .from("gv_users")
+      .select("id, name, email, phone, is_owner")
+      .eq("active", true)
+      .not("phone", "is", null);
+    if (error || !users?.length) return;
+
+    const ids = users.map((u) => u.id as string);
+    const [{ data: buScopes }, { data: fnScopes }] = await Promise.all([
+      supabase.from("gv_user_bu_scopes").select("user_id, gv_business_units(code)").in("user_id", ids),
+      supabase.from("gv_user_function_scopes").select("user_id, function").in("user_id", ids),
+    ]);
+
+    const buPorUsuario = new Map<string, string[]>();
+    for (const r of (buScopes ?? []) as any[]) {
+      const code = r.gv_business_units?.code as string | undefined;
+      if (!code) continue;
+      buPorUsuario.set(r.user_id, [...(buPorUsuario.get(r.user_id) ?? []), code]);
+    }
+    const fnPorUsuario = new Map<string, string[]>();
+    for (const r of (fnScopes ?? []) as any[]) {
+      fnPorUsuario.set(r.user_id, [...(fnPorUsuario.get(r.user_id) ?? []), r.function]);
+    }
+
+    const novos: { phone: string; gestor: Gestor }[] = [];
+    for (const u of users as any[]) {
+      const phone = limparPhone(u.phone as string);
+      if (!phone) continue;
+
+      if (u.is_owner) {
+        novos.push({ phone, gestor: { nome: u.name as string, bu: null, role: "ceo" } });
+        continue;
+      }
+
+      const bus = buPorUsuario.get(u.id as string) ?? [];
+      const fns = fnPorUsuario.get(u.id as string) ?? [];
+      const buUnica = bus.length === 1 && ["BU1", "BU2", "BU3"].includes(bus[0]) ? (bus[0] as BU) : null;
+
+      if (buUnica) {
+        novos.push({ phone, gestor: { nome: u.name as string, bu: buUnica, role: TITULO_ESPECIAL[u.email as string] ?? "gestor" } });
+      } else if (fns.includes("audiovisual")) {
+        novos.push({ phone, gestor: { nome: u.name as string, bu: null, role: "audiovisual" } });
+      } else if (fns.includes("trafego")) {
+        novos.push({ phone, gestor: { nome: u.name as string, bu: null, role: "trafego" } });
+      } else if (fns.includes("designer")) {
+        novos.push({ phone, gestor: { nome: u.name as string, bu: null, role: "gestor" } });
+      }
+    }
+
+    if (novos.length) {
+      GESTORES_LIST.length = 0;
+      GESTORES_LIST.push(...novos);
+      log("info", `[gpia/wpp] roster de gestores recarregado do Supabase (${novos.length} pessoas)`);
+    }
+  } catch (e: any) {
+    log("warn", `[gpia/wpp] falha ao recarregar gestores do Supabase: ${e?.message}`);
+  }
+}
+
+carregarGestoresDoSupabase();
+setInterval(carregarGestoresDoSupabase, 5 * 60 * 1000);
 
 /** Retorna o Gestor correspondente ao número, ou null se desconhecido.
  *  Tenta variantes com/sem 9° dígito brasileiro. */
@@ -158,6 +239,8 @@ async function buildContextoGestor(gestor: Gestor): Promise<string> {
 function buildSystemPrompt(gestor: Gestor): string {
   const quemEh = gestor.bu
     ? `Você está conversando com *${gestor.nome}*, ${gestor.role === "gestor" ? "gestor(a)" : gestor.role} da ${gestor.bu}.`
+    : gestor.role === "audiovisual" || gestor.role === "trafego"
+    ? `Você está conversando com *${gestor.nome}*, responsável por ${gestor.role === "audiovisual" ? "edição de vídeo" : "tráfego pago"} em todas as BUs.`
     : `Você está conversando com *${gestor.nome}* (${gestor.role}), com acesso a todas as BUs.`;
 
   return `Você é o GPIA — Gestor de Projetos IA do Grupo Venda, agência de marketing digital.
