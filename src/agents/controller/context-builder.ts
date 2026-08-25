@@ -138,6 +138,15 @@ export interface OperationalContext {
   tasks: NocoTaskSummary[];
   // Memória do GPIA — decisões e contexto enviados pelos gestores via WhatsApp
   gpiaMemories: string;
+  // Lista de BUs cadastradas (gv_business_units) — o dashboard monta os quadros
+  // dinamicamente a partir daqui, sem precisar saber os códigos de antemão.
+  businessUnits: BusinessUnitSummary[];
+}
+
+export interface BusinessUnitSummary {
+  code: string;
+  name: string;
+  gestor: string;
 }
 
 // ─────────────────────────────────────────────
@@ -271,14 +280,16 @@ async function fetchDemandasGV(): Promise<{
       // a mesma demanda na coluna da BU e na de Design/Edição simultaneamente.
       // Gestor (BU): recém-criada, ou executor já entregou e aguarda aprovação/já foi aprovada.
       // Executor (Design/Edição): em execução, ou voltou pra refazer.
+      // "—" = sem BU associada (join falhou ou cliente sem BU); qualquer código
+      // real (BU1, BU2... BUN) já veio validado pelo join com gv_business_units.
       const comGestor = d.status === "rascunho" || d.status === "aguardando_aprovacao" || d.status === "aprovado";
       if (comGestor) {
-        if (["BU1", "BU2", "BU3", "BU4"].includes(d.bu_code)) tasks.push({ ...base, area: d.bu_code });
+        if (d.bu_code !== "—") tasks.push({ ...base, area: d.bu_code });
       } else if (d.type === "arte") {
         tasks.push({ ...base, area: "Design" });
       } else if (d.type === "video") {
         tasks.push({ ...base, area: "Edição" });
-      } else if (["BU1", "BU2", "BU3", "BU4"].includes(d.bu_code)) {
+      } else if (d.bu_code !== "—") {
         // Tráfego não tem coluna de função própria — permanece na BU mesmo em execução.
         tasks.push({ ...base, area: d.bu_code });
       }
@@ -369,6 +380,27 @@ function computeMonthMetricsGV(demands: GvDemandRow[], type: "arte" | "video"): 
 }
 
 // ─────────────────────────────────────────────
+//  Supabase (gv_*) — fetch de BUs cadastradas
+// ─────────────────────────────────────────────
+async function fetchBusinessUnitsGV(): Promise<BusinessUnitSummary[]> {
+  try {
+    const db = await getGvClient();
+    if (!db) return [];
+    const { data } = await db
+      .from("gv_business_units")
+      .select("code, name, manager:gv_users!gv_business_units_manager_user_id_fkey(name)")
+      .order("code");
+    return (data ?? []).map((r: any) => ({
+      code: r.code ?? "—",
+      name: r.name ?? r.code ?? "—",
+      gestor: r.manager?.name ?? "—",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Supabase — memória do GPIA (decisões via WhatsApp)
 // ─────────────────────────────────────────────
 async function fetchGpiaMemories(): Promise<string> {
@@ -422,10 +454,11 @@ export async function buildContext(): Promise<OperationalContext> {
   }
 
   // Todos os dados em paralelo (fonte de verdade — Supabase, tabelas gv_*)
-  const [clients, demandasData, gpiaMemories] = await Promise.all([
+  const [clients, demandasData, gpiaMemories, businessUnits] = await Promise.all([
     fetchClientesGV(),
     fetchDemandasGV(),
     fetchGpiaMemories(),
+    fetchBusinessUnitsGV(),
   ]);
   base.clients           = clients;
   base.gpiaMemories      = gpiaMemories;
@@ -434,6 +467,7 @@ export async function buildContext(): Promise<OperationalContext> {
   base.edicaoProductions = demandasData.edicaoProductions;
   base.edicaoMetrics     = computeMonthMetricsGV(demandasData.demands, "video");
   base.tasks             = demandasData.tasks;
+  base.businessUnits     = businessUnits;
 
   contextCache = { data: base, expiresAt: Date.now() + 30_000 };
   return base;
@@ -617,7 +651,7 @@ async function fetchLiveContext(url: string, key: string): Promise<OperationalCo
       };
     });
 
-  return { tasksByArea, criticalSLA, awaitingApproval, blocked, hotLeads, wipByArea, alerts: [], clients, designProductions, designMetrics, edicaoProductions: [], edicaoMetrics: [], tasks: [], gpiaMemories: "" };
+  return { tasksByArea, criticalSLA, awaitingApproval, blocked, hotLeads, wipByArea, alerts: [], clients, designProductions, designMetrics, edicaoProductions: [], edicaoMetrics: [], tasks: [], gpiaMemories: "", businessUnits: [] };
 }
 
 // ─────────────────────────────────────────────
@@ -677,5 +711,6 @@ function getMockContext(): OperationalContext {
     edicaoMetrics: [],
     tasks: [],
     gpiaMemories: "",
+    businessUnits: [],
   };
 }
